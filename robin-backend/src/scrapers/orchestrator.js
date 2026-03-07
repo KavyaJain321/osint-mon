@@ -19,7 +19,7 @@ import { runTemporalAnalysis } from '../ai/temporal-analyzer.js';
 import { updatePipelineStage } from '../lib/pipeline-tracker.js';
 
 const SCRAPER_LOCK_KEY = 'scraper_running';
-const LOCK_TIMEOUT_HOURS = 2;
+const LOCK_TIMEOUT_HOURS = 0.5; // 30 minutes — scrapes typically complete in 10-20 min
 
 // Concurrency limits per crawler type
 const RSS_CONCURRENCY = 5;
