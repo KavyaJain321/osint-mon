@@ -216,10 +216,27 @@ router.get('/analytics', async (req, res) => {
         const client = await getTestClient(req);
         if (!client) return res.status(404).json({ error: 'No client found' });
 
-        const { data: analyses } = await supabase
-            .from('article_analysis')
-            .select('sentiment, importance_score')
-            .limit(200);
+        const db = mkAdmin();
+        // Get article IDs for this client first
+        const { data: clientArticles } = await db
+            .from('articles')
+            .select('id')
+            .eq('client_id', client.id)
+            .limit(500);
+        const articleIds = (clientArticles || []).map(a => a.id);
+
+        let analyses = [];
+        if (articleIds.length > 0) {
+            // Fetch in batches of 100 (supabase IN limit)
+            for (let i = 0; i < articleIds.length; i += 100) {
+                const batch = articleIds.slice(i, i + 100);
+                const { data } = await db
+                    .from('article_analysis')
+                    .select('sentiment, importance_score')
+                    .in('article_id', batch);
+                analyses.push(...(data || []));
+            }
+        }
 
         const sentiments = { positive: 0, negative: 0, neutral: 0 };
         let totalScore = 0;
@@ -254,7 +271,8 @@ router.get('/velocity', async (req, res) => {
         const days = Math.min(parseInt(req.query.days || '14', 10), 90);
         const since = new Date(Date.now() - days * 86400000).toISOString();
 
-        const { data: articles } = await supabase
+        const db = mkAdmin();
+        const { data: articles } = await db
             .from('articles')
             .select('published_at')
             .eq('client_id', client.id)

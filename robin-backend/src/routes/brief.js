@@ -106,6 +106,22 @@ router.post('/', async (req, res) => {
             }
         }
 
+        // ── Preserve pre-seeded sources before cleanup ──────────
+        // Save all existing sources for this client so we can re-insert them
+        // after the cleanup (they are the mandatory/seeded sources from Excel)
+        const { data: preSeededSources } = await admin
+            .from('sources')
+            .select('name, url, source_type, client_id, is_active')
+            .eq('client_id', clientId);
+        const savedSources = (preSeededSources || []).map(s => ({
+            name: s.name,
+            url: s.url,
+            source_type: s.source_type,
+            client_id: s.client_id,
+            is_active: s.is_active,
+        }));
+        log.system.info('Preserved pre-seeded sources for re-insertion', { clientId, count: savedSources.length });
+
         // Step 2: Delete remaining data in parallel (no FK conflicts)
         await Promise.all([
             admin.from('articles').delete().eq('client_id', clientId),
@@ -117,6 +133,16 @@ router.post('/', async (req, res) => {
             admin.from('sources').delete().eq('client_id', clientId),
             admin.from('watch_expressions').delete().eq('client_id', clientId),
         ]);
+
+        // ── Re-insert pre-seeded sources ──────────────────────────
+        if (savedSources.length > 0) {
+            const BATCH = 50;
+            for (let i = 0; i < savedSources.length; i += BATCH) {
+                const batch = savedSources.slice(i, i + BATCH);
+                await admin.from('sources').insert(batch);
+            }
+            log.system.info('Re-inserted pre-seeded sources', { clientId, count: savedSources.length });
+        }
 
         log.system.info('Stale data cleaned for new brief', { clientId });
 
