@@ -33,7 +33,7 @@ export const config = {
   frontendUrl: optionalEnv('FRONTEND_URL', 'http://localhost:3000'),
 
   // Scraper
-  scraperIntervalHours: parseInt(optionalEnv('SCRAPER_INTERVAL_HOURS', '2'), 10),
+  scraperIntervalHours: parseInt(optionalEnv('SCRAPER_INTERVAL_HOURS', '1'), 10),
 
   // Computed
   get isProduction() {

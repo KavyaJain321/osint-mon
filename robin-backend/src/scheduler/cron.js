@@ -21,10 +21,9 @@ let runBatchIntelligence;
 export function startScheduler() {
     const hours = config.scraperIntervalHours;
 
-    // ── DISABLED: All cron jobs (scraper, nightly batch, cleanup) ──
-    // Scraping is still triggered on-demand from brief submission.
-    // To re-enable automatic scheduling, change this flag to true.
-    const CRON_ENABLED = false;
+    // ── ENABLED: All cron jobs (scraper, nightly batch, cleanup) ──
+    // Scraping runs automatically + on-demand from brief submission.
+    const CRON_ENABLED = true;
 
     if (!CRON_ENABLED) {
         log.cron.info('Cron scheduler DISABLED (manual-only mode). Hours setting: ' + hours);
