@@ -378,9 +378,9 @@ export async function runScraperCycle() {
                 );
             }
 
-            // Auto-trigger batch intelligence after 60s delay for analysis worker
+            // Auto-trigger batch intelligence after 120s delay for analysis worker
             await updatePipelineStage('analysis', `Scraping done (${totalSaved} articles). Waiting for AI analysis...`, { found: totalFound, saved: totalSaved });
-            log.ai.info('Scheduling batch intelligence in 60s (' + totalSaved + ' articles saved)');
+            log.ai.info('Scheduling batch intelligence in 120s (' + totalSaved + ' articles saved)');
             setTimeout(async () => {
                 try {
                     const { runBatchIntelligence } = await import('../ai/batch-intelligence.js');
@@ -388,7 +388,7 @@ export async function runScraperCycle() {
                 } catch (e) {
                     log.ai.error('Post-scrape batch intelligence failed', { error: e.message });
                 }
-            }, 60000);
+            }, 120000);
         }
     } finally {
         await releaseLock();

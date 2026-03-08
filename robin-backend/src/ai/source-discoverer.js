@@ -281,7 +281,7 @@ async function validateSourceUrlSafe(url, timeoutMs = 5000) {
         const { default: https } = await import('https');
         const { default: http } = await import('http');
 
-        return new Promise((resolve) => {
+        const validationPromise = new Promise((resolve) => {
             try {
                 const urlObj = new URL(url);
                 const lib = urlObj.protocol === 'https:' ? https : http;
@@ -305,6 +305,14 @@ async function validateSourceUrlSafe(url, timeoutMs = 5000) {
                 resolve({ url, accessible: false, status_code: 'invalid_url' });
             }
         });
+
+        // Enforce hard timeout (handles DNS resolution hangs that the HTTP timeout doesn't catch)
+        return Promise.race([
+            validationPromise,
+            new Promise((resolve) => setTimeout(() => resolve({
+                url, accessible: false, status_code: 'hard_timeout'
+            }), timeoutMs + 1000))
+        ]);
     } catch {
         return { url, accessible: false, status_code: 'error' };
     }
