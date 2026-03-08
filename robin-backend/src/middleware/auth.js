@@ -9,7 +9,7 @@ import { log } from '../lib/logger.js';
 import { config } from '../config.js';
 
 // Separate client for token verification — avoids polluting the shared supabase singleton's session state
-const supabaseAuth = createClient(config.supabaseUrl, config.supabaseServiceKey, {
+const supabaseAuth = createClient(config.supabaseUrl, config.supabaseAnonKey || config.supabaseServiceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
 });
 
@@ -26,7 +26,8 @@ export async function authenticate(req, res, next) {
         // 2. Verify token with Supabase Auth (use dedicated auth client)
         const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token);
         if (authError || !user) {
-            return res.status(401).json({ error: 'Invalid or expired token' });
+            log.auth?.warn?.('Token verification failed', { error: authError?.message || 'No user returned', tokenSnippet: token.substring(0, 10) });
+            return res.status(401).json({ error: `Invalid or expired token: ${authError?.message || 'No user found'}` });
         }
 
         // 3. Fetch user profile from users table (use shared supabase with service key)
