@@ -15,7 +15,7 @@ const silentConsole = new VirtualConsole();
 silentConsole.sendTo(console, { omitJSDOMErrors: true });
 
 const parser = new RSSParser({
-    timeout: 25000,
+    timeout: 10000,
     headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
         'Accept': 'application/rss+xml, application/xml, text/xml, */*',
@@ -33,7 +33,13 @@ const CONCURRENT_BATCH_SIZE = 3;
  */
 export async function fetchRssFeed(url) {
     try {
-        const feed = await parser.parseURL(url);
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('RSS fetch timeout')), 12000)
+        );
+        const feed = await Promise.race([
+            parser.parseURL(url),
+            timeoutPromise
+        ]);
         return feed.items || [];
     } catch (error) {
         log.scraper.warn('RSS feed fetch failed', { url, error: error.message });

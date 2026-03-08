@@ -21,7 +21,7 @@ import { updatePipelineStage } from '../lib/pipeline-tracker.js';
 const SCRAPER_LOCK_KEY = 'scraper_running';
 const LOCK_TIMEOUT_HOURS = 0.5; // 30 minutes — scrapes typically complete in 10-20 min
 
-const RSS_CONCURRENCY = 5;
+const RSS_CONCURRENCY = 3;
 const HTML_CONCURRENCY = 3;  // keep at 3 — jsdom is memory-heavy, 5 caused OOM on Render
 const PDF_CONCURRENCY = 2;
 const YOUTUBE_CONCURRENCY = 3;
@@ -132,13 +132,17 @@ async function fetchAllActiveSources() {
     const topicWordMap = {}; // broad topic words per client
     const clientsWithActiveBrief = new Set();
 
-    for (const clientId of clientIds) {
-        keywordMap[clientId] = await getClientKeywords(clientId);
-        if (keywordMap[clientId].length > 0) {
-            clientsWithActiveBrief.add(clientId);
-            topicWordMap[clientId] = buildTopicWords(keywordMap[clientId]);
+    const keywordResults = await Promise.all(
+        clientIds.map(id => getClientKeywords(id))
+    );
+
+    clientIds.forEach((id, i) => {
+        keywordMap[id] = keywordResults[i];
+        if (keywordResults[i].length > 0) {
+            clientsWithActiveBrief.add(id);
+            topicWordMap[id] = buildTopicWords(keywordResults[i]);
         }
-    }
+    });
 
     log.scraper.info('Keywords loaded from active briefs', {
         clients: clientIds.length,
@@ -168,7 +172,13 @@ async function processBatch(sources, crawlFn, concurrency) {
         );
 
         for (const r of batchResults) {
-            if (r.status === 'fulfilled') results.push(r.value);
+            if (r.status === 'fulfilled') {
+                results.push(r.value);
+            } else {
+                log.scraper.error('Crawler threw unhandled error', {
+                    reason: r.reason?.message || String(r.reason)
+                });
+            }
         }
     }
 
@@ -243,7 +253,13 @@ async function crawlWithFallback(source, keywords) {
     }
 
     // Try primary crawler
-    const result = await crawlFn(source, keywords);
+    let result;
+    try {
+        result = await crawlFn(source, keywords);
+    } catch (err) {
+        log.scraper.error('Primary crawler threw', { source: source.name, error: err.message });
+        result = { sourceId: source.id, articlesFound: 0, articlesSaved: 0, errors: [{ error: err.message }] };
+    }
 
     // Check if primary failed (has errors AND found 0 articles)
     const primaryFailed = result.errors.length > 0 && result.articlesFound === 0;
@@ -391,17 +407,16 @@ export async function runScraperCycle() {
                 );
             }
 
-            // Auto-trigger batch intelligence after 120s delay for analysis worker
+            // Run batch intelligence directly (awaited) — setTimeout was unreliable on Render
             await updatePipelineStage('analysis', `Scraping done (${totalSaved} articles). Waiting for AI analysis...`, { found: totalFound, saved: totalSaved });
-            log.ai.info('Scheduling batch intelligence in 120s (' + totalSaved + ' articles saved)');
-            setTimeout(async () => {
-                try {
-                    const { runBatchIntelligence } = await import('../ai/batch-intelligence.js');
-                    await runBatchIntelligence();
-                } catch (e) {
-                    log.ai.error('Post-scrape batch intelligence failed', { error: e.message });
-                }
-            }, 120000);
+            log.ai.info('Scraping done (' + totalSaved + ' articles). Starting batch intelligence in 10s...');
+            await new Promise(r => setTimeout(r, 10000)); // short breathing room for DB writes
+            try {
+                const { runBatchIntelligence } = await import('../ai/batch-intelligence.js');
+                await runBatchIntelligence();
+            } catch (e) {
+                log.ai.error('Post-scrape batch intelligence failed', { error: e.message });
+            }
         }
     } finally {
         await releaseLock();

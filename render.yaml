@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: robin-backend
+    env: node
+    rootDir: robin-backend
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3001"
+
+  - type: web
+    name: robin-frontend
+    env: node
+    rootDir: robin-frontend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production

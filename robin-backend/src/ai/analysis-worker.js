@@ -325,6 +325,13 @@ export function startAnalysisWorker() {
                 return;
             }
 
+            if ((articles || []).length > 0) {
+                log.ai.info('Analysis worker processing batch', {
+                    count: articles.length,
+                    oldestCreated: articles[0]?.created_at
+                });
+            }
+
             // Also poll content_items for non-article types that haven't been analyzed
             let contentItems = [];
             try {
@@ -336,8 +343,13 @@ export function startAnalysisWorker() {
                     .order('created_at', { ascending: true })
                     .limit(BATCH_SIZE);
                 contentItems = ciData || [];
-            } catch {
-                // content_items table may not exist
+            } catch (e) {
+                // Only suppress "table doesn't exist" errors — log everything else
+                if (!e.message?.includes('does not exist') && !e.message?.includes('relation')) {
+                    log.ai.warn('content_items poll error (non-critical)', {
+                        error: e.message?.substring(0, 100)
+                    });
+                }
             }
 
             const allPending = [...(articles || []), ...contentItems];

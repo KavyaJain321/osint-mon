@@ -90,26 +90,35 @@ function stripHeavyTags(html) {
         .replace(/<style[\s\S]*?<\/style>/gi, '')
         .replace(/<script[\s\S]*?<\/script>/gi, '')
         .replace(/<svg[\s\S]*?<\/svg>/gi, '')
-        .replace(/<noscript[\s\S]*?<\/noscript>/gi, '');
+        .replace(/<noscript[\s\S]*?<\/noscript>/gi, '')
+        .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
+        .replace(/<link[^>]*>/gi, '');
 }
 
 function extractContent(html, url) {
+    let dom;
     try {
         const stripped = stripHeavyTags(html);
-        const dom = new JSDOM(stripped, { url, virtualConsole: silentConsole });
+        dom = new JSDOM(stripped, { url, virtualConsole: silentConsole });
         const reader = new Readability(dom.window.document);
         const article = reader.parse();
 
-        if (article && article.textContent) {
-            return {
-                title: article.title || '',
-                content: article.textContent.replace(/\s+/g, ' ').trim().substring(0, 15000),
-                publishedAt: new Date(),
-            };
-        }
-        return null;
+        // Extract what we need BEFORE clearing
+        const result = article?.textContent ? {
+            title: article.title || '',
+            content: article.textContent.replace(/\s+/g, ' ').trim().substring(0, 15000),
+            publishedAt: new Date(),
+        } : null;
+
+        return result;
     } catch {
         return null;
+    } finally {
+        // Explicitly release DOM to help GC — critical for Render memory limits
+        if (dom) {
+            try { dom.window.close(); } catch { }
+            dom = null;
+        }
     }
 }
 

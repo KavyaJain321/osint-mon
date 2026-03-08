@@ -95,6 +95,7 @@ async function getTestClient(req) {
         } catch { /* fall through to default */ }
     }
     // Fallback: first client (unauthenticated / dev)
+    log.api.warn('getTestClient: no auth token, falling back to first client (unauthenticated request)');
     const { data } = await db
         .from('clients')
         .select('id, name, industry')
@@ -1241,11 +1242,11 @@ router.get('/intelligence', async (req, res) => {
         if (!client) return res.status(404).json({ error: 'No client found' });
 
         const [threatRes, signalsRes, entitiesRes, sourceRes, narrativeRes, inferenceRes] = await Promise.all([
-            supabase.from('threat_assessments').select('*').eq('client_id', client.id).order('assessment_date', { ascending: false }).limit(1).single(),
+            supabase.from('threat_assessments').select('*').eq('client_id', client.id).order('assessment_date', { ascending: false }).limit(1).maybeSingle(),
             supabase.from('intelligence_signals').select('*').eq('client_id', client.id).eq('is_acknowledged', false).order('created_at', { ascending: false }).limit(20),
             supabase.from('entity_profiles').select('*').eq('client_id', client.id).order('influence_score', { ascending: false }).limit(20),
             supabase.from('source_reliability').select('*, sources!inner(name, url)').eq('client_id', client.id),
-            supabase.from('narrative_patterns').select('*').eq('client_id', client.id).order('pattern_date', { ascending: false }).limit(1).single(),
+            supabase.from('narrative_patterns').select('*').eq('client_id', client.id).order('pattern_date', { ascending: false }).limit(1).maybeSingle(),
             supabase.from('inference_chains').select('*').eq('client_id', client.id).order('created_at', { ascending: false }).limit(5),
         ]);
 
@@ -1534,10 +1535,10 @@ router.get('/intelligence-brief', async (req, res) => {
             supabase.from('client_briefs')
                 .select('id, title, problem_statement, status, created_at, activated_at, industry, risk_domains, entities_of_interest, geographic_focus')
                 .eq('client_id', client.id).eq('status', 'active')
-                .order('created_at', { ascending: false }).limit(1).single(),
+                .order('created_at', { ascending: false }).limit(1).maybeSingle(),
             supabase.from('threat_assessments')
                 .select('*').eq('client_id', client.id)
-                .order('assessment_date', { ascending: false }).limit(1).single(),
+                .order('assessment_date', { ascending: false }).limit(1).maybeSingle(),
             supabase.from('intelligence_signals')
                 .select('*').eq('client_id', client.id)
                 .eq('is_acknowledged', false)
@@ -1547,7 +1548,7 @@ router.get('/intelligence-brief', async (req, res) => {
                 .order('influence_score', { ascending: false }).limit(50),
             supabase.from('narrative_patterns')
                 .select('*').eq('client_id', client.id)
-                .order('pattern_date', { ascending: false }).limit(1).single(),
+                .order('pattern_date', { ascending: false }).limit(1).maybeSingle(),
             supabase.from('inference_chains')
                 .select('*').eq('client_id', client.id)
                 .order('created_at', { ascending: false }).limit(10),

@@ -30,6 +30,7 @@ import adminRouter from './routes/admin.js';
 // System imports
 import { startScheduler } from './scheduler/cron.js';
 import { startAnalysisWorker } from './ai/analysis-worker.js';
+import { loadPipelineProgress } from './lib/pipeline-tracker.js';
 import { supabase } from './lib/supabase.js';
 import { authenticate } from './middleware/auth.js';
 import { requireRole } from './middleware/roleCheck.js';
@@ -79,6 +80,9 @@ if (!config.isProduction) {
     const { default: devTestRouter } = await import('./routes/dev-test.js');
     app.use('/api/test', devTestRouter);
     log.system.info('Dev-test routes mounted at /api/test');
+    if (config.isProduction) {
+        log.system.warn('WARNING: Dev-test routes mounted in production — migrate to authenticated routes');
+    }
 }
 
 // ── Public Auth Routes ──────────────────────────────────────
@@ -176,6 +180,9 @@ const server = app.listen(config.port, async () => {
     } catch (e) {
         log.system.warn('Startup: could not clear locks (system_state may not exist yet)', { error: e.message });
     }
+
+    await loadPipelineProgress();
+    log.system.info('Pipeline progress restored from DB');
 
     startScheduler();
     startAnalysisWorker();
