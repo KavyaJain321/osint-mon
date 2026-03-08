@@ -58,14 +58,16 @@ async function extractPdfContent(buffer, url) {
 
 // ── PDF download ─────────────────────────────────────────────
 async function downloadPdf(pdfUrl) {
+    let timeout;
     try {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+        timeout = setTimeout(() => controller.abort(), 15000);
         const response = await fetch(pdfUrl, {
             signal: controller.signal,
             headers: { 'User-Agent': USER_AGENT },
         });
         clearTimeout(timeout);
+
         if (!response.ok) return null;
 
         // Verify it is actually a PDF
@@ -74,8 +76,15 @@ async function downloadPdf(pdfUrl) {
             pdfUrl.toLowerCase().split('?')[0].endsWith('.pdf');
         if (!isPdf) return null;
 
-        const size = parseInt(response.headers.get('content-length') || '0');
-        if (size > MAX_FILE_SIZE) return null;
+        const contentLength = parseInt(response.headers.get('content-length') || '0');
+        const MAX_PDF_SIZE = 10 * 1024 * 1024; // 10 MB limit
+        if (contentLength > MAX_PDF_SIZE) {
+            log.scraper.warn('PDF too large, skipping', {
+                url: pdfUrl.substring(0, 80),
+                sizeMB: Math.round(contentLength / 1024 / 1024)
+            });
+            return null;
+        }
 
         const buffer = Buffer.from(await response.arrayBuffer());
         if (buffer.byteLength > MAX_FILE_SIZE) return null;
@@ -83,6 +92,7 @@ async function downloadPdf(pdfUrl) {
         if (buffer.length > 4 && buffer.toString('ascii', 0, 4) !== '%PDF') return null;
         return buffer;
     } catch {
+        if (timeout) clearTimeout(timeout);
         return null;
     }
 }
@@ -306,7 +316,7 @@ async function extractPdfLinksWithBrowser(url) {
  * @param {string[]} keywords - Watch keywords
  * @returns {Promise<{sourceId, articlesFound, articlesSaved, errors}>}
  */
-export async function crawlPdfSource(source, keywords) {
+async function crawlPdfSourceInternal(source, keywords) {
     const result = { sourceId: source.id, articlesFound: 0, articlesSaved: 0, errors: [] };
 
     try {
@@ -432,4 +442,23 @@ export async function crawlPdfSource(source, keywords) {
     }
 
     return result;
+}
+
+export async function crawlPdfSource(source, keywords) {
+    const result = { sourceId: source.id, articlesFound: 0, articlesSaved: 0, errors: [] };
+    try {
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('PDF source timeout after 60s')), 60000)
+        );
+        return await Promise.race([
+            crawlPdfSourceInternal(source, keywords),
+            timeoutPromise,
+        ]);
+    } catch (err) {
+        log.scraper.warn('PDF source timed out or crashed', {
+            source: source.name || source.url,
+            error: err.message,
+        });
+        return { ...result, errors: [{ error: err.message }] };
+    }
 }
