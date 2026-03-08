@@ -12,7 +12,7 @@ import { log } from '../lib/logger.js';
 
 const MAX_LINKS = 30;
 const MAX_ARTICLES = 20;
-const CONCURRENT_BATCH_SIZE = 3;
+const CONCURRENT_BATCH_SIZE = 1; // Sequential per source — prevents OOM with jsdom
 const USER_AGENT = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
 
 /**
@@ -81,9 +81,22 @@ export function extractArticleLinks(html, baseUrl) {
 const silentConsole = new VirtualConsole();
 silentConsole.sendTo(console, { omitJSDOMErrors: true });
 
+/**
+ * Strip heavy tags (style, script, svg, noscript) before jsdom parsing.
+ * This dramatically reduces DOM memory usage — jsdom stores everything in RAM.
+ */
+function stripHeavyTags(html) {
+    return html
+        .replace(/<style[\s\S]*?<\/style>/gi, '')
+        .replace(/<script[\s\S]*?<\/script>/gi, '')
+        .replace(/<svg[\s\S]*?<\/svg>/gi, '')
+        .replace(/<noscript[\s\S]*?<\/noscript>/gi, '');
+}
+
 function extractContent(html, url) {
     try {
-        const dom = new JSDOM(html, { url, virtualConsole: silentConsole });
+        const stripped = stripHeavyTags(html);
+        const dom = new JSDOM(stripped, { url, virtualConsole: silentConsole });
         const reader = new Readability(dom.window.document);
         const article = reader.parse();
 

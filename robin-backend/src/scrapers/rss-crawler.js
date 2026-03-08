@@ -58,12 +58,20 @@ export async function fetchFullArticleContent(url) {
         clearTimeout(timeout);
 
         const html = await response.text();
-        const dom = new JSDOM(html, { url, virtualConsole: silentConsole });
+        // Strip style/script/svg before jsdom — dramatically reduces DOM memory usage
+        const stripped = html
+            .replace(/<style[\s\S]*?<\/style>/gi, '')
+            .replace(/<script[\s\S]*?<\/script>/gi, '')
+            .replace(/<svg[\s\S]*?<\/svg>/gi, '')
+            .replace(/<noscript[\s\S]*?<\/noscript>/gi, '');
+        const dom = new JSDOM(stripped, { url, virtualConsole: silentConsole });
 
-        // Extract og:image — works for almost every modern news site
-        const ogImage = dom.window.document.querySelector('meta[property="og:image"]')?.getAttribute('content')
-            || dom.window.document.querySelector('meta[name="twitter:image"]')?.getAttribute('content')
-            || null;
+        // Extract og:image from original html (regex, avoids DOM overhead)
+        const ogImageMatch = html.match(/property=["']og:image["'][^>]*content=["']([^"']+)["']/)
+            || html.match(/content=["']([^"']+)["'][^>]*property=["']og:image["']/);
+        const twitterImageMatch = html.match(/name=["']twitter:image["'][^>]*content=["']([^"']+)["']/)
+            || html.match(/content=["']([^"']+)["'][^>]*name=["']twitter:image["']/);
+        const ogImage = ogImageMatch?.[1] || twitterImageMatch?.[1] || null;
 
         const reader = new Readability(dom.window.document);
         const article = reader.parse();
