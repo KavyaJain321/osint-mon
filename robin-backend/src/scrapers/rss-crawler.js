@@ -4,11 +4,15 @@
 // ============================================================
 
 import RSSParser from 'rss-parser';
-import { JSDOM } from 'jsdom';
+import { JSDOM, VirtualConsole } from 'jsdom';
 import { Readability } from '@mozilla/readability';
 import { matchArticle, topicRelevant, cleanArticleContent } from '../services/keyword-matcher.js';
 import { saveArticle, updateSourceScrapeStatus } from '../services/article-saver.js';
 import { log } from '../lib/logger.js';
+
+// Silent virtualConsole — suppresses noisy jsdom CSS parse errors from Render logs
+const silentConsole = new VirtualConsole();
+silentConsole.sendTo(console, { omitJSDOMErrors: true });
 
 const parser = new RSSParser({
     timeout: 25000,
@@ -45,7 +49,7 @@ export async function fetchRssFeed(url) {
 export async function fetchFullArticleContent(url) {
     try {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 15000);
+        const timeout = setTimeout(() => controller.abort(), 10000);
 
         const response = await fetch(url, {
             signal: controller.signal,
@@ -54,7 +58,7 @@ export async function fetchFullArticleContent(url) {
         clearTimeout(timeout);
 
         const html = await response.text();
-        const dom = new JSDOM(html, { url });
+        const dom = new JSDOM(html, { url, virtualConsole: silentConsole });
 
         // Extract og:image — works for almost every modern news site
         const ogImage = dom.window.document.querySelector('meta[property="og:image"]')?.getAttribute('content')

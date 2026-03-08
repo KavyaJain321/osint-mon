@@ -4,7 +4,7 @@
 // ============================================================
 
 import * as cheerio from 'cheerio';
-import { JSDOM } from 'jsdom';
+import { JSDOM, VirtualConsole } from 'jsdom';
 import { Readability } from '@mozilla/readability';
 import { matchArticle, topicRelevant } from '../services/keyword-matcher.js';
 import { saveArticle, updateSourceScrapeStatus } from '../services/article-saver.js';
@@ -20,10 +20,10 @@ const USER_AGENT = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.c
  * @param {string} url - Page URL
  * @returns {Promise<string|null>}
  */
-export async function fetchPage(url) {
+export async function fetchPage(url, timeoutMs = 10000) {
     try {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 20000);
+        const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
         const response = await fetch(url, {
             signal: controller.signal,
@@ -77,9 +77,13 @@ export function extractArticleLinks(html, baseUrl) {
 /**
  * Extract article content from HTML using Readability.
  */
+// Silent virtualConsole — suppresses noisy jsdom CSS parse errors from Render logs
+const silentConsole = new VirtualConsole();
+silentConsole.sendTo(console, { omitJSDOMErrors: true });
+
 function extractContent(html, url) {
     try {
-        const dom = new JSDOM(html, { url });
+        const dom = new JSDOM(html, { url, virtualConsole: silentConsole });
         const reader = new Readability(dom.window.document);
         const article = reader.parse();
 
