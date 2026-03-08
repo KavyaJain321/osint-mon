@@ -201,11 +201,11 @@ export async function analyzeArticle(article) {
             ...baseData,
             analyzer_used: analyzerUsed,
             model_used: modelUsed,
-        });
+        }, { onConflict: 'article_id' });
 
         if (fullErr && fullErr.message.includes('analyzer_used')) {
             // Columns don't exist yet — save without them
-            const { error: fallbackErr } = await supabase.from('article_analysis').upsert(baseData);
+            const { error: fallbackErr } = await supabase.from('article_analysis').upsert(baseData, { onConflict: 'article_id' });
             analysisError = fallbackErr;
             log.ai.debug('[ANALYSIS] Tracking columns not in DB yet — saving without');
         } else {
