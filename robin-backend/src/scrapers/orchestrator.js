@@ -21,14 +21,14 @@ import { updatePipelineStage } from '../lib/pipeline-tracker.js';
 const SCRAPER_LOCK_KEY = 'scraper_running';
 const LOCK_TIMEOUT_HOURS = 0.5; // 30 minutes — scrapes typically complete in 10-20 min
 
-const RSS_CONCURRENCY = 3;
-const HTML_CONCURRENCY = 2;  // keep at 2 — jsdom is memory-heavy, 5 caused OOM on Render
-const PDF_CONCURRENCY = 2;
-const YOUTUBE_CONCURRENCY = 3;
+const RSS_CONCURRENCY = 2;
+const HTML_CONCURRENCY = 1;  // keep at 1 — jsdom is memory-heavy
+const PDF_CONCURRENCY = 1;
+const YOUTUBE_CONCURRENCY = 1;
 
 // Max HTML sources per cycle — prevents OOM crashes and 30+ minute scrape runs.
 // Sources rotate across hourly cron cycles so all 480+ get covered over time.
-const MAX_HTML_PER_CYCLE = 75;
+const MAX_HTML_PER_CYCLE = 30;
 
 // Fallback chain: when primary crawler fails, try the next type
 const FALLBACK_CHAIN = {
@@ -315,6 +315,12 @@ async function crawlWithFallback(source, keywords) {
 export async function runScraperCycle() {
     const startTime = Date.now();
     log.scraper.info('=== Scraper cycle started ===');
+
+    // Hint to GC before starting heavy scrape cycle
+    if (global.gc) {
+        global.gc();
+        log.scraper.info('GC triggered before scrape cycle');
+    }
 
     const locked = await acquireLock();
     if (!locked) return;

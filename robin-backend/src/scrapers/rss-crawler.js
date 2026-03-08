@@ -23,8 +23,8 @@ const parser = new RSSParser({
     },
 });
 
-const MAX_ARTICLES_PER_RUN = 50;
-const CONCURRENT_BATCH_SIZE = 3;
+const MAX_ARTICLES_PER_RUN = 20;
+const CONCURRENT_BATCH_SIZE = 1;
 
 /**
  * Fetch and parse an RSS feed.
@@ -87,7 +87,7 @@ export async function fetchFullArticleContent(url) {
             const fallbackContent = body?.textContent?.replace(/\s+/g, ' ').trim() || '';
             return {
                 title: dom.window.document.title || '',
-                content: fallbackContent.substring(0, 15000),
+                content: fallbackContent.substring(0, 5000),
                 imageUrl: ogImage,
                 publishedAt: new Date(),
             };
@@ -95,7 +95,7 @@ export async function fetchFullArticleContent(url) {
 
         return {
             title: article.title || '',
-            content: article.textContent.replace(/\s+/g, ' ').trim().substring(0, 15000),
+            content: article.textContent.replace(/\s+/g, ' ').trim().substring(0, 5000),
             imageUrl: ogImage,
             publishedAt: new Date(),
         };

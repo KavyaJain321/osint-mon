@@ -9,9 +9,9 @@ import { generateAndStoreEmbedding } from '../services/embedding.js';
 import { analyzeLocally } from '../services/local-analyzer.js';
 import { log } from '../lib/logger.js';
 
-const POLL_INTERVAL_MS = 30000;
-const BATCH_SIZE = 5;
-const DELAY_BETWEEN_MS = 800;
+const POLL_INTERVAL_MS = 60000;
+const BATCH_SIZE = 2;
+const DELAY_BETWEEN_MS = 2000;
 let analysisCount = 0;
 
 /**

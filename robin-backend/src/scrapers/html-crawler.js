@@ -10,8 +10,8 @@ import { matchArticle, topicRelevant } from '../services/keyword-matcher.js';
 import { saveArticle, updateSourceScrapeStatus } from '../services/article-saver.js';
 import { log } from '../lib/logger.js';
 
-const MAX_LINKS = 30;
-const MAX_ARTICLES = 20;
+const MAX_LINKS = 15;
+const MAX_ARTICLES = 10;
 const CONCURRENT_BATCH_SIZE = 1; // Sequential per source — prevents OOM with jsdom
 const USER_AGENT = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
 
@@ -115,7 +115,7 @@ function extractContent(html, url) {
         // Extract what we need BEFORE clearing
         const result = article?.textContent ? {
             title: article.title || '',
-            content: article.textContent.replace(/\s+/g, ' ').trim().substring(0, 15000),
+            content: article.textContent.replace(/\s+/g, ' ').trim().substring(0, 5000),
             publishedAt: new Date(),
         } : null;
 
