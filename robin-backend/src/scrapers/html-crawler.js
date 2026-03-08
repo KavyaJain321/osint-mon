@@ -20,20 +20,29 @@ const USER_AGENT = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.c
  * @param {string} url - Page URL
  * @returns {Promise<string|null>}
  */
-export async function fetchPage(url, timeoutMs = 10000) {
+export async function fetchPage(url, timeoutMs = 8000) {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const abortTimer = setTimeout(() => controller.abort(), timeoutMs);
+
+    const fetchPromise = fetch(url, {
+        signal: controller.signal,
+        headers: { 'User-Agent': USER_AGENT },
+    }).then(r => r.text());
+
+    const killPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error(`fetchPage hard timeout ${timeoutMs}ms`)), timeoutMs + 2000)
+    );
+
     try {
-        const response = await fetch(url, {
-            signal: controller.signal,
-            headers: { 'User-Agent': USER_AGENT },
-        });
-        const text = await response.text();
-        clearTimeout(timeout);
+        const text = await Promise.race([fetchPromise, killPromise]);
+        clearTimeout(abortTimer);
         return text;
     } catch (error) {
-        clearTimeout(timeout);
-        log.scraper.warn('Page fetch failed', { url: url.substring(0, 80), error: error.message });
+        clearTimeout(abortTimer);
+        log.scraper.warn('Page fetch failed', {
+            url: url.substring(0, 80),
+            error: error.message,
+        });
         return null;
     }
 }
