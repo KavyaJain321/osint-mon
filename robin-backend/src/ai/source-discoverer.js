@@ -97,10 +97,42 @@ const SOURCE_LIBRARY = {
         { name: 'TRT World', url: 'https://www.youtube.com/@trtworld', source_type: 'youtube', expected_hit_rate: 'medium' },
     ],
     india: [
+        // Major national RSS feeds (verified working)
         { name: 'Economic Times', url: 'https://economictimes.indiatimes.com/rssfeedstopstories.cms', source_type: 'rss', expected_hit_rate: 'high' },
-        { name: 'Moneycontrol', url: 'https://www.moneycontrol.com/rss/MCtopnews.xml', source_type: 'rss', expected_hit_rate: 'high' },
+        { name: 'The Hindu', url: 'https://www.thehindu.com/feeder/default.rss', source_type: 'rss', expected_hit_rate: 'high' },
+        { name: 'India Today', url: 'https://www.indiatoday.in/rss/home', source_type: 'rss', expected_hit_rate: 'high' },
+        { name: 'Scroll.in', url: 'https://scroll.in/feed', source_type: 'rss', expected_hit_rate: 'high' },
+        { name: 'The Wire', url: 'https://thewire.in/feed', source_type: 'rss', expected_hit_rate: 'high' },
+        { name: 'Hindustan Times', url: 'https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml', source_type: 'rss', expected_hit_rate: 'high' },
+        // HTML sources
+        { name: 'NDTV India', url: 'https://www.ndtv.com/india', source_type: 'html', expected_hit_rate: 'high' },
+        { name: 'Times of India', url: 'https://timesofindia.indiatimes.com/india', source_type: 'html', expected_hit_rate: 'high' },
+        { name: 'Deccan Herald', url: 'https://www.deccanherald.com/national', source_type: 'html', expected_hit_rate: 'medium' },
+        { name: 'Press Trust of India', url: 'https://www.ptinews.com/news/national/', source_type: 'html', expected_hit_rate: 'high' },
+        // Google News RSS for Odisha-specific terms (always fresh)
+        { name: 'Google News: Odisha', url: 'https://news.google.com/rss/search?q=Odisha&hl=en-IN&gl=IN&ceid=IN:en', source_type: 'rss', expected_hit_rate: 'high' },
+        { name: 'Google News: Odisha government', url: 'https://news.google.com/rss/search?q=Odisha+government&hl=en-IN&gl=IN&ceid=IN:en', source_type: 'rss', expected_hit_rate: 'high' },
+        { name: 'Google News: Mahanadi', url: 'https://news.google.com/rss/search?q=Mahanadi+river+Odisha&hl=en-IN&gl=IN&ceid=IN:en', source_type: 'rss', expected_hit_rate: 'medium' },
+        { name: 'Google News: Odisha mining', url: 'https://news.google.com/rss/search?q=Odisha+mining+environment&hl=en-IN&gl=IN&ceid=IN:en', source_type: 'rss', expected_hit_rate: 'medium' },
+        // YouTube
         { name: 'NDTV YouTube', url: 'https://www.youtube.com/@ndtv', source_type: 'youtube', expected_hit_rate: 'high' },
-        { name: 'RBI Notifications', url: 'https://www.rbi.org.in/Scripts/NotificationUser.aspx', source_type: 'pdf', expected_hit_rate: 'high' },
+        { name: 'India Today YouTube', url: 'https://www.youtube.com/@IndiaToday', source_type: 'youtube', expected_hit_rate: 'high' },
+        // PDF/Government
+        { name: 'PIB India', url: 'https://pib.gov.in/allRel.aspx', source_type: 'html', expected_hit_rate: 'high' },
+        { name: 'RBI Notifications', url: 'https://www.rbi.org.in/Scripts/NotificationUser.aspx', source_type: 'pdf', expected_hit_rate: 'medium' },
+    ],
+    government: [
+        // For government industry briefs — especially India state government
+        { name: 'Google News: Odisha BJP', url: 'https://news.google.com/rss/search?q=Odisha+BJP+governance&hl=en-IN&gl=IN&ceid=IN:en', source_type: 'rss', expected_hit_rate: 'medium' },
+        { name: 'The Hindu National', url: 'https://www.thehindu.com/feeder/default.rss', source_type: 'rss', expected_hit_rate: 'high' },
+        { name: 'Scroll.in', url: 'https://scroll.in/feed', source_type: 'rss', expected_hit_rate: 'high' },
+        { name: 'The Wire', url: 'https://thewire.in/feed', source_type: 'rss', expected_hit_rate: 'high' },
+        { name: 'Economic Times India', url: 'https://economictimes.indiatimes.com/rssfeedstopstories.cms', source_type: 'rss', expected_hit_rate: 'high' },
+        { name: 'PIB India', url: 'https://pib.gov.in/allRel.aspx', source_type: 'html', expected_hit_rate: 'high' },
+        { name: 'NDTV India', url: 'https://www.ndtv.com/india', source_type: 'html', expected_hit_rate: 'high' },
+        { name: 'Times of India', url: 'https://timesofindia.indiatimes.com/india', source_type: 'html', expected_hit_rate: 'high' },
+        { name: 'NDTV YouTube', url: 'https://www.youtube.com/@ndtv', source_type: 'youtube', expected_hit_rate: 'high' },
+        { name: 'India Today YouTube', url: 'https://www.youtube.com/@IndiaToday', source_type: 'youtube', expected_hit_rate: 'high' },
     ],
     uk: [
         { name: 'BBC UK', url: 'https://feeds.bbci.co.uk/news/uk/rss.xml', source_type: 'rss', expected_hit_rate: 'medium' },
