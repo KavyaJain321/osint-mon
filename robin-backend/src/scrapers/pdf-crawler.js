@@ -21,7 +21,7 @@ const MAX_PDF_LINKS = 10;
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const CONCURRENT_DOWNLOADS = 2;
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
-const FETCH_TIMEOUT = 30000;
+const FETCH_TIMEOUT = 12000; // Fail fast on slow servers
 
 // ── PDF text extraction ──────────────────────────────────────
 /**
@@ -260,7 +260,7 @@ async function extractPdfLinksWithBrowser(url) {
             }
         });
 
-        await page.goto(url, { waitUntil: 'networkidle0', timeout: 45000 });
+        await page.goto(url, { waitUntil: 'networkidle0', timeout: 20000 });
 
         // Wait for dynamic content
         await new Promise(resolve => setTimeout(resolve, 2000));
