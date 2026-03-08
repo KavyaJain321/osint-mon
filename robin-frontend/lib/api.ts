@@ -132,19 +132,31 @@ export const analyticsApi = {
     }),
 };
 
+// Shared cache — deduplicates parallel calls within 30s window
+let _intellCache: Promise<unknown> | null = null;
+
+function getCachedIntelligence(): Promise<unknown> {
+    if (!_intellCache) {
+        _intellCache = testApi.intelligence().finally(() => {
+            setTimeout(() => { _intellCache = null; }, 30000);
+        });
+    }
+    return _intellCache;
+}
+
 /** Intelligence — all analysis data from the full intelligence endpoint */
 export const intelligenceApi = {
     /** Returns { threat_assessment, signals, entity_profiles, entity_graph, source_reliability, narrative } */
-    overview: () => testApi.intelligence(),
+    overview: () => getCachedIntelligence(),
 
     signals: (limit = 50) =>
-        testApi.intelligence().then((d) => {
+        getCachedIntelligence().then((d) => {
             const data = d as { signals?: unknown[] };
             return { data: (data.signals || []).slice(0, limit) };
         }),
 
     patterns: () =>
-        testApi.intelligence().then((d) => {
+        getCachedIntelligence().then((d) => {
             const data = d as { threat_assessment?: { patterns?: unknown[] }; narrative?: unknown };
             return {
                 data: data.threat_assessment?.patterns || [],
@@ -153,13 +165,13 @@ export const intelligenceApi = {
         }),
 
     chains: () =>
-        testApi.intelligence().then((d) => {
+        getCachedIntelligence().then((d) => {
             const data = d as { threat_assessment?: { inference_chains?: unknown[] } };
             return { data: data.threat_assessment?.inference_chains || [] };
         }),
 
     entities: (limit = 40) =>
-        testApi.intelligence().then((d) => {
+        getCachedIntelligence().then((d) => {
             const data = d as { entity_profiles?: unknown[] };
             return { data: (data.entity_profiles || []).slice(0, limit) };
         }),
@@ -168,14 +180,14 @@ export const intelligenceApi = {
         testApi.sources().then((d) => ({ data: (d as { data?: unknown[] }).data || [] })),
 
     narratives: (limit = 6) =>
-        testApi.intelligence().then((d) => {
+        getCachedIntelligence().then((d) => {
             const data = d as { narrative?: unknown };
             const narrative = data.narrative;
             return { data: narrative ? [narrative] : [] };
         }),
 
     threatAssessment: () =>
-        testApi.intelligence().then((d) => {
+        getCachedIntelligence().then((d) => {
             const data = d as { threat_assessment?: unknown };
             return { data: data.threat_assessment || null };
         }),
