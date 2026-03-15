@@ -12,6 +12,44 @@ import { generateEmbedding } from '../services/embedding.js';
 import { createClient as _createAuthClient } from '@supabase/supabase-js';
 import { config as _config } from '../config.js';
 import { getPipelineProgress } from '../lib/pipeline-tracker.js';
+import puppeteer from 'puppeteer-core';
+import { generateMediaReportHtml } from '../lib/pdf-template.js';
+
+/**
+ * Get browser instance for PDF generation.
+ * Tries local Chrome first (for dev), falls back to @sparticuz/chromium (for cloud).
+ */
+async function getBrowserInstance() {
+    const fs = await import('fs');
+    const possiblePaths = [
+        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+        process.env.LOCALAPPDATA + '\\Google\\Chrome\\Application\\chrome.exe',
+        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+        '/usr/bin/google-chrome',
+        '/usr/bin/chromium-browser',
+        '/usr/bin/chromium',
+    ];
+    const chromePath = process.env.CHROME_PATH || possiblePaths.find(p => p && fs.existsSync(p));
+    if (chromePath) {
+        console.log('[PDF] Using local Chrome:', chromePath);
+        return puppeteer.launch({
+            headless: 'new',
+            executablePath: chromePath,
+            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+        });
+    }
+    // Fallback: serverless chromium (cloud/Render)
+    const chromium = await import('@sparticuz/chromium');
+    const execPath = await chromium.default.executablePath();
+    return puppeteer.launch({
+        args: chromium.default.args,
+        defaultViewport: chromium.default.defaultViewport,
+        executablePath: execPath,
+        headless: chromium.default.headless,
+    });
+}
+
 
 // Fresh isolated admin client — created per request to avoid GoTrue session
 // contamination from the shared singleton. Uses service role, bypasses all RLS.
@@ -461,6 +499,156 @@ router.post('/generate-report', async (req, res) => {
     } catch (err) {
         console.error('[REPORT] Error:', err.message);
         res.status(500).json({ error: err.message });
+    }
+});
+
+
+// ── helpers for media report ────────────────────────────────────────────────
+const ODISHA_KW = [
+    'odisha','odia','orissa','bhubaneswar','cuttack','puri','rourkela','sambalpur',
+    'berhampur','balasore','jharsuguda','angul','kalahandi','koraput','mayurbhanj',
+    'sundargarh','kendrapara','jajpur','ganjam','naveen patnaik','mohan majhi',
+    'bjd','biju janata','odishatv','dharitri','sambad','pragativadi','utkal',
+    'kalinga','jagannath','konark','chilika','hirakud','mahanadi','jspl','nalco',
+    'paradip','gopalpur','idco','orissa post','ଓଡ଼ିଶା','ଓଡ଼ିଆ',
+];
+function isOdisha(a){ const t=`${a.title||''} ${a.summary||''} ${(a.matched_keywords||[]).join(' ')}`.toLowerCase(); return ODISHA_KW.some(k=>t.includes(k)); }
+
+const TV_SRC=['odishatv','ndtv','timesnow','republic','aajtak','abp','zee','india today','wion','dd news','kalinga tv','news18','cnbc','bbc','cnn','al jazeera','youtube','argus','ap news'];
+const NP_SRC=['utkal samachar','dharitri','sambad','pragativadi','samaja','times of india','hindustan times','the hindu','indian express','telegraph','economic times','business standard','livemint','deccan','pioneer','statesman','tribune','orissa post','odisha bhaskar','daily','gazette','guardian'];
+function classifySrc(n,u){ const s=(n||'').toLowerCase(),uu=(u||'').toLowerCase(); for(const t of TV_SRC) if(s.includes(t)||uu.includes(t.replace(/ /g,''))) return 'TV Intelligence'; for(const p of NP_SRC) if(s.includes(p)||uu.includes(p.replace(/ /g,''))) return 'Newspapers'; return 'Online News'; }
+
+async function fetchOgImg(url){ if(!url) return null; try{ const c=new AbortController(); setTimeout(()=>c.abort(),4000); const r=await fetch(url,{signal:c.signal,headers:{'User-Agent':'Mozilla/5.0'},redirect:'follow'}); if(!r.ok) return null; const h=await r.text(); let m=h.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)||h.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i)||h.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i); if(m?.[1]){let i=m[1]; if(i.startsWith('//')) i='https:'+i; if(i.startsWith('/'))i=new URL(url).origin+i; return i;} }catch{} return null; }
+
+function svgPh(src,mt){ const c=mt==='TV Intelligence'?{bg:'#ede9fe',ic:'#7c3aed',tx:'#6d28d9'}:mt==='Online News'?{bg:'#e0f7f5',ic:'#0d9488',tx:'#0f766e'}:{bg:'#fff7ed',ic:'#ea580c',tx:'#c2410c'}; const ico=mt==='TV Intelligence'?`<rect x="8" y="12" width="24" height="16" rx="2" fill="${c.ic}" opacity=".8"/><polygon points="18,16 18,24 25,20" fill="white"/>`:`<circle cx="20" cy="20" r="10" fill="none" stroke="${c.ic}" stroke-width="1.5" opacity=".8"/>`; const s=`<svg xmlns="http://www.w3.org/2000/svg" width="130" height="85" viewBox="0 0 130 85"><rect width="130" height="85" rx="6" fill="${c.bg}"/><g transform="translate(45,4)">${ico}</g><text x="65" y="60" text-anchor="middle" font-family="Arial" font-size="8" font-weight="600" fill="${c.tx}">${(src||'').substring(0,16)}</text><text x="65" y="72" text-anchor="middle" font-family="Arial" font-size="7" fill="${c.ic}" opacity=".5">${mt}</text></svg>`; return `data:image/svg+xml;base64,${Buffer.from(s).toString('base64')}`; }
+
+function sentStyle(s){ if(s==='positive') return {bg:'#dcfce7',col:'#166534',br:'#86efac',lbl:'● POSITIVE'}; if(s==='negative') return {bg:'#fef2f2',col:'#991b1b',br:'#fca5a5',lbl:'● NEGATIVE'}; return {bg:'#f1f5f9',col:'#475569',br:'#cbd5e1',lbl:'● NEUTRAL'}; }
+
+function fmtD(d){ return new Date(d).toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'}); }
+function fmtT(d){ return new Date(d).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true}); }
+function grpByDate(items){ const g={}; items.forEach(a=>{const k=new Date(a.published_at||a.created_at).toISOString().split('T')[0]; if(!g[k])g[k]=[]; g[k].push(a);}); return Object.entries(g).sort(([a],[b])=>b.localeCompare(a)); }
+
+function artCard(a){ const ss=sentStyle(a.sentiment); const fb=svgPh(a.source_name,a.mediaType); const img=a.image_url||fb; return `<div style="display:flex;gap:16px;padding:16px 0;border-bottom:1px solid #f1f5f9;break-inside:avoid;page-break-inside:avoid;"><img src="${img}" alt="" style="width:130px;height:85px;object-fit:cover;border-radius:8px;flex-shrink:0;border:1px solid #e2e8f0;" onerror="this.src='${fb}'"><div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap;"><span style="background:${ss.bg};color:${ss.col};border:1px solid ${ss.br};padding:2px 10px;border-radius:4px;font-size:10px;font-weight:600;">${ss.lbl}</span><span style="color:#94a3b8;font-size:11px;">${fmtT(a.published_at||a.created_at)}</span><span style="color:#94a3b8;font-size:11px;">|</span><span style="color:#64748b;font-size:11px;font-weight:500;">${a.source_name}</span>${a.importance>=7?'<span style="background:#fef2f2;color:#dc2626;padding:2px 8px;border-radius:4px;font-size:9px;font-weight:700;">⚡ HIGH PRIORITY</span>':''}</div><a href="${a.url||'#'}" target="_blank" style="font-size:14px;font-weight:600;color:#0f172a;text-decoration:none;line-height:1.3;display:block;margin-bottom:4px;">${a.title||'Untitled'}</a><p style="font-size:12px;color:#64748b;line-height:1.5;margin:0;">${(a.summary||a.title||'').substring(0,220)}</p>${a.matched_keywords?.length?`<div style="margin-top:6px;">${a.matched_keywords.slice(0,5).map(k=>`<span style="background:#f0fdf4;color:#166534;padding:2px 8px;border-radius:4px;font-size:9px;margin-right:4px;">#${k}</span>`).join('')}</div>`:''}</div></div>`; }
+
+function buildSec(title,icon,items,color){ const groups=grpByDate(items); if(!items.length) return `<div class="page-break" style="padding:50px 60px;"><div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;padding-bottom:12px;border-bottom:3px solid ${color};"><span style="font-size:28px;">${icon}</span><h2 style="font-size:24px;font-weight:700;color:#0f172a;margin:0;">${title}</h2><span style="background:${color}20;color:${color};padding:4px 12px;border-radius:6px;font-size:12px;font-weight:600;margin-left:auto;">0 Stories</span></div><p style="color:#94a3b8;font-style:italic;">No Odisha-relevant articles in this category.</p></div>`; let html=`<div class="page-break" style="padding:50px 60px;"><div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;padding-bottom:12px;border-bottom:3px solid ${color};"><span style="font-size:28px;">${icon}</span><h2 style="font-size:24px;font-weight:700;color:#0f172a;margin:0;">${title}</h2><span style="background:${color}20;color:${color};padding:4px 12px;border-radius:6px;font-size:12px;font-weight:600;margin-left:auto;">${items.length} Stories</span></div>`; for(const [date,dayItems] of groups){ html+=`<div style="margin-bottom:28px;"><div style="background:linear-gradient(90deg,${color}15,transparent);padding:8px 16px;border-left:4px solid ${color};border-radius:0 6px 6px 0;margin-bottom:12px;"><span style="font-size:14px;font-weight:700;color:#0f172a;">📅 ${fmtD(date)}</span><span style="color:#94a3b8;font-size:12px;margin-left:12px;">${dayItems.length} stories</span></div>${dayItems.map(a=>artCard(a)).join('')}</div>`; } return html+'</div>'; }
+
+// POST /generate-media-report — full styled daily media intelligence HTML report
+router.post('/generate-media-report', async (req, res) => {
+    try {
+        const db = mkAdmin();
+        const client = await getTestClient(req);
+        if (!client) return res.status(404).json({ error: 'No client found' });
+
+        // Fetch all data
+        const { data: allArticles } = await db.from('articles')
+            .select('id, title, url, source_id, published_at, created_at, matched_keywords')
+            .eq('client_id', client.id)
+            .order('published_at', { ascending: false })
+            .limit(500);
+
+        const sourceIds = [...new Set((allArticles||[]).map(a=>a.source_id).filter(Boolean))];
+        const { data: sources } = sourceIds.length
+            ? await db.from('sources').select('id, name, url, source_type').in('id', sourceIds)
+            : { data: [] };
+        const srcMap = {}; (sources||[]).forEach(s=>{srcMap[s.id]=s;});
+
+        const articleIds = (allArticles||[]).map(a=>a.id);
+        const { data: analyses } = articleIds.length
+            ? await db.from('article_analysis').select('article_id,sentiment,importance_score,summary,entities').in('article_id',articleIds)
+            : { data: [] };
+        const anaMap = {}; (analyses||[]).forEach(a=>{anaMap[a.article_id]=a;});
+
+        const { data: signals } = await db.from('intelligence_signals')
+            .select('title,description,severity,signal_type')
+            .eq('client_id', client.id)
+            .order('created_at', { ascending: false })
+            .limit(10);
+
+        // Enrich + Odisha filter
+        const all = (allArticles||[]).map(a=>{
+            const src=srcMap[a.source_id]||{};
+            const ana=anaMap[a.id]||null;
+            return {...a, source_name:src.name||'Unknown', analysis:ana,
+                sentiment:ana?.sentiment||'neutral', importance:ana?.importance_score||0,
+                summary:ana?.summary||'', mediaType:classifySrc(src.name||'',a.url)};
+        });
+        const enriched = all.filter(a=>isOdisha(a));
+
+        // Fetch og:image in batches of 5
+        const imgCache = {};
+        for(let i=0;i<enriched.length;i+=5){
+            const batch=enriched.slice(i,i+5);
+            const results=await Promise.all(batch.map(async a=>({id:a.id,img:await fetchOgImg(a.url)})));
+            results.forEach(r=>{if(r.img)imgCache[r.id]=r.img;});
+        }
+        enriched.forEach(a=>{a.image_url=imgCache[a.id]||null;});
+
+        // Stats
+        const analyzed=enriched.filter(a=>a.analysis);
+        const pos=analyzed.filter(a=>a.sentiment==='positive').length;
+        const neg=analyzed.filter(a=>a.sentiment==='negative').length;
+        const neu=analyzed.filter(a=>a.sentiment==='neutral').length;
+        const tot=analyzed.length||1;
+        const tvA=enriched.filter(a=>a.mediaType==='TV Intelligence');
+        const onA=enriched.filter(a=>a.mediaType==='Online News');
+        const npA=enriched.filter(a=>a.mediaType==='Newspapers');
+        const cmA=enriched.filter(a=>{const t=`${a.title} ${a.summary}`.toLowerCase(); return t.includes('mohan majhi')||t.includes('chief minister')||t.includes('cm majhi');});
+        const cmPos=cmA.filter(a=>a.sentiment==='positive').length, cmNeg=cmA.filter(a=>a.sentiment==='negative').length, cmNeu=cmA.filter(a=>a.sentiment==='neutral').length;
+
+        const issues=[
+            {name:'Infrastructure & Development',kw:['infrastructure','development','road','bridge','highway','construction','smart city','industrial','idco']},
+            {name:'Political Landscape',kw:['bjd','bjp','congress','election','political','assembly','party','opposition','naveen patnaik']},
+            {name:'Steel & Mining',kw:['tata steel','jspl','nalco','sail','mining','steel','rourkela','angul']},
+            {name:'Public Welfare',kw:['protest','scam','fraud','corruption','welfare','scheme','poverty','tribal','farmer']},
+            {name:'Economy & Business',kw:['gst','investment','budget','economy','trade','business','revenue','mou']},
+            {name:'Climate & Disaster',kw:['flood','cyclone','climate','rain','disaster','drought','environment']},
+        ].map(issue=>{
+            const m=enriched.filter(a=>{const t=`${a.title} ${a.summary} ${(a.matched_keywords||[]).join(' ')}`.toLowerCase(); return issue.kw.some(k=>t.includes(k));});
+            return {...issue,total:m.length,positive:m.filter(a=>a.sentiment==='positive').length,negative:m.filter(a=>a.sentiment==='negative').length,neutral:m.filter(a=>a.sentiment==='neutral').length};
+        }).filter(i=>i.total>0);
+
+        function issueBars(issue){ const t=issue.total||1; const pp=Math.round(issue.positive/t*100),np=Math.round(issue.negative/t*100),nup=100-pp-np; return `<div style="margin-bottom:16px;break-inside:avoid;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><span style="font-size:13px;font-weight:600;color:#0f172a;">${issue.name}</span><span style="font-size:11px;color:#94a3b8;">${issue.total} articles</span></div><div style="display:flex;height:24px;border-radius:6px;overflow:hidden;background:#f1f5f9;">${pp>0?`<div style="width:${pp}%;background:#22c55e;display:flex;align-items:center;justify-content:center;color:white;font-size:10px;font-weight:700;">${pp}%</div>`:''}${nup>0?`<div style="width:${nup}%;background:#94a3b8;display:flex;align-items:center;justify-content:center;color:white;font-size:10px;font-weight:700;">${nup}%</div>`:''}${np>0?`<div style="width:${np}%;background:#ef4444;display:flex;align-items:center;justify-content:center;color:white;font-size:10px;font-weight:700;">${np}%</div>`:''}</div></div>`; }
+
+        const html = generateMediaReportHtml({
+            client,
+            enriched,
+            pos, neu, neg, tot,
+            tvA, onA, npA,
+            cmA, cmPos, cmNeu, cmNeg,
+            issues,
+            sentStyle,
+            fmtT,
+            fmtD,
+            grpByDate,
+            svgPh
+        });
+
+        // Generate PDF from HTML using Puppeteer
+
+
+
+        // Generate PDF from HTML using Puppeteer
+        const browser = await getBrowserInstance();
+        let pdfBuffer;
+        try {
+            const page = await browser.newPage();
+            // Network idle is necessary to load external images (og:images)
+            await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60000 });
+            pdfBuffer = await page.pdf({
+                format: 'A4',
+                printBackground: true,
+                margin: { top: '0px', right: '0px', bottom: '0px', left: '0px' }
+            });
+        } finally {
+            await browser.close().catch(() => {});
+        }
+
+        res.setHeader('Content-Type','application/pdf');
+        res.setHeader('Content-Disposition',`attachment; filename="ROBIN_Media_Report_${new Date().toISOString().split('T')[0]}.pdf"`);
+        res.send(Buffer.from(pdfBuffer));
+    } catch(err){
+        console.error('[MEDIA-REPORT]',err.message);
+        res.status(500).json({error:err.message});
     }
 });
 
@@ -2068,9 +2256,6 @@ router.get('/overview', async (req, res) => {
         });
 
         const articleIds = (articles || []).map(a => a.id);
-        console.log('[OVERVIEW DEBUG] client.id:', client.id);
-        console.log('[OVERVIEW DEBUG] thirtyDaysAgo:', thirtyDaysAgo);
-        console.log('[OVERVIEW DEBUG] articles count:', articles?.length, 'articleIds:', articleIds.length);
 
         // Analysis for those articles
         const analyses = articleIds.length > 0
@@ -2172,25 +2357,41 @@ router.get('/overview', async (req, res) => {
                 riskIndicators: [],
             }));
 
-        // Critical alerts — top negative high-importance articles
+        // Critical alerts — high-importance articles that warrant attention
+        // Criteria: importance >= 7 (any sentiment) OR negative sentiment + importance >= 5
         const criticalAlerts = enriched
-            .filter(a => a.analysis?.sentiment === 'negative' && (a.analysis?.importance_score || 0) >= 6)
+            .filter(a => {
+                const imp = a.analysis?.importance_score || 0;
+                const sent = a.analysis?.sentiment;
+                // Any very high importance article is an alert
+                if (imp >= 7) return true;
+                // Negative sentiment articles with moderate importance
+                if (sent === 'negative' && imp >= 5) return true;
+                return false;
+            })
             .sort((a, b) => (b.analysis?.importance_score || 0) - (a.analysis?.importance_score || 0))
-            .slice(0, 10)
-            .map(a => ({
-                id: a.id,
-                title: a.title,
-                url: a.url,
-                severity: (a.analysis?.importance_score || 0) >= 8 ? 'critical' : 'high',
-                importance: a.analysis?.importance_score || 0,
-                confidence: Math.min(95, 60 + ((a.analysis?.importance_score || 0) * 4)),
-                summary: a.analysis?.summary || '',
-                sentiment: a.analysis?.sentiment || 'negative',
-                matchedKeywords: Array.isArray(a.matched_keywords) ? a.matched_keywords : [],
-                claims: a.analysis?.claims || [],
-                entities: a.analysis?.entities || {},
-                timestamp: a.published_at,
-            }));
+            .slice(0, 15)
+            .map(a => {
+                const imp = a.analysis?.importance_score || 0;
+                const sent = a.analysis?.sentiment;
+                let severity = 'elevated';
+                if (imp >= 8 || (sent === 'negative' && imp >= 7)) severity = 'critical';
+                else if (imp >= 6 || (sent === 'negative' && imp >= 5)) severity = 'high';
+                return {
+                    id: a.id,
+                    title: a.title,
+                    url: a.url,
+                    severity,
+                    importance: imp,
+                    confidence: Math.min(95, 60 + (imp * 4)),
+                    summary: a.analysis?.summary || '',
+                    sentiment: sent || 'neutral',
+                    matchedKeywords: Array.isArray(a.matched_keywords) ? a.matched_keywords : [],
+                    claims: a.analysis?.claims || [],
+                    entities: a.analysis?.entities || {},
+                    timestamp: a.published_at,
+                };
+            });
 
         // Keywords with hit counts from articles
         const briefKeywords = brief

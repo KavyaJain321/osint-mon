@@ -88,12 +88,13 @@ Generate keywords for these 5 categories:
 5. **competitor_peer** (8 keywords): Named competitors and industry benchmarks. Use short recognized names.
 
 CRITICAL RULES FOR MATCHING:
-- Keywords MUST be 1-3 words maximum — they are used for substring matching against news headlines
-- Use the SHORTEST form a journalist would write in a headline
-- Think: what single word or short phrase would appear in a Bloomberg/Reuters headline about this topic?
-- BAD EXAMPLES: "Section 232 investigation", "National Economic Council Director", "Monetary policy normalization"
-- GOOD EXAMPLES: "tariff", "Fed rate", "Trump", "OPEC", "sanctions", "inflation", "crude oil"
-- NO generic words (news, report, latest, update, global, market)
+- Keywords MUST be highly PRECISE and UNIQUE to the specific client/context so they don't match unrelated global news.
+- Keywords MUST be 1-3 words maximum — they are used for substring matching against news headlines.
+- DO NOT generate generic single-word terms like "protest", "fraud", "corruption", "crackdown", "India", "SEC" unless tightly coupled with the client name or region (e.g. "Odisha protest", "Odisha fraud").
+- If a concept is broad, you MUST combine it with the client entity or geography to form a 2-3 word phrase.
+- Think: what phrase would appear in a headline specifically about THIS client and NOT about a random global event?
+- BAD EXAMPLES: "protest", "fraud", "corruption", "India", "SEC", "Section 232 investigation"
+- GOOD EXAMPLES: "Odisha protest", "Odisha fraud", "BJD corruption", "Odisha CM", "tariff", "Fed rate"
 
 Return ONLY valid JSON:
 {
@@ -145,10 +146,12 @@ Generate keywords for these 5 categories:
 10. **narrative** (6 keywords): Short media narrative frames: "whistleblower", "cover-up", "crackdown", "bailout", "default".
 
 CRITICAL RULES FOR MATCHING:
-- Keywords MUST be 1-3 words maximum — they are used for substring matching against news headlines
-- Use the SHORTEST form a journalist would actually write in a headline
-- BAD: "Congressional oversight hearings", "Economic sanction escalation", "Tariff Implementation Policy"
-- GOOD: "tariff", "oversight", "sanctions", "Trump", "Fed", "OPEC"
+- Keywords MUST be highly PRECISE and UNIQUE to the specific client/context so they don't match unrelated global news.
+- Keywords MUST be 1-3 words maximum — they are used for substring matching against news headlines.
+- DO NOT generate generic single-word terms like "protest", "fraud", "corruption", "crackdown", "India", "SEC", "bailout", "investigation" unless tightly coupled with the client name (e.g. "Odisha bailout", "Odisha investigation").
+- If a concept is broad, you MUST combine it with the client entity or geography to form a 2-3 word phrase.
+- BAD: "oversight", "sanctions", "protest", "fraud", "corruption", "economy", "growth"
+- GOOD: "Odisha oversight", "Odisha sanctions", "BJD protest", "BJD fraud"
 - Do NOT repeat any keywords from the primary batch
 
 Return ONLY valid JSON:
@@ -179,6 +182,10 @@ const GENERIC_WORDS = new Set([
     'release', 'data', 'information', 'analysis', 'insight', 'trend',
     'company', 'market', 'business', 'industry', 'sector', 'global',
     'world', 'international', 'national', 'local', 'new', 'recent',
+    'protest', 'fraud', 'corruption', 'crackdown', 'india', 'usa', 'uk', 
+    'sec', 'government', 'policy', 'law', 'lawsuit', 'investigation', 
+    'scandal', 'crisis', 'economy', 'growth', 'loss', 'profit',
+    'stocks', 'shares', 'trading', 'investment', 'funding', 'startup'
 ]);
 
 function filterKeywords(keywords) {

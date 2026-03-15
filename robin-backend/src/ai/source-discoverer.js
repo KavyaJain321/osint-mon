@@ -9,7 +9,7 @@ import { log } from '../lib/logger.js';
 // ── Curated source library by industry + region ────────────
 // Global = truly general-purpose. Industry/region = specific.
 const SOURCE_LIBRARY = {
-    // ── GLOBAL (general-purpose only — added to ALL briefs) ──
+    // ── GLOBAL (general-purpose only) ──
     global: [
         { name: 'Reuters Top News', url: 'https://feeds.reuters.com/reuters/topNews', source_type: 'rss', expected_hit_rate: 'medium' },
         { name: 'BBC World News', url: 'http://feeds.bbci.co.uk/news/world/rss.xml', source_type: 'rss', expected_hit_rate: 'medium' },
@@ -17,132 +17,33 @@ const SOURCE_LIBRARY = {
         { name: 'Al Jazeera English', url: 'https://www.youtube.com/@AlJazeeraEnglish', source_type: 'youtube', expected_hit_rate: 'medium' },
     ],
 
-    // ── INDUSTRY-SPECIFIC ────────────────────────────────────
-    banking: [
-        { name: 'Reuters Finance', url: 'https://feeds.reuters.com/reuters/businessNews', source_type: 'rss', expected_hit_rate: 'high' },
-        { name: 'Financial Times', url: 'https://www.ft.com/', source_type: 'html', expected_hit_rate: 'high' },
-        { name: 'Bloomberg Markets', url: 'https://www.bloomberg.com/markets', source_type: 'html', expected_hit_rate: 'high' },
-        { name: 'The Banker', url: 'https://www.thebanker.com/', source_type: 'html', expected_hit_rate: 'high' },
-        { name: 'FATF News', url: 'https://www.fatf-gafi.org/en/topics/fatf-news.html', source_type: 'html', expected_hit_rate: 'high' },
-        { name: 'BIS Publications', url: 'https://www.bis.org/press/', source_type: 'html', expected_hit_rate: 'medium' },
-        { name: 'IMF News', url: 'https://www.imf.org/en/News/rss', source_type: 'rss', expected_hit_rate: 'medium' },
-        { name: 'Bloomberg TV', url: 'https://www.youtube.com/@BloombergTelevision', source_type: 'youtube', expected_hit_rate: 'high' },
-        { name: 'BIS Working Papers', url: 'https://www.bis.org/list/wpapers/index.htm', source_type: 'pdf', expected_hit_rate: 'medium' },
-        { name: 'FATF Reports', url: 'https://www.fatf-gafi.org/en/publications.html', source_type: 'pdf', expected_hit_rate: 'high' },
-    ],
-    finance: [
-        { name: 'WSJ Markets', url: 'https://feeds.a.dj.com/rss/RSSMarketsMain.xml', source_type: 'rss', expected_hit_rate: 'high' },
-        { name: 'Investing.com', url: 'https://www.investing.com/rss/news.rss', source_type: 'rss', expected_hit_rate: 'medium' },
-        { name: 'Financial Times', url: 'https://www.ft.com/', source_type: 'html', expected_hit_rate: 'high' },
-        { name: 'Bloomberg Markets', url: 'https://www.bloomberg.com/markets', source_type: 'html', expected_hit_rate: 'high' },
-        { name: 'Yahoo Finance', url: 'https://www.youtube.com/@YahooFinance', source_type: 'youtube', expected_hit_rate: 'high' },
-        { name: 'CNBC Television', url: 'https://www.youtube.com/@CNBCtelevision', source_type: 'youtube', expected_hit_rate: 'medium' },
-        { name: 'IMF Working Papers', url: 'https://www.imf.org/en/Publications/WP', source_type: 'pdf', expected_hit_rate: 'medium' },
-    ],
-    education: [
-        { name: 'Chronicle of Higher Ed', url: 'https://www.chronicle.com/', source_type: 'html', expected_hit_rate: 'high' },
-        { name: 'Inside Higher Ed', url: 'https://www.insidehighered.com/', source_type: 'html', expected_hit_rate: 'high' },
-        { name: 'Times Higher Ed', url: 'https://www.timeshighereducation.com/', source_type: 'html', expected_hit_rate: 'high' },
-        { name: 'NPR Education', url: 'https://www.npr.org/sections/education/rss.xml', source_type: 'rss', expected_hit_rate: 'medium' },
-        { name: 'BBC Education', url: 'https://feeds.bbci.co.uk/news/education/rss.xml', source_type: 'rss', expected_hit_rate: 'medium' },
-        { name: 'PBS NewsHour', url: 'https://www.youtube.com/@NewsHour', source_type: 'youtube', expected_hit_rate: 'medium' },
-        { name: 'Brookings Institution', url: 'https://www.youtube.com/@BrookingsInstitution', source_type: 'youtube', expected_hit_rate: 'medium' },
-        { name: 'IIE Publications', url: 'https://www.iie.org/Research-and-Insights/Publications', source_type: 'pdf', expected_hit_rate: 'high' },
-        { name: 'UNESCO Reports', url: 'https://www.unesco.org/en/documents', source_type: 'pdf', expected_hit_rate: 'medium' },
-    ],
-    technology: [
-        { name: 'TechCrunch', url: 'https://techcrunch.com/feed/', source_type: 'rss', expected_hit_rate: 'high' },
-        { name: 'Ars Technica', url: 'https://feeds.arstechnica.com/arstechnica/index', source_type: 'rss', expected_hit_rate: 'medium' },
-        { name: 'The Verge', url: 'https://www.theverge.com/', source_type: 'html', expected_hit_rate: 'medium' },
-        { name: 'Wired', url: 'https://www.wired.com/', source_type: 'html', expected_hit_rate: 'medium' },
-        { name: 'WION Tech', url: 'https://www.youtube.com/@WIONNews', source_type: 'youtube', expected_hit_rate: 'medium' },
-    ],
-    healthcare: [
-        { name: 'STAT News', url: 'https://www.statnews.com/', source_type: 'html', expected_hit_rate: 'high' },
-        { name: 'The Lancet', url: 'https://www.thelancet.com/', source_type: 'html', expected_hit_rate: 'high' },
-        { name: 'CDC Reports', url: 'https://www.cdc.gov/media/releases/', source_type: 'html', expected_hit_rate: 'medium' },
-        { name: 'WHO Publications', url: 'https://www.who.int/publications', source_type: 'pdf', expected_hit_rate: 'medium' },
-    ],
-    energy: [
-        { name: 'Reuters Energy', url: 'https://www.reuters.com/business/energy/', source_type: 'html', expected_hit_rate: 'high' },
-        { name: 'IEA News', url: 'https://www.iea.org/news', source_type: 'html', expected_hit_rate: 'medium' },
-        { name: 'IEA Reports', url: 'https://www.iea.org/reports', source_type: 'pdf', expected_hit_rate: 'high' },
-        { name: 'Collin Rugg', url: 'https://www.youtube.com/@CollinRugg', source_type: 'youtube', expected_hit_rate: 'medium' },
-        { name: 'OilPrice.com', url: 'https://www.youtube.com/@OilPricecom', source_type: 'youtube', expected_hit_rate: 'medium' },
-        { name: 'CNBC Television', url: 'https://www.youtube.com/@CNBCtelevision', source_type: 'youtube', expected_hit_rate: 'high' },
-        { name: 'Bloomberg Television', url: 'https://www.youtube.com/@BloombergTelevision', source_type: 'youtube', expected_hit_rate: 'high' },
+    // ── REGIONAL: ODISHA (Strictly Local) ────────────────────
+    odisha: [
+        // Top Odia Print/HTML Dailies
+        { name: 'Sambad', url: 'https://sambad.in/feed/', source_type: 'rss', expected_hit_rate: 'high' },
+        { name: 'Prameya News7', url: 'https://www.prameyanews7.com/feed/', source_type: 'rss', expected_hit_rate: 'high' },
+        { name: 'Dharitri', url: 'https://www.dharitri.com/', source_type: 'html', expected_hit_rate: 'high' },
+        { name: 'The Samaja', url: 'https://thesamaja.in/', source_type: 'html', expected_hit_rate: 'high' },
+        { name: 'Pragativadi', url: 'https://pragativadi.com/feed/', source_type: 'rss', expected_hit_rate: 'high' },
+        { name: 'Odisha Bhaskar', url: 'https://odishabhaskar.in/', source_type: 'html', expected_hit_rate: 'medium' },
+        { name: 'Orissa Post (English)', url: 'https://www.orissapost.com/feed/', source_type: 'rss', expected_hit_rate: 'high' },
+        
+        // Odisha TV / Video
+        { name: 'OTV (Odisha TV)', url: 'https://www.youtube.com/@otv', source_type: 'youtube', expected_hit_rate: 'high' },
+        { name: 'Kanak News', url: 'https://www.youtube.com/@KanakNews', source_type: 'youtube', expected_hit_rate: 'high' },
+        { name: 'Argus News', url: 'https://www.youtube.com/@ArgusNews', source_type: 'youtube', expected_hit_rate: 'high' },
+        { name: 'Nandighosha TV', url: 'https://www.youtube.com/@NandighoshaTV', source_type: 'youtube', expected_hit_rate: 'high' },
+        { name: 'Kalinga TV', url: 'https://www.youtube.com/@KalingaTV', source_type: 'youtube', expected_hit_rate: 'high' },
+        { name: 'News18 Odia', url: 'https://www.youtube.com/@News18Odia', source_type: 'youtube', expected_hit_rate: 'medium' },
+
+        // Google News Aggregations (Strictly Odisha)
+        { name: 'Google News: Odisha CM', url: 'https://news.google.com/rss/search?q=Odisha+CM&hl=en-IN&gl=IN&ceid=IN:en', source_type: 'rss', expected_hit_rate: 'high' },
+        { name: 'Google News: Odisha Cabinet', url: 'https://news.google.com/rss/search?q=Odisha+Cabinet&hl=en-IN&gl=IN&ceid=IN:en', source_type: 'rss', expected_hit_rate: 'high' },
+        { name: 'Google News: Odisha Assembly', url: 'https://news.google.com/rss/search?q=Odisha+Assembly&hl=en-IN&gl=IN&ceid=IN:en', source_type: 'rss', expected_hit_rate: 'medium' },
+        { name: 'Google News: BJD Politics', url: 'https://news.google.com/rss/search?q=BJD+politics+Odisha&hl=en-IN&gl=IN&ceid=IN:en', source_type: 'rss', expected_hit_rate: 'medium' }
     ],
 
-    // ── REGIONAL ─────────────────────────────────────────────
-    pakistan: [
-        { name: 'Dawn News', url: 'https://www.dawn.com/feeds/home', source_type: 'rss', expected_hit_rate: 'high' },
-        { name: 'The News Pakistan', url: 'https://www.thenews.com.pk/rss/1/3', source_type: 'rss', expected_hit_rate: 'high' },
-        { name: 'Geo News', url: 'https://www.geo.tv/rss', source_type: 'rss', expected_hit_rate: 'high' },
-        { name: 'Business Recorder', url: 'https://www.brecorder.com/', source_type: 'html', expected_hit_rate: 'high' },
-        { name: 'Geo News YouTube', url: 'https://www.youtube.com/@gaborearth', source_type: 'youtube', expected_hit_rate: 'high' },
-        { name: 'ARY News YouTube', url: 'https://www.youtube.com/@ARYNewsLiveOfficial', source_type: 'youtube', expected_hit_rate: 'high' },
-        { name: 'SBP Circulars', url: 'https://www.sbp.org.pk/bsrvd/list.asp', source_type: 'pdf', expected_hit_rate: 'high' },
-    ],
-    'united states': [
-        { name: 'NYT Top Stories', url: 'https://www.nytimes.com/services/xml/rss/nyt/HomePage.xml', source_type: 'rss', expected_hit_rate: 'medium' },
-        { name: 'Washington Post', url: 'https://www.washingtonpost.com/', source_type: 'html', expected_hit_rate: 'medium' },
-        { name: 'PBS NewsHour', url: 'https://www.youtube.com/@NewsHour', source_type: 'youtube', expected_hit_rate: 'medium' },
-        { name: 'Federal Register', url: 'https://www.federalregister.gov/', source_type: 'browser', expected_hit_rate: 'medium' },
-        { name: 'US GPO', url: 'https://www.gpo.gov/', source_type: 'pdf', expected_hit_rate: 'medium' },
-    ],
-    'middle east': [
-        { name: 'Al Jazeera', url: 'https://www.aljazeera.com/xml/rss/all.xml', source_type: 'rss', expected_hit_rate: 'medium' },
-        { name: 'Gulf News', url: 'https://gulfnews.com/', source_type: 'html', expected_hit_rate: 'medium' },
-        { name: 'Arab News', url: 'https://www.arabnews.com/rss.xml', source_type: 'rss', expected_hit_rate: 'medium' },
-        { name: 'TRT World', url: 'https://www.youtube.com/@trtworld', source_type: 'youtube', expected_hit_rate: 'medium' },
-    ],
-    india: [
-        // Major national RSS feeds (verified working)
-        { name: 'Economic Times', url: 'https://economictimes.indiatimes.com/rssfeedstopstories.cms', source_type: 'rss', expected_hit_rate: 'high' },
-        { name: 'The Hindu', url: 'https://www.thehindu.com/feeder/default.rss', source_type: 'rss', expected_hit_rate: 'high' },
-        { name: 'India Today', url: 'https://www.indiatoday.in/rss/home', source_type: 'rss', expected_hit_rate: 'high' },
-        { name: 'Scroll.in', url: 'https://scroll.in/feed', source_type: 'rss', expected_hit_rate: 'high' },
-        { name: 'The Wire', url: 'https://thewire.in/feed', source_type: 'rss', expected_hit_rate: 'high' },
-        { name: 'Hindustan Times', url: 'https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml', source_type: 'rss', expected_hit_rate: 'high' },
-        // HTML sources
-        { name: 'NDTV India', url: 'https://www.ndtv.com/india', source_type: 'html', expected_hit_rate: 'high' },
-        { name: 'Times of India', url: 'https://timesofindia.indiatimes.com/india', source_type: 'html', expected_hit_rate: 'high' },
-        { name: 'Deccan Herald', url: 'https://www.deccanherald.com/national', source_type: 'html', expected_hit_rate: 'medium' },
-        { name: 'Press Trust of India', url: 'https://www.ptinews.com/news/national/', source_type: 'html', expected_hit_rate: 'high' },
-        // Google News RSS for Odisha-specific terms (always fresh)
-        { name: 'Google News: Odisha', url: 'https://news.google.com/rss/search?q=Odisha&hl=en-IN&gl=IN&ceid=IN:en', source_type: 'rss', expected_hit_rate: 'high' },
-        { name: 'Google News: Odisha government', url: 'https://news.google.com/rss/search?q=Odisha+government&hl=en-IN&gl=IN&ceid=IN:en', source_type: 'rss', expected_hit_rate: 'high' },
-        { name: 'Google News: Mahanadi', url: 'https://news.google.com/rss/search?q=Mahanadi+river+Odisha&hl=en-IN&gl=IN&ceid=IN:en', source_type: 'rss', expected_hit_rate: 'medium' },
-        { name: 'Google News: Odisha mining', url: 'https://news.google.com/rss/search?q=Odisha+mining+environment&hl=en-IN&gl=IN&ceid=IN:en', source_type: 'rss', expected_hit_rate: 'medium' },
-        // YouTube
-        { name: 'NDTV YouTube', url: 'https://www.youtube.com/@ndtv', source_type: 'youtube', expected_hit_rate: 'high' },
-        { name: 'India Today YouTube', url: 'https://www.youtube.com/@IndiaToday', source_type: 'youtube', expected_hit_rate: 'high' },
-        // PDF/Government
-        { name: 'PIB India', url: 'https://pib.gov.in/allRel.aspx', source_type: 'html', expected_hit_rate: 'high' },
-        { name: 'RBI Notifications', url: 'https://www.rbi.org.in/Scripts/NotificationUser.aspx', source_type: 'pdf', expected_hit_rate: 'medium' },
-    ],
-    government: [
-        // For government industry briefs — especially India state government
-        { name: 'Google News: Odisha BJP', url: 'https://news.google.com/rss/search?q=Odisha+BJP+governance&hl=en-IN&gl=IN&ceid=IN:en', source_type: 'rss', expected_hit_rate: 'medium' },
-        { name: 'The Hindu National', url: 'https://www.thehindu.com/feeder/default.rss', source_type: 'rss', expected_hit_rate: 'high' },
-        { name: 'Scroll.in', url: 'https://scroll.in/feed', source_type: 'rss', expected_hit_rate: 'high' },
-        { name: 'The Wire', url: 'https://thewire.in/feed', source_type: 'rss', expected_hit_rate: 'high' },
-        { name: 'Economic Times India', url: 'https://economictimes.indiatimes.com/rssfeedstopstories.cms', source_type: 'rss', expected_hit_rate: 'high' },
-        { name: 'PIB India', url: 'https://pib.gov.in/allRel.aspx', source_type: 'html', expected_hit_rate: 'high' },
-        { name: 'NDTV India', url: 'https://www.ndtv.com/india', source_type: 'html', expected_hit_rate: 'high' },
-        { name: 'Times of India', url: 'https://timesofindia.indiatimes.com/india', source_type: 'html', expected_hit_rate: 'high' },
-        { name: 'NDTV YouTube', url: 'https://www.youtube.com/@ndtv', source_type: 'youtube', expected_hit_rate: 'high' },
-        { name: 'India Today YouTube', url: 'https://www.youtube.com/@IndiaToday', source_type: 'youtube', expected_hit_rate: 'high' },
-    ],
-    uk: [
-        { name: 'BBC UK', url: 'https://feeds.bbci.co.uk/news/uk/rss.xml', source_type: 'rss', expected_hit_rate: 'medium' },
-        { name: 'The Guardian', url: 'https://www.theguardian.com/uk', source_type: 'html', expected_hit_rate: 'medium' },
-        { name: 'Sky News', url: 'https://www.youtube.com/@SkyNews', source_type: 'youtube', expected_hit_rate: 'medium' },
-    ],
-    china: [
-        { name: 'South China Morning Post', url: 'https://www.scmp.com/rss', source_type: 'rss', expected_hit_rate: 'high' },
-        { name: 'CGTN', url: 'https://www.youtube.com/@CGTNOfficial', source_type: 'youtube', expected_hit_rate: 'medium' },
-    ],
+    // ── INDUSTRY-SPECIFIC ────────────────────────────────────
 };
 
 // ── LLM-powered source discovery (Layer 4) ─────────────────
@@ -191,7 +92,7 @@ CRITICAL RULES:
 - PDF sources should be pages that LIST PDFs (not individual PDF files)
 - Reddit sources should be subreddit URLs
 - Google News RSS queries should use the exact URL format shown above with '+' for spaces
-- Geographic mix: 40% international, 60% region-specific to "${context.geographic_focus?.join(', ') || 'global'}"
+- Geographic Focus: MUST BE 100% REGION-SPECIFIC to "${context.geographic_focus?.join(', ') || 'global'}". Do not suggest global news organizations unless no local sources exist.
 - Each source MUST have all fields: name, url, source_type, expected_hit_rate, rationale
 
 Return ONLY valid JSON:
@@ -234,8 +135,11 @@ function lookupLibrarySources(context) {
     const hits = new Map();
     const addSrc = (list) => list?.forEach(s => hits.set(s.url, s));
 
-    // Always include global (truly general-purpose only)
-    addSrc(SOURCE_LIBRARY.global);
+    // Only include global sources if the brief is not strict on a specific local region like Odisha
+    const isRegional = context.geographic_focus?.some(g => g.toLowerCase().includes('odisha') || g.toLowerCase().includes('india'));
+    if (!isRegional) {
+        addSrc(SOURCE_LIBRARY.global);
+    }
 
     // Industry match via aliases
     const industry = (context.industry || '').toLowerCase();
@@ -251,6 +155,7 @@ function lookupLibrarySources(context) {
     for (const geo of (context.geographic_focus || [])) {
         const g = geo.toLowerCase().trim();
         if (SOURCE_LIBRARY[g]) addSrc(SOURCE_LIBRARY[g]);
+        if (g.includes('odisha') || g.includes('orissa')) addSrc(SOURCE_LIBRARY['odisha']);
         if (g.includes('usa') || g.includes('america') || g.includes('united states') || g === 'us') addSrc(SOURCE_LIBRARY['united states']);
         if (g.includes('uk') || g.includes('britain') || g.includes('united kingdom')) addSrc(SOURCE_LIBRARY['uk']);
         if (g.includes('china') || g.includes('chinese')) addSrc(SOURCE_LIBRARY['china']);

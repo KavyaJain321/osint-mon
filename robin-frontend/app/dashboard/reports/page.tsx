@@ -91,218 +91,53 @@ export default function ReportsPage() {
     const toggleSection = (key: string) => setSections(s => ({ ...s, [key]: !s[key] }));
 
     const [generating, setGenerating] = useState(false);
+    const [generatingMedia, setGeneratingMedia] = useState(false);
+
+    const handleGenerateMediaReport = async () => {
+        setGeneratingMedia(true);
+        try {
+            const token = typeof window !== 'undefined' ? localStorage.getItem('robin_token') : null;
+            const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+            const res = await fetch(`${BASE_URL}/api/test/generate-media-report`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+            });
+            if (!res.ok) throw new Error('Media report generation failed');
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ROBIN_Media_Report_${new Date().toISOString().split('T')[0]}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            alert('Media report generation failed. Please try again.');
+        }
+        setGeneratingMedia(false);
+    };
 
     const handleGeneratePDF = async () => {
         setGenerating(true);
         try {
             const token = typeof window !== 'undefined' ? localStorage.getItem('robin_token') : null;
             const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-            const res = await fetch(`${BASE_URL}/api/test/generate-report`, {
+            const res = await fetch(`${BASE_URL}/api/test/generate-media-report`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
                 body: JSON.stringify({ period, template, sections, headerText, classification }),
             });
             if (!res.ok) throw new Error('Report generation failed');
-            const report = await res.json();
-
-            const SVCOL = (s: string) => s === 'critical' ? '#ef4444' : s === 'high' ? '#f59e0b' : '#64748b';
-            const SENTCOL = (s: string) => s === 'positive' ? '#10b981' : s === 'negative' ? '#ef4444' : '#64748b';
-            const fmtDate = (d: string) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
-
-            const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${report.headerText} — ${report.client?.name}</title>
-<style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family: 'Segoe UI', Arial, sans-serif; background:#fff; color:#1a2840; font-size:12px; line-height:1.6; }
-  @media print { body { font-size:11px; } .no-print { display:none; } }
-  .cover { background:linear-gradient(135deg,#0d1525,#1a2840); color:#fff; padding:48px 40px 32px; }
-  .cover h1 { font-size:28px; font-weight:700; margin-bottom:6px; }
-  .cover .sub { font-size:13px; color:#8a9ab5; margin-bottom:20px; }
-  .cover .meta { display:flex; gap:24px; flex-wrap:wrap; }
-  .cover .meta-item { }
-  .cover .meta-item .label { font-size:9px; color:#4a5a73; text-transform:uppercase; letter-spacing:1px; margin-bottom:2px; }
-  .cover .meta-item .value { font-size:12px; color:#e2e8f2; }
-  .classification { display:inline-block; border:1px solid rgba(239,68,68,.5); color:#ef4444; font-size:9px; font-weight:700; padding:2px 8px; border-radius:3px; text-transform:uppercase; letter-spacing:1px; margin-bottom:16px; }
-  .metrics-bar { display:flex; gap:1px; background:#1a2840; }
-  .metric-box { flex:1; background:#0d1525; padding:12px 16px; text-align:center; }
-  .metric-box .num { font-size:22px; font-weight:700; color:#fff; }
-  .metric-box .lbl { font-size:9px; color:#4a5a73; text-transform:uppercase; letter-spacing:1px; margin-top:2px; }
-  .section { padding:24px 40px; border-bottom:1px solid #e8edf4; }
-  .section:last-child { border-bottom:none; }
-  .section-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:#4a5a73; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
-  .section-title::after { content:''; flex:1; height:1px; background:#e8edf4; }
-  p.narrative { font-size:13px; line-height:1.8; color:#1a2840; background:#f7f9fc; border-left:3px solid #2563eb; padding:14px 18px; border-radius:0 6px 6px 0; }
-  table { width:100%; border-collapse:collapse; font-size:11px; }
-  th { background:#f0f4f8; padding:8px 10px; text-align:left; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; border-bottom:2px solid #e2e8f0; }
-  td { padding:8px 10px; border-bottom:1px solid #f0f4f8; vertical-align:top; }
-  tr:last-child td { border-bottom:none; }
-  .badge { display:inline-block; padding:2px 7px; border-radius:3px; font-size:9px; font-weight:700; text-transform:uppercase; }
-  .badge-critical { background:#fee2e2; color:#dc2626; }
-  .badge-high { background:#fef3c7; color:#d97706; }
-  .badge-positive { background:#d1fae5; color:#059669; }
-  .badge-negative { background:#fee2e2; color:#dc2626; }
-  .badge-neutral { background:#f1f5f9; color:#64748b; }
-  .badge-watch { background:#e0f2fe; color:#0284c7; }
-  .imp-bar { display:inline-block; height:6px; border-radius:3px; background:#e8edf4; width:60px; vertical-align:middle; position:relative; overflow:hidden; }
-  .imp-fill { height:100%; border-radius:3px; position:absolute; top:0; left:0; }
-  .entity-row { display:flex; align-items:center; gap:10px; padding:5px 0; border-bottom:1px solid #f0f4f8; }
-  .entity-name { flex:1; font-weight:500; }
-  .entity-bar { background:#e8edf4; border-radius:10px; height:8px; flex:2; overflow:hidden; }
-  .entity-fill { height:100%; border-radius:10px; background:#2563eb; }
-  a { color:#2563eb; text-decoration:none; }
-  .footer { padding:16px 40px; background:#f7f9fc; border-top:1px solid #e8edf4; display:flex; justify-content:space-between; font-size:10px; color:#94a3b8; }
-  .sent-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:0; }
-  .sent-box { padding:14px; border-radius:8px; text-align:center; }
-  .sent-box.pos { background:#d1fae5; }
-  .sent-box.neu { background:#f1f5f9; }
-  .sent-box.neg { background:#fee2e2; }
-  .sent-box .pct { font-size:28px; font-weight:700; }
-  .sent-box .cnt { font-size:11px; margin-top:2px; opacity:.7; }
-  .no-print-btn { position:fixed; top:16px; right:16px; background:#2563eb; color:#fff; border:none; padding:10px 20px; border-radius:6px; cursor:pointer; font-size:13px; font-weight:600; z-index:999; }
-</style>
-</head>
-<body>
-<button class="no-print-btn no-print" onclick="window.print()">⬇ Save as PDF</button>
-
-<!-- COVER -->
-<div class="cover">
-  <div class="classification">${report.classification}</div>
-  <h1>${report.headerText}</h1>
-  <div class="sub">${report.client?.name} · ${report.template?.toUpperCase()} BRIEF · Period: ${report.period?.toUpperCase()}</div>
-  <div class="meta">
-    <div class="meta-item"><div class="label">Generated</div><div class="value">${fmtDate(report.generated_at)}</div></div>
-    <div class="meta-item"><div class="label">Mission</div><div class="value">${report.brief?.title || 'N/A'}</div></div>
-    <div class="meta-item"><div class="label">Articles</div><div class="value">${report.metrics?.totalArticles}</div></div>
-    <div class="meta-item"><div class="label">Active Signals</div><div class="value">${report.metrics?.totalSignals}</div></div>
-    <div class="meta-item"><div class="label">Sources</div><div class="value">${report.metrics?.activeSources}</div></div>
-  </div>
-</div>
-
-<!-- METRICS BAR -->
-<div class="metrics-bar">
-  <div class="metric-box"><div class="num">${report.metrics?.totalArticles}</div><div class="lbl">Articles</div></div>
-  <div class="metric-box"><div class="num" style="color:#10b981">${report.metrics?.sentiment?.positive_pct}%</div><div class="lbl">Positive</div></div>
-  <div class="metric-box"><div class="num" style="color:#ef4444">${report.metrics?.sentiment?.negative_pct}%</div><div class="lbl">Negative</div></div>
-  <div class="metric-box"><div class="num" style="color:#f59e0b">${report.metrics?.criticalSignals}</div><div class="lbl">Critical Signals</div></div>
-  <div class="metric-box"><div class="num">${report.metrics?.activeSources}</div><div class="lbl">Sources</div></div>
-</div>
-
-${report.sections?.executive_summary ? `
-<!-- EXECUTIVE SUMMARY -->
-<div class="section">
-  <div class="section-title">Executive Summary</div>
-  <p class="narrative">${(report.sections.executive_summary || '').slice(0, 1200)}</p>
-</div>` : ''}
-
-${report.sections?.sentiment ? `
-<!-- SENTIMENT ANALYSIS -->
-<div class="section">
-  <div class="section-title">Sentiment Distribution</div>
-  <div class="sent-grid">
-    <div class="sent-box pos"><div class="pct" style="color:#059669">${report.metrics?.sentiment?.positive_pct}%</div><div class="cnt">${report.metrics?.sentiment?.positive} articles positive</div></div>
-    <div class="sent-box neu"><div class="pct" style="color:#64748b">${report.metrics?.sentiment?.neutral_pct}%</div><div class="cnt">${report.metrics?.sentiment?.neutral} articles neutral</div></div>
-    <div class="sent-box neg"><div class="pct" style="color:#dc2626">${report.metrics?.sentiment?.negative_pct}%</div><div class="cnt">${report.metrics?.sentiment?.negative} articles negative</div></div>
-  </div>
-</div>` : ''}
-
-${report.sections?.top_articles?.length ? `
-<!-- TOP DEVELOPMENTS -->
-<div class="section">
-  <div class="section-title">Top Developments</div>
-  <table>
-    <thead><tr><th>#</th><th>Article</th><th>Importance</th><th>Sentiment</th><th>Published</th></tr></thead>
-    <tbody>
-      ${report.sections.top_articles.map((a: { title: string; url: string; importance: number; sentiment: string; published_at: string; summary: string }, i: number) => `
-      <tr>
-        <td style="color:#94a3b8">${i + 1}</td>
-        <td><a href="${a.url}" target="_blank"><strong>${a.title}</strong></a><br><span style="font-size:10px;color:#64748b">${(a.summary || '').slice(0, 120)}${(a.summary || '').length > 120 ? '…' : ''}</span></td>
-        <td>${a.importance}/10<br><div class="imp-bar"><div class="imp-fill" style="width:${a.importance * 10}%;background:${a.importance >= 8 ? '#ef4444' : a.importance >= 6 ? '#f59e0b' : '#2563eb'}"></div></div></td>
-        <td><span class="badge badge-${a.sentiment}">${a.sentiment}</span></td>
-        <td>${fmtDate(a.published_at)}</td>
-      </tr>`).join('')}
-    </tbody>
-  </table>
-</div>` : ''}
-
-${report.sections?.signals?.length ? `
-<!-- ACTIVE SIGNALS -->
-<div class="section">
-  <div class="section-title">Active Signals & Alerts</div>
-  <table>
-    <thead><tr><th>Severity</th><th>Signal</th><th>Description</th><th>Confidence</th></tr></thead>
-    <tbody>
-      ${report.sections.signals.map((s: { severity: string; title: string; description: string; confidence: number }) => `
-      <tr>
-        <td><span class="badge badge-${s.severity}">${s.severity}</span></td>
-        <td><strong>${s.title}</strong></td>
-        <td style="color:#64748b">${(s.description || '').slice(0, 150)}</td>
-        <td>${Math.round((s.confidence || 0) * 100)}%</td>
-      </tr>`).join('')}
-    </tbody>
-  </table>
-</div>` : ''}
-
-${report.sections?.entities?.length ? `
-<!-- ENTITY INTELLIGENCE -->
-<div class="section">
-  <div class="section-title">Entity Intelligence</div>
-  ${report.sections.entities.map((e: { name: string; count: number }, _: number, arr: { name: string; count: number }[]) => `
-  <div class="entity-row">
-    <div class="entity-name">${e.name}</div>
-    <div class="entity-bar"><div class="entity-fill" style="width:${Math.round(e.count / arr[0].count * 100)}%"></div></div>
-    <div style="font-size:11px;color:#64748b;width:60px;text-align:right">${e.count} mentions</div>
-  </div>`).join('')}
-</div>` : ''}
-
-${report.sections?.sources?.length ? `
-<!-- SOURCE MATRIX -->
-<div class="section">
-  <div class="section-title">Source Coverage Matrix</div>
-  <table>
-    <thead><tr><th>Source</th><th>Type</th><th>URL</th></tr></thead>
-    <tbody>
-      ${report.sections.sources.map((s: { name: string; type: string; url: string }) => `
-      <tr><td><strong>${s.name}</strong></td><td style="color:#64748b">${s.type}</td><td><a href="${s.url}" target="_blank">${s.url.slice(0, 60)}${s.url.length > 60 ? '…' : ''}</a></td></tr>`).join('')}
-    </tbody>
-  </table>
-</div>` : ''}
-
-${report.sections?.appendix?.length ? `
-<!-- APPENDIX -->
-<div class="section">
-  <div class="section-title">Appendix — Full Article List (${report.sections.appendix.length})</div>
-  <table>
-    <thead><tr><th>#</th><th>Title</th><th>Sentiment</th><th>Importance</th><th>Published</th></tr></thead>
-    <tbody>
-      ${report.sections.appendix.map((a: { title: string; url: string; sentiment: string; importance: number; published_at: string }, i: number) => `
-      <tr>
-        <td style="color:#94a3b8">${i + 1}</td>
-        <td><a href="${a.url}" target="_blank">${a.title}</a></td>
-        <td><span class="badge badge-${a.sentiment}">${a.sentiment}</span></td>
-        <td>${a.importance > 0 ? `${a.importance}/10` : '—'}</td>
-        <td>${fmtDate(a.published_at)}</td>
-      </tr>`).join('')}
-    </tbody>
-  </table>
-</div>` : ''}
-
-<!-- FOOTER -->
-<div class="footer">
-  <span>ROBIN Intelligence Platform · ${report.client?.name}</span>
-  <span>Generated ${fmtDate(report.generated_at)} · ${report.classification?.toUpperCase()}</span>
-</div>
-</body></html>`;
-
-            const win = window.open('', '_blank');
-            if (win) {
-                win.document.write(html);
-                win.document.close();
-            } else {
-                alert('Please allow popups to view the generated report.');
-            }
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ROBIN_Media_Report_${new Date().toISOString().split('T')[0]}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         } catch (err) {
             alert('Report generation failed. Please try again.');
         }
@@ -358,13 +193,27 @@ ${report.sections?.appendix?.length ? `
                     <h1 className="text-xl font-semibold text-text-primary">Reports & Analytics</h1>
                     <p className="text-sm text-text-muted mt-0.5">14-day velocity, sentiment distribution, and narrative synthesis</p>
                 </div>
-                <button
-                    onClick={() => setBuilderOpen(o => !o)}
-                    className="btn btn-primary text-xs flex items-center gap-1.5"
-                >
-                    <FileText size={14} /> Generate Report
-                    {builderOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={handleGenerateMediaReport}
+                        disabled={generatingMedia}
+                        className="btn btn-ghost text-xs flex items-center gap-1.5 border border-accent/30 hover:bg-accent/5"
+                        title="Download a full daily media intelligence report with TV, Online & Newspaper sections, article images, and CM perception analysis"
+                    >
+                        {generatingMedia ? (
+                            <><span className="w-3.5 h-3.5 border-2 border-accent/30 border-t-accent rounded-full animate-spin" /> Generating…</>
+                        ) : (
+                            <><span style={{fontSize:'14px'}}>📰</span> Daily Media Report</>
+                        )}
+                    </button>
+                    <button
+                        onClick={() => setBuilderOpen(o => !o)}
+                        className="btn btn-primary text-xs flex items-center gap-1.5"
+                    >
+                        <FileText size={14} /> Generate Report
+                        {builderOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                    </button>
+                </div>
             </div>
 
             {/* ── Report Builder ─────────────── */}

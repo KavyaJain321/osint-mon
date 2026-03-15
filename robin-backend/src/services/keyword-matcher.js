@@ -230,13 +230,31 @@ export function cleanArticleContent(content) {
  * @returns {Set<string>} Unique significant words across all keywords
  */
 export function buildTopicWords(keywords) {
-    // Words that are too generic for topic filtering — they appear in almost any article
+    // Words that are too generic for topic filtering — they appear in almost any news article.
+    // CRITICAL: Single bare words like 'india', 'protest', 'corruption' would match
+    // unrelated BBC/Reuters global headlines. Only allow these through when they appear
+    // as PART of a multi-word keyword (e.g. "Odisha protest", "BJD corruption").
     const GENERIC_WORDS = new Set([
+        // Common article boilerplate
         'social', 'media', 'risks', 'risk', 'warnings', 'warning', 'issues', 'issue',
         'treatment', 'effects', 'impact', 'analysis', 'report', 'system', 'global',
         'new', 'market', 'markets', 'news', 'world', 'government', 'policy',
         'people', 'public', 'data', 'information', 'health', 'crisis', 'major',
         'latest', 'breaking', 'today', 'state', 'national', 'international',
+        // Country/region names — too broad on their own, match everything
+        'india', 'usa', 'us', 'uk', 'china', 'russia', 'pakistan', 'europe',
+        'america', 'britain', 'east', 'west', 'north', 'south', 'asian', 'global',
+        // Generic political/crime trigger words — match any global news headline
+        'protest', 'protests', 'fraud', 'scam', 'corruption', 'crackdown',
+        'scandal', 'lawsuit', 'investigation', 'arrested', 'arrest', 'probe',
+        'allegation', 'allegations', 'controversy', 'opposition', 'election',
+        'vote', 'voting', 'poll', 'rally', 'strike', 'violence', 'attack',
+        // Generic economic words
+        'economy', 'economic', 'budget', 'growth', 'inflation', 'gdp', 'trade',
+        'investment', 'stocks', 'shares', 'profit', 'loss', 'revenue', 'funding',
+        // Generic institutional words
+        'court', 'minister', 'parliament', 'congress', 'senate', 'bill', 'law',
+        'party', 'leader', 'official', 'authority', 'commission', 'department',
     ]);
 
     const topicWords = new Set();

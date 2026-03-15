@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ROBIN Intelligence Platform — Odisha Government Report</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+    :root {
+      --primary: #0d9488;
+      --primary-dark: #0f766e;
+      --accent: #f59e0b;
+      --dark: #0a0c12;
+      --card-bg: #111827;
+      --text-main: #e2e8f0;
+      --text-muted: #94a3b8;
+      --border: #1e293b;
+      --red: #ef4444;
+      --green: #10b981;
+      --blue: #3b82f6;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #ffffff;
+      color: #1e293b;
+      line-height: 1.7;
+      font-size: 14px;
+    }
+
+    @page {
+      margin: 0;
+      size: A4;
+    }
+
+    @media print {
+      body {
+        font-size: 11px;
+        margin: 0;
+        padding: 0;
+      }
+
+      .page-break {
+        page-break-before: always;
+        break-before: page;
+      }
+
+      .no-break {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      .cover-page {
+        height: 100vh;
+      }
+
+      .content-page {
+        padding: 40px 50px;
+      }
+
+      .feature-card {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+
+      .features-grid {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+
+      .screenshot-container {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+
+      .stat-card {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+
+      .stats-bar {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+
+      .note-box {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+
+      .warning-box {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+
+      .methodology-flow {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+
+      .section-header {
+        break-after: avoid;
+        page-break-after: avoid;
+      }
+
+      .section-intro {
+        break-after: avoid;
+        page-break-after: avoid;
+      }
+
+      .page-footer {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+
+      h3 {
+        break-after: avoid;
+        page-break-after: avoid;
+      }
+    }
+
+    /* ── Cover Page ────────────────────────── */
+    .cover-page {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #0a0c12 0%, #0f172a 40%, #1e293b 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      text-align: center;
+      padding: 60px 40px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cover-page::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at 30% 50%, rgba(13, 148, 136, 0.08) 0%, transparent 50%),
+        radial-gradient(circle at 70% 80%, rgba(245, 158, 11, 0.05) 0%, transparent 40%);
+      animation: none;
+    }
+
+    .cover-logo {
+      width: 80px;
+      height: 80px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      font-weight: 800;
+      color: white;
+      margin-bottom: 30px;
+      position: relative;
+      z-index: 1;
+      box-shadow: 0 20px 60px rgba(13, 148, 136, 0.3);
+    }
+
+    .cover-title {
+      font-size: 48px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      margin-bottom: 10px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .cover-subtitle {
+      font-size: 22px;
+      font-weight: 300;
+      color: rgba(255, 255, 255, 0.6);
+      margin-bottom: 50px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .cover-divider {
+      width: 100px;
+      height: 3px;
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+      border-radius: 2px;
+      margin-bottom: 50px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .cover-meta {
+      position: relative;
+      z-index: 1;
+    }
+
+    .cover-meta h3 {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 8px;
+    }
+
+    .cover-meta p {
+      font-size: 15px;
+      color: rgba(255, 255, 255, 0.5);
+      margin-bottom: 4px;
+    }
+
+    .cover-badge {
+      display: inline-block;
+      background: rgba(13, 148, 136, 0.15);
+      border: 1px solid rgba(13, 148, 136, 0.3);
+      color: var(--primary);
+      padding: 8px 24px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-top: 40px;
+    }
+
+    /* ── Content Pages ─────────────────────── */
+    .content-page {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 60px 40px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 30px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+
+    .section-number {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .section-header h2 {
+      font-size: 28px;
+      font-weight: 700;
+      color: #0f172a;
+      letter-spacing: -0.5px;
+    }
+
+    .section-header .section-tag {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--primary);
+      background: rgba(13, 148, 136, 0.08);
+      padding: 4px 12px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .section-intro {
+      font-size: 16px;
+      color: #475569;
+      line-height: 1.8;
+      margin-bottom: 32px;
+      max-width: 85%;
+    }
+
+    .screenshot-container {
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.08);
+      margin-bottom: 36px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .screenshot-container img {
+      width: 100%;
+      display: block;
+    }
+
+    .screenshot-caption {
+      background: #f8fafc;
+      padding: 12px 20px;
+      font-size: 12px;
+      color: #64748b;
+      font-style: italic;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    /* ── Feature Grid ──────────────────────── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+      margin-bottom: 36px;
+    }
+
+    .feature-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 24px;
+      transition: all 0.2s;
+    }
+
+    .feature-card:hover {
+      border-color: var(--primary);
+      box-shadow: 0 4px 12px rgba(13, 148, 136, 0.08);
+    }
+
+    .feature-card h4 {
+      font-size: 14px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .feature-card h4 .icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    .feature-card p {
+      font-size: 13px;
+      color: #64748b;
+      line-height: 1.6;
+    }
+
+    .icon-teal {
+      background: rgba(13, 148, 136, 0.1);
+      color: var(--primary);
+    }
+
+    .icon-amber {
+      background: rgba(245, 158, 11, 0.1);
+      color: var(--accent);
+    }
+
+    .icon-red {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--red);
+    }
+
+    .icon-blue {
+      background: rgba(59, 130, 246, 0.1);
+      color: var(--blue);
+    }
+
+    .icon-green {
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--green);
+    }
+
+    /* ── Methodology Section ──────────────── */
+    .methodology-flow {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin: 30px 0;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .flow-step {
+      text-align: center;
+      flex: 0 0 auto;
+      padding: 0 16px;
+    }
+
+    .flow-step .flow-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      margin: 0 auto 10px;
+      box-shadow: 0 4px 12px rgba(13, 148, 136, 0.2);
+    }
+
+    .flow-step h5 {
+      font-size: 12px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 4px;
+    }
+
+    .flow-step p {
+      font-size: 11px;
+      color: #94a3b8;
+      max-width: 120px;
+      margin: 0 auto;
+    }
+
+    .flow-arrow {
+      font-size: 24px;
+      color: #cbd5e1;
+      flex-shrink: 0;
+    }
+
+    /* ── Stats Bar ─────────────────────────── */
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin: 30px 0;
+    }
+
+    .stat-card {
+      background: linear-gradient(135deg, #0f172a, #1e293b);
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+      color: white;
+    }
+
+    .stat-card .stat-value {
+      font-size: 32px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .stat-card .stat-label {
+      font-size: 11px;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .stat-teal .stat-value {
+      color: var(--primary);
+    }
+
+    .stat-amber .stat-value {
+      color: var(--accent);
+    }
+
+    .stat-red .stat-value {
+      color: var(--red);
+    }
+
+    .stat-green .stat-value {
+      color: var(--green);
+    }
+
+    /* ── Table of Contents ─────────────────── */
+    .toc {
+      max-width: 600px;
+      margin: 40px auto;
+    }
+
+    .toc-item {
+      display: flex;
+      align-items: center;
+      padding: 14px 0;
+      border-bottom: 1px solid #f1f5f9;
+      gap: 16px;
+      text-decoration: none;
+      color: #334155;
+      transition: color 0.2s;
+    }
+
+    .toc-item:hover {
+      color: var(--primary);
+    }
+
+    .toc-item .toc-num {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: #f1f5f9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--primary);
+      flex-shrink: 0;
+    }
+
+    .toc-item .toc-title {
+      font-size: 15px;
+      font-weight: 500;
+      flex: 1;
+    }
+
+    .toc-item .toc-page {
+      font-size: 13px;
+      color: #94a3b8;
+    }
+
+    /* ── Footer ────────────────────────────── */
+    .page-footer {
+      margin-top: 60px;
+      padding-top: 20px;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: #94a3b8;
+    }
+
+    .page-footer .footer-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      color: #64748b;
+    }
+
+    .footer-logo-mark {
+      width: 20px;
+      height: 20px;
+      border-radius: 5px;
+      background: var(--primary);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .note-box {
+      background: #f0fdf4;
+      border-left: 4px solid var(--green);
+      padding: 16px 20px;
+      border-radius: 0 8px 8px 0;
+      margin: 24px 0;
+      font-size: 13px;
+      color: #166534;
+    }
+
+    .warning-box {
+      background: #fff7ed;
+      border-left: 4px solid var(--accent);
+      padding: 16px 20px;
+      border-radius: 0 8px 8px 0;
+      margin: 24px 0;
+      font-size: 13px;
+      color: #9a3412;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ══════════════════════════════════════════════════ -->
+  <!-- COVER PAGE                                        -->
+  <!-- ══════════════════════════════════════════════════ -->
+  <div class="cover-page">
+    <div class="cover-logo">R</div>
+    <h1 class="cover-title">ROBIN Intelligence Platform</h1>
+    <p class="cover-subtitle">Open Source Intelligence & Media Monitoring System</p>
+    <div class="cover-divider"></div>
+    <div class="cover-meta">
+      <h3>Government of Odisha</h3>
+      <p>Infrastructure & Governance Media Intelligence</p>
+      <p style="margin-top: 16px; font-size: 13px;">Prepared: 10 March 2026</p>
+      <p>Classification: <strong style="color: var(--accent);">CONFIDENTIAL — Client Only</strong></p>
+    </div>
+    <span class="cover-badge">Platform Capability Report</span>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════ -->
+  <!-- TABLE OF CONTENTS                                 -->
+  <!-- ══════════════════════════════════════════════════ -->
+  <div class="content-page page-break">
+    <div class="section-header">
+      <div class="section-number">📋</div>
+      <h2>Table of Contents</h2>
+    </div>
+
+    <div class="toc">
+      <div class="toc-item"><span class="toc-num">1</span><span class="toc-title">Executive Summary</span></div>
+      <div class="toc-item"><span class="toc-num">2</span><span class="toc-title">Platform Overview & Key Metrics</span>
+      </div>
+      <div class="toc-item"><span class="toc-num">3</span><span class="toc-title">Command Center — Strategic
+          Overview</span></div>
+      <div class="toc-item"><span class="toc-num">4</span><span class="toc-title">Intelligence Brief — AI-Powered
+          Analysis</span></div>
+      <div class="toc-item"><span class="toc-num">5</span><span class="toc-title">Reports & Analytics — Data
+          Insights</span></div>
+      <div class="toc-item"><span class="toc-num">6</span><span class="toc-title">Activity Feed — Real-Time Content
+          Stream</span></div>
+      <div class="toc-item"><span class="toc-num">7</span><span class="toc-title">Source Management — Data Collection
+          Network</span></div>
+      <div class="toc-item"><span class="toc-num">8</span><span class="toc-title">Entity Intelligence — People &
+          Organizations</span></div>
+      <div class="toc-item"><span class="toc-num">9</span><span class="toc-title">How It Works — Data Collection &
+          Analysis Methodology</span></div>
+      <div class="toc-item"><span class="toc-num">10</span><span class="toc-title">Data Sources & Coverage</span></div>
+    </div>
+
+    <div class="page-footer">
+      <div class="footer-logo"><span class="footer-logo-mark">R</span> ROBIN Intelligence</div>
+      <span>Confidential — Government of Odisha</span>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════ -->
+  <!-- 1. EXECUTIVE SUMMARY                              -->
+  <!-- ══════════════════════════════════════════════════ -->
+  <div class="content-page page-break">
+    <div class="section-header">
+      <div class="section-number">1</div>
+      <h2>Executive Summary</h2>
+    </div>
+
+    <p class="section-intro">
+      ROBIN is an AI-powered Open Source Intelligence (OSINT) platform purpose-built for the Government of Odisha.
+      It continuously monitors <strong>154 news sources</strong> — including national and regional media outlets,
+      government portals, financial news services, and Odia-language publications — to provide real-time awareness
+      of media narratives, sentiment trends, and emerging issues related to Odisha's governance and infrastructure
+      programs.
+    </p>
+
+    <div class="stats-bar">
+      <div class="stat-card stat-teal">
+        <div class="stat-value">63</div>
+        <div class="stat-label">Articles Collected</div>
+      </div>
+      <div class="stat-card stat-amber">
+        <div class="stat-value">154</div>
+        <div class="stat-label">Active Sources</div>
+      </div>
+      <div class="stat-card stat-green">
+        <div class="stat-value">50</div>
+        <div class="stat-label">Entities Tracked</div>
+      </div>
+      <div class="stat-card stat-red">
+        <div class="stat-value">7</div>
+        <div class="stat-label">Critical Alerts</div>
+      </div>
+    </div>
+
+    <div class="note-box">
+      <strong>Current Assessment:</strong> The Odisha government and infrastructure media landscape is experiencing an
+      <strong>elevated monitoring level</strong> with a Threat Index score of 61/100, driven by emerging narratives
+      around
+      the state's industrial corridor, steel sector developments, and key political figures including Naveen Patnaik and
+      Mohan Majhi.
+    </div>
+
+    <h3 style="margin: 30px 0 16px; font-size: 18px; color: #0f172a;">What ROBIN Does for You</h3>
+    <div class="features-grid">
+      <div class="feature-card">
+        <h4><span class="icon icon-teal">🔍</span> 24/7 Media Monitoring</h4>
+        <p>Continuously scans 154 sources including English and Odia-language news, government portals, and social media
+          for relevant content about Odisha.</p>
+      </div>
+      <div class="feature-card">
+        <h4><span class="icon icon-blue">🤖</span> AI-Powered Analysis</h4>
+        <p>Every article is analyzed by artificial intelligence to determine sentiment (positive/negative/neutral),
+          importance score (1-10), and key claims made.</p>
+      </div>
+      <div class="feature-card">
+        <h4><span class="icon icon-amber">⚡</span> Critical Alert System</h4>
+        <p>High-importance developments are automatically flagged as critical alerts, ensuring your team never misses
+          significant news about Odisha.</p>
+      </div>
+      <div class="feature-card">
+        <h4><span class="icon icon-green">📊</span> Intelligence Narratives</h4>
+        <p>AI synthesizes all collected articles into executive-level intelligence briefs with key developments,
+          emerging threats, and watch-list items.</p>
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <div class="footer-logo"><span class="footer-logo-mark">R</span> ROBIN Intelligence</div>
+      <span>Confidential — Government of Odisha — Page 1</span>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════ -->
+  <!-- 2. COMMAND CENTER                                 -->
+  <!-- ══════════════════════════════════════════════════ -->
+  <div class="content-page page-break">
+    <div class="section-header">
+      <div class="section-number">2</div>
+      <h2>Command Center — Strategic Overview</h2>
+      <span class="section-tag">Main Dashboard</span>
+    </div>
+
+    <p class="section-intro">
+      The Command Center is your primary situational awareness screen — a single view that shows the entire intelligence
+      landscape for the Government of Odisha at a glance.
+    </p>
+
+    <div class="screenshot-container">
+      <img src="page_overview_1773166242690.png" alt="ROBIN Dashboard - Command Center Overview">
+      <div class="screenshot-caption">Figure 1: Command Center showing the full operational picture — mission status,
+        geographic intelligence, situation room, and critical alerts.</div>
+    </div>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <h4><span class="icon icon-teal">🎯</span> Operational Targets (Left Panel)</h4>
+        <p>Shows the keywords being monitored (e.g., "Odisha" — 22 hits, "infrastructure" — 8 hits, "BJD" — 6 hits).
+          Each keyword shows a sentiment indicator bar — how positively or negatively the media is covering that topic.
+          Click any keyword to filter the entire dashboard.</p>
+      </div>
+      <div class="feature-card">
+        <h4><span class="icon icon-green">🗺️</span> Geographic Intelligence (Center)</h4>
+        <p>Interactive map showing where news activity is concentrated. Larger circles indicate more media coverage in
+          that region. The map shows coverage across India with activity nodes in Odisha, Bhubaneswar, Delhi, and other
+          relevant locations. Hover over any node to see linked articles.</p>
+      </div>
+      <div class="feature-card">
+        <h4><span class="icon icon-blue">📡</span> Situation Room (Bottom Center)</h4>
+        <p>A live feed of the 50 most important articles, sorted by importance score. Each entry shows the time,
+          severity level (CRITICAL / HIGH / ELEVATED / ROUTINE), source name, AI-generated summary, importance score out
+          of 10, and matched keywords. Supports both English and Odia-language (ଓଡ଼ିଆ) articles.</p>
+      </div>
+      <div class="feature-card">
+        <h4><span class="icon icon-red">🚨</span> Critical Alerts (Right Panel)</h4>
+        <p>Automatically generated alerts for articles that score ≥7/10 in importance or carry negative sentiment. Each
+          alert has a confidence score and can be expanded to see key claims, named entities (people, organizations,
+          locations), and a direct link to the source article.</p>
+      </div>
+    </div>
+
+    <h3 style="margin: 20px 0 16px; font-size: 16px; color: #0f172a;">Header Status Bar — Understanding the Numbers</h3>
+    <div class="features-grid">
+      <div class="feature-card">
+        <h4><span class="icon icon-amber">📈</span> Risk Index: 3.4 (MEDIUM)</h4>
+        <p>Calculated from the average importance score of all articles, weighted by the proportion of negative
+          sentiment coverage. Range: 0 (no risk) to 10 (critical).</p>
+      </div>
+      <div class="feature-card">
+        <h4><span class="icon icon-teal">📊</span> Sensors: 154/168 Active</h4>
+        <p>Shows how many of your configured news sources are actively being monitored. 154 sources are currently
+          providing data out of 168 configured total.</p>
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <div class="footer-logo"><span class="footer-logo-mark">R</span> ROBIN Intelligence</div>
+      <span>Confidential — Government of Odisha — Page 2</span>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════ -->
+  <!-- 3. INTELLIGENCE BRIEF                             -->
+  <!-- ══════════════════════════════════════════════════ -->
+  <div class="content-page page-break">
+    <div class="section-header">
+      <div class="section-number">3</div>
+      <h2>Intelligence Brief — AI-Powered Analysis</h2>
+      <span class="section-tag">Investigate</span>
+    </div>
+
+    <p class="section-intro">
+      The Intelligence Brief page provides a comprehensive, AI-generated analysis of the entire media landscape.
+      It synthesizes all collected articles into an actionable intelligence report — the kind of document that would
+      normally require a team of analysts working for hours.
+    </p>
+
+    <div class="screenshot-container">
+      <img src="page_intelligence_1773166259666.png" alt="ROBIN Intelligence Brief">
+      <div class="screenshot-caption">Figure 2: Intelligence Brief — showing threat posture, situation summary, key
+        developments, and entity watchlist.</div>
+    </div>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <h4><span class="icon icon-red">🛡️</span> Threat Posture (ELEVATED)</h4>
+        <p>Overall assessment: <strong>Threat Index 61/100</strong>. This is calculated across 7 analysis dimensions
+          including political stability, economic indicators, infrastructure developments, and media narrative tone. The
+          "ELEVATED" status indicates increased media activity around sensitive topics.</p>
+      </div>
+      <div class="feature-card">
+        <h4><span class="icon icon-blue">📋</span> Situation Summary</h4>
+        <p>AI-written executive summary of the current landscape: <em>"The Odisha government and infrastructure media
+            monitoring landscape is experiencing an elevated threat level, driven by emerging narratives around the
+            state's industrial corridor, steel sector developments, and key political figures."</em></p>
+      </div>
+      <div class="feature-card">
+        <h4><span class="icon icon-amber">🔑</span> Key Developments</h4>
+        <p>AI identifies the most significant developments: (1) emergence of new entities like OdishaTV and Naveen
+          Patnaik in coverage, (2) acceleration of story trajectories for protests and delays, (3) formation of network
+          clusters around Odisha, Congress, and BJD party coverage.</p>
+      </div>
+      <div class="feature-card">
+        <h4><span class="icon icon-teal">👁️</span> Watch List — Next 7 Days</h4>
+        <p>AI-predicted items to watch: (1) Odisha state budget announcement, (2) potential formation of new political
+          alliances, (3) release of new data on the industrial corridor and steel sector developments.</p>
+      </div>
+    </div>
+
+    <div class="screenshot-container" style="margin-top: 20px;">
+      <img src="page_intelligence_2_1773166261121.png" alt="ROBIN Intelligence Brief - Developments and Entities">
+      <div class="screenshot-caption">Figure 3: Active Developments (showing corroborated stories from multiple sources)
+        and Entity Watchlist (tracking people, organizations, and locations).</div>
+    </div>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <h4><span class="icon icon-green">📰</span> Active Developments (6 Tracked)</h4>
+        <p>Groups of related articles clustered by topic. Each development shows: trend direction
+          (Accelerating/Stable/Fading), number of corroborating sources, article count, and a combined importance score.
+          Example: Odisha MoU signing — 7 sources, 11 articles, trend accelerating.</p>
+      </div>
+      <div class="feature-card">
+        <h4><span class="icon icon-blue">👤</span> Entity Watchlist</h4>
+        <p>Tracks key people, organizations, and locations appearing in the news. Shows each entity's type, mention
+          count, and whether they are newly emerging. Currently tracking: <strong>Odisha</strong> (29 mentions),
+          <strong>BJD</strong> (5 mentions), <strong>OdishaTV</strong> (new), and more.</p>
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <div class="footer-logo"><span class="footer-logo-mark">R</span> ROBIN Intelligence</div>
+      <span>Confidential — Government of Odisha — Page 3</span>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════ -->
+  <!-- 4. REPORTS & ANALYTICS                            -->
+  <!-- ══════════════════════════════════════════════════ -->
+  <div class="content-page page-break">
+    <div class="section-header">
+      <div class="section-number">4</div>
+      <h2>Reports & Analytics — Data Insights</h2>
+      <span class="section-tag">Reports</span>
+    </div>
+
+    <p class="section-intro">
+      The Reports & Analytics page provides quantitative insights into media coverage over time, including sentiment
+      breakdowns, article velocity trends, and AI-generated weekly narrative summaries that can be exported as PDF
+      reports.
+    </p>
+
+    <div class="screenshot-container">
+      <img src="page_reports_1773166272226.png" alt="ROBIN Reports & Analytics">
+      <div class="screenshot-caption">Figure 4: Reports & Analytics — sentiment distribution, 14-day article velocity,
+        and AI-generated weekly intelligence narrative.</div>
+    </div>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <h4><span class="icon icon-green">😊</span> Sentiment Distribution</h4>
+        <p>Every article is classified by AI as Positive, Neutral, or Negative. Current breakdown: <strong>10%
+            Positive</strong> (6 articles), <strong>86% Neutral</strong> (54 articles), <strong>5% Negative</strong> (3
+          articles). This helps gauge overall media tone toward Odisha's policies and initiatives.</p>
+      </div>
+      <div class="feature-card">
+        <h4><span class="icon icon-blue">📈</span> Article Velocity (14-Day Chart)</h4>
+        <p>Shows the volume of articles collected per day over the last 14 days. Spikes indicate increased media
+          attention — useful for identifying when a story is gaining traction. The chart covers Feb 25 to Mar 10.</p>
+      </div>
+      <div class="feature-card">
+        <h4><span class="icon icon-amber">📊</span> Sentiment Bar Chart</h4>
+        <p>Visual comparison of negative, neutral, and positive article counts. Makes it easy to see at a glance whether
+          media coverage is trending positively or negatively, and how the balance shifts over time.</p>
+      </div>
+      <div class="feature-card">
+        <h4><span class="icon icon-teal">📝</span> Weekly Intelligence Narrative</h4>
+        <p>AI-written summary: <em>"The Odisha government and infrastructure media monitoring landscape is experiencing
+            an elevated threat level, with a score of 61/100, driven by emerging narratives around the state's
+            industrial corridor, steel sector developments..."</em></p>
+      </div>
+    </div>
+
+    <div class="note-box">
+      <strong>PDF Export:</strong> The "Generate Report" button in the top-right corner creates a downloadable PDF
+      containing all analytics data, charts, and narratives — ready for distribution to stakeholders.
+    </div>
+
+    <div class="page-footer">
+      <div class="footer-logo"><span class="footer-logo-mark">R</span> ROBIN Intelligence</div>
+      <span>Confidential — Government of Odisha — Page 4</span>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════ -->
+  <!-- 5. ACTIVITY FEED                                  -->
+  <!-- ══════════════════════════════════════════════════ -->
+  <div class="content-page page-break">
+    <div class="section-header">
+      <div class="section-number">5</div>
+      <h2>Activity Feed — Real-Time Content Stream</h2>
+      <span class="section-tag">Content Feed</span>
+    </div>
+
+    <p class="section-intro">
+      The Activity Feed shows every piece of content collected by the system in chronological order — articles,
+      video transcripts, government releases, and social media posts — each enriched with AI-generated analysis.
+    </p>
+
+    <div class="screenshot-container">
+      <img src="page_activity_1773166285195.png" alt="ROBIN Activity Feed">
+      <div class="screenshot-caption">Figure 5: Activity Feed — chronological stream of all collected content with
+        sentiment tags, importance scores, and AI-generated summaries.</div>
+    </div>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <h4><span class="icon icon-teal">📄</span> Article Cards</h4>
+        <p>Each article shows: headline, source name, publication time, full AI summary, sentiment badge (colored
+          green/gray/red), importance score, and matched monitoring keywords. Click any article to read the full content
+          or visit the original source.</p>
+      </div>
+      <div class="feature-card">
+        <h4><span class="icon icon-blue">🔎</span> Content Type Filters</h4>
+        <p>Filter by content type: Articles, YouTube Videos, PDFs, Government Releases, or Social Media posts. Each type
+          has a dedicated icon for easy visual identification.</p>
+      </div>
+      <div class="feature-card">
+        <h4><span class="icon icon-amber">🏷️</span> Keyword Matching</h4>
+        <p>Each article displays which of your monitoring keywords it matched (e.g., #Odisha, #infrastructure,
+          #climate). This shows exactly why each article was collected and how it relates to your intelligence brief.
+        </p>
+      </div>
+      <div class="feature-card">
+        <h4><span class="icon icon-green">🌐</span> Multi-Language Support</h4>
+        <p>The system processes articles in both English and Odia (ଓଡ଼ିଆ). Odia-language articles from sources like
+          Utkal Samachar, Dharitri, and Pragativadi are fully analyzed with AI-generated English summaries.</p>
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <div class="footer-logo"><span class="footer-logo-mark">R</span> ROBIN Intelligence</div>
+      <span>Confidential — Government of Odisha — Page 5</span>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════ -->
+  <!-- 6. SOURCE MANAGEMENT                              -->
+  <!-- ══════════════════════════════════════════════════ -->
+  <div class="content-page page-break">
+    <div class="section-header">
+      <div class="section-number">6</div>
+      <h2>Source Management — Data Collection Network</h2>
+      <span class="section-tag">Sources</span>
+    </div>
+
+    <p class="section-intro">
+      The Source Management page provides full visibility into the network of news sources being monitored.
+      It shows the health status, type, and last successful scan time for every configured source.
+    </p>
+
+    <div class="screenshot-container">
+      <img src="page_sources_1773166296118.png" alt="ROBIN Source Management">
+      <div class="screenshot-caption">Figure 6: Source Management — showing all 154 active sources across RSS feeds, web
+        crawlers, YouTube channels, and more.</div>
+    </div>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <h4><span class="icon icon-teal">📡</span> Source Types</h4>
+        <p><strong>RSS Feeds</strong> — automated news feeds from major outlets. <strong>HTML Crawlers</strong> — scan
+          web pages for content. <strong>YouTube</strong> — monitor video channels. <strong>Google News</strong> —
+          aggregated search results. <strong>Reddit</strong> — social media monitoring. <strong>Government
+            Portals</strong> — official releases.</p>
+      </div>
+      <div class="feature-card">
+        <h4><span class="icon icon-green">✅</span> Health Monitoring</h4>
+        <p>Each source shows its active/inactive status, last successful scan time, success count, and failure count.
+          Sources that fail repeatedly are automatically flagged, ensuring data quality remains high.</p>
+      </div>
+      <div class="feature-card">
+        <h4><span class="icon icon-blue">🔄</span> Automated Scanning</h4>
+        <p>Sources are scanned automatically every 2 hours. Each scan checks for new content, downloads articles, and
+          queues them for AI analysis. The system handles rate limiting and retry logic automatically.</p>
+      </div>
+      <div class="feature-card">
+        <h4><span class="icon icon-amber">➕</span> Expandable Network</h4>
+        <p>New sources can be added at any time — simply provide the URL and type. The AI identifies the best crawling
+          strategy for new sources automatically. Custom keywords focus collection on relevant content.</p>
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <div class="footer-logo"><span class="footer-logo-mark">R</span> ROBIN Intelligence</div>
+      <span>Confidential — Government of Odisha — Page 6</span>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════ -->
+  <!-- 7. ENTITY INTELLIGENCE                            -->
+  <!-- ══════════════════════════════════════════════════ -->
+  <div class="content-page page-break">
+    <div class="section-header">
+      <div class="section-number">7</div>
+      <h2>Entity Intelligence — People & Organizations</h2>
+      <span class="section-tag">Investigate</span>
+    </div>
+
+    <p class="section-intro">
+      The Entity Intelligence page tracks every person, organization, and location mentioned across all collected
+      articles.
+      It builds a dynamic profile of each entity showing their media visibility, influence, and relationships.
+    </p>
+
+    <div class="screenshot-container">
+      <img src="page_entities_1773166307095.png" alt="ROBIN Entity Intelligence">
+      <div class="screenshot-caption">Figure 7: Entity Intelligence — relationship graph and detailed entity profiles
+        showing influence scores, mention frequency, and connections.</div>
+    </div>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <h4><span class="icon icon-blue">🕸️</span> Entity Relationship Graph</h4>
+        <p>Visual network showing how entities are connected. Larger nodes indicate more mentions. Lines between nodes
+          show co-occurrence in articles. Helps identify alliances, conflicts, and influence networks in Odisha's
+          political and business landscape.</p>
+      </div>
+      <div class="feature-card">
+        <h4><span class="icon icon-teal">📊</span> Entity Profiles</h4>
+        <p>Each entity has a detailed profile: name, type (person/organization/location), total mentions, influence
+          score (0-100), sentiment trend, and related articles. Entities are ranked by their influence on the overall
+          narrative.</p>
+      </div>
+      <div class="feature-card">
+        <h4><span class="icon icon-amber">📈</span> Trend Tracking</h4>
+        <p>Shows whether each entity's media presence is rising, stable, or declining. New entities are flagged with a
+          "NEW" badge. Currently tracking 50 entities across Odisha's governance, industry, and political ecosystem.</p>
+      </div>
+      <div class="feature-card">
+        <h4><span class="icon icon-green">🔗</span> Cross-Reference Analysis</h4>
+        <p>The system automatically identifies when the same entity appears in different contexts — for example, when a
+          political figure is mentioned in both infrastructure and protest-related coverage — revealing hidden
+          connections.</p>
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <div class="footer-logo"><span class="footer-logo-mark">R</span> ROBIN Intelligence</div>
+      <span>Confidential — Government of Odisha — Page 7</span>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════ -->
+  <!-- 8. METHODOLOGY                                    -->
+  <!-- ══════════════════════════════════════════════════ -->
+  <div class="content-page page-break">
+    <div class="section-header">
+      <div class="section-number">8</div>
+      <h2>How It Works — Data Collection & Analysis</h2>
+      <span class="section-tag">Methodology</span>
+    </div>
+
+    <p class="section-intro">
+      ROBIN operates as a fully automated intelligence pipeline. Here's how data flows from raw news articles to
+      actionable insights on your dashboard — no manual intervention required.
+    </p>
+
+    <div class="methodology-flow">
+      <div class="flow-step">
+        <div class="flow-icon">📡</div>
+        <h5>1. Collect</h5>
+        <p>Scan 154 sources every 2 hours</p>
+      </div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">
+        <div class="flow-icon">🔍</div>
+        <h5>2. Filter</h5>
+        <p>Match against 42 Odisha-specific keywords</p>
+      </div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">
+        <div class="flow-icon">🤖</div>
+        <h5>3. Analyze</h5>
+        <p>AI scores sentiment & importance</p>
+      </div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">
+        <div class="flow-icon">🧠</div>
+        <h5>4. Synthesize</h5>
+        <p>Generate intelligence narratives</p>
+      </div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">
+        <div class="flow-icon">📊</div>
+        <h5>5. Present</h5>
+        <p>Dashboard & alerts in real-time</p>
+      </div>
+    </div>
+
+    <h3 style="margin: 40px 0 16px; font-size: 18px; color: #0f172a;">Understanding the Key Metrics</h3>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <h4><span class="icon icon-amber">⭐</span> Importance Score (1-10)</h4>
+        <p>Each article is rated by AI for its significance to Odisha governance. Factors considered: policy impact,
+          public welfare implications, scale of economic activity, prominence of entities involved, and urgency of the
+          development. Score ≥ 8 triggers a Critical Alert.</p>
+      </div>
+      <div class="feature-card">
+        <h4><span class="icon icon-teal">💭</span> Sentiment Classification</h4>
+        <p>AI reads the full article content and classifies its tone as Positive (favorable coverage), Neutral (factual
+          reporting), or Negative (critical or adverse coverage). This is based on language analysis, not just keyword
+          matching.</p>
+      </div>
+      <div class="feature-card">
+        <h4><span class="icon icon-red">📊</span> Risk Index (0-10)</h4>
+        <p>Composite score calculated as: Average Importance × (1 + Negative Sentiment Ratio). A risk index above 7 is
+          "Critical", 5-7 is "Elevated", 3-5 is "Medium", below 3 is "Low". Currently at 3.4 (Medium) for Odisha.</p>
+      </div>
+      <div class="feature-card">
+        <h4><span class="icon icon-blue">🛡️</span> Threat Index (0-100)</h4>
+        <p>A more comprehensive score used in the Intelligence Brief. Considers 7 dimensions: entity emergence velocity,
+          story acceleration, network formation, cross-source corroboration, sentiment shift, media volume, and
+          narrative divergence.</p>
+      </div>
+      <div class="feature-card">
+        <h4><span class="icon icon-green">✅</span> Confidence Score</h4>
+        <p>Shown on each critical alert. Calculated as: 60% base + (importance × 4). Higher importance articles
+          naturally have higher confidence. Scores range from 64% (importance 1) to 95% (importance 8+).</p>
+      </div>
+      <div class="feature-card">
+        <h4><span class="icon icon-amber">🔄</span> Corroboration</h4>
+        <p>When the same story appears across multiple independent sources, it is marked as "corroborated". This is a
+          strong signal that the development is genuine and significant, not a one-off or unverified report.</p>
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <div class="footer-logo"><span class="footer-logo-mark">R</span> ROBIN Intelligence</div>
+      <span>Confidential — Government of Odisha — Page 8</span>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════ -->
+  <!-- 9. DATA SOURCES                                   -->
+  <!-- ══════════════════════════════════════════════════ -->
+  <div class="content-page page-break">
+    <div class="section-header">
+      <div class="section-number">9</div>
+      <h2>Data Sources & Coverage</h2>
+      <span class="section-tag">Coverage</span>
+    </div>
+
+    <p class="section-intro">
+      ROBIN monitors a curated network of 154 sources specifically selected for relevance to Odisha's governance,
+      infrastructure, and political landscape. Sources span national, regional, and Odia-language media.
+    </p>
+
+    <h3 style="margin: 20px 0 16px; font-size: 16px; color: #0f172a;">Source Categories</h3>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <h4><span class="icon icon-blue">🇮🇳</span> National News</h4>
+        <p>NDTV, Times of India, The Hindu, Hindustan Times, India Today, The Indian Express, Economic Times, Business
+          Standard, LiveMint, and more.</p>
+      </div>
+      <div class="feature-card">
+        <h4><span class="icon icon-teal">🏛️</span> Odisha Regional Media</h4>
+        <p>OdishaTV, Utkal Samachar (ଉତ୍କଳ ସମାଚାର), Pragativadi, Dharitri (ଧରିତ୍ରୀ), Odisha Bhaskar, Sambad, Kalinga TV,
+          and Odisha Sun Times.</p>
+      </div>
+      <div class="feature-card">
+        <h4><span class="icon icon-green">🏢</span> Government & Official</h4>
+        <p>Government of Odisha official portals, Press Information Bureau (PIB), IDCO, NALCO, Odisha Mining
+          Corporation, and state department announcements.</p>
+      </div>
+      <div class="feature-card">
+        <h4><span class="icon icon-amber">📺</span> Video & Social Media</h4>
+        <p>YouTube channels of OdishaTV, NDTV, Times Now. Reddit communities for Odisha discussion. Google News
+          aggregated searches for trending Odisha topics.</p>
+      </div>
+    </div>
+
+    <h3 style="margin: 30px 0 16px; font-size: 16px; color: #0f172a;">Monitoring Keywords (42 Active)</h3>
+    <p style="color: #64748b; font-size: 13px; line-height: 1.8; margin-bottom: 20px;">
+      The system monitors for the following keywords across all sources. Articles matching any keyword are collected and
+      analyzed:
+    </p>
+    <p
+      style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px; font-size: 13px; color: #334155; line-height: 2;">
+      <strong>Political:</strong> Mohan Majhi · Naveen Patnaik · Odisha BJP · BJD Odisha · Congress Odisha · Dharmendra
+      Pradhan<br>
+      <strong>Industry:</strong> Tata Steel Odisha · JSPL Odisha · SAIL Rourkela · NALCO · Odisha industrial corridor ·
+      IDCO<br>
+      <strong>Infrastructure:</strong> Odisha infrastructure · Smart City Bhubaneswar · Paradip port · Dhamra port<br>
+      <strong>Governance:</strong> Odisha government · Odisha cabinet · Odisha budget · Odisha assembly<br>
+      <strong>Social:</strong> Odisha protest · Odisha flood · Odisha cyclone · Odisha tribal · Odisha poverty<br>
+      <strong>Economic:</strong> Odisha GDP · Odisha investment · GST Odisha · Nifty · Mining Odisha
+    </p>
+
+    <div class="warning-box">
+      <strong>Continuous Expansion:</strong> New sources and keywords can be added at any time through the Intelligence
+      Brief configuration page. The system immediately begins monitoring for new keywords across all existing sources.
+    </div>
+
+    <div class="page-footer">
+      <div class="footer-logo"><span class="footer-logo-mark">R</span> ROBIN Intelligence</div>
+      <span>Confidential — Government of Odisha — Page 9</span>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════ -->
+  <!-- BACK COVER                                        -->
+  <!-- ══════════════════════════════════════════════════ -->
+  <div class="cover-page page-break" style="min-height: 100vh;">
+    <div class="cover-logo" style="margin-bottom: 40px;">R</div>
+    <h2 style="font-size: 32px; font-weight: 700; position: relative; z-index: 1; margin-bottom: 16px;">ROBIN
+      Intelligence Platform</h2>
+    <p style="font-size: 16px; color: rgba(255,255,255,0.5); position: relative; z-index: 1; margin-bottom: 40px;">
+      Powering informed governance through AI-driven media intelligence</p>
+    <div class="cover-divider"></div>
+    <div style="position: relative; z-index: 1; text-align: center;">
+      <p style="font-size: 14px; color: rgba(255,255,255,0.4); margin-bottom: 8px;">For questions or support</p>
+      <p style="font-size: 16px; color: var(--primary); font-weight: 600;">admin@odisha.gov.in</p>
+      <p style="font-size: 13px; color: rgba(255,255,255,0.3); margin-top: 40px;">© 2026 ROBIN Intelligence. All rights
+        reserved.</p>
+      <p style="font-size: 12px; color: rgba(255,255,255,0.2); margin-top: 8px;">This document is confidential and
+        intended solely for the Government of Odisha.</p>
+    </div>
+  </div>
+
+</body>
+
+</html>

@@ -405,6 +405,7 @@ export async function runScraperCycle() {
         });
 
         // Run temporal analysis per client in background (non-blocking)
+        // Run temporal analysis per client in background (non-blocking)
         if (totalSaved > 0) {
             const clientIds = [...new Set(sources.map(s => s.client_id).filter(Boolean))];
             for (const clientId of clientIds) {
@@ -423,7 +424,17 @@ export async function runScraperCycle() {
             } catch (e) {
                 log.ai.error('Post-scrape batch intelligence failed', { error: e.message });
             }
+        } else {
+             await updatePipelineStage('analysis', `Scraping done (0 articles matched filters). Skipping AI analysis...`, { found: totalFound, saved: 0 });
         }
+        
+        // Always cleanly terminate the pipeline for the dashboard UI
+        await updatePipelineStage('complete', 'Pipeline fully completed.');
+        await new Promise(r => setTimeout(r, 2000)); // hold complete state for 2s so UI caches it
+        
+        // Import resetPipeline to clear the DB state for next run
+        const { resetPipeline } = await import('../lib/pipeline-tracker.js');
+        await resetPipeline();
     } finally {
         await releaseLock();
     }
