@@ -89,10 +89,8 @@ YOU MUST recommend sources across ALL 7 source types. Provide EXACTLY 30 sources
 CRITICAL RULES:
 - ONLY real, currently active URLs that exist in 2024-2026
 - YouTube URLs must be channel URLs (youtube.com/@ChannelName or youtube.com/c/ChannelName)
-- PDF sources should be pages that LIST PDFs (not individual PDF files)
-- Reddit sources should be subreddit URLs
-- Google News RSS queries should use the exact URL format shown above with '+' for spaces
-- Geographic Focus: MUST BE 100% REGION-SPECIFIC to "${context.geographic_focus?.join(', ') || 'global'}". Do not suggest global news organizations unless no local sources exist.
+- Geographic Focus: MUST BE 100% REGION-SPECIFIC to "${context.geographic_focus?.join(', ') || 'global'}". 
+- EXTREME WARNING: If the focus is "Odisha" or "India", DO NOT suggest news from Africa, Caribbean, Pakistan, or purely Western generic sites. Suggest ONLY Indian and Odia news sources.
 - Each source MUST have all fields: name, url, source_type, expected_hit_rate, rationale
 
 Return ONLY valid JSON:
@@ -155,7 +153,8 @@ function lookupLibrarySources(context) {
     for (const geo of (context.geographic_focus || [])) {
         const g = geo.toLowerCase().trim();
         if (SOURCE_LIBRARY[g]) addSrc(SOURCE_LIBRARY[g]);
-        if (g.includes('odisha') || g.includes('orissa')) addSrc(SOURCE_LIBRARY['odisha']);
+        if (g.includes('odisha') || g.includes('orissa') || g.includes('india')) addSrc(SOURCE_LIBRARY['odisha']);
+        if (g.includes('india')) addSrc(SOURCE_LIBRARY['india']);
         if (g.includes('usa') || g.includes('america') || g.includes('united states') || g === 'us') addSrc(SOURCE_LIBRARY['united states']);
         if (g.includes('uk') || g.includes('britain') || g.includes('united kingdom')) addSrc(SOURCE_LIBRARY['uk']);
         if (g.includes('china') || g.includes('chinese')) addSrc(SOURCE_LIBRARY['china']);
