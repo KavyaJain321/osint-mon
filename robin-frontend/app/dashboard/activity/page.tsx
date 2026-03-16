@@ -286,20 +286,20 @@ export default function ContentFeedPage() {
                                             imp >= 7 && imp < 9 && "ring-1 ring-amber/20",
                                         )}
                                     >
-                                        {/* Thumbnail */}
-                                        <div className={cn("relative h-28 overflow-hidden bg-gradient-to-br", TYPE_GRADIENTS[cType] || "from-blue-600/15 to-indigo-700/15")}>
-                                            {article.type_metadata?.image_url ? (
-                                                <img
-                                                    src={article.type_metadata.image_url}
-                                                    alt={article.title}
-                                                    className="absolute inset-0 w-full h-full object-cover"
-                                                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                                                />
-                                            ) : (
-                                                <div className="absolute inset-0 flex items-center justify-center opacity-10">
-                                                    <span className="text-4xl">{cType === "youtube" ? "📺" : cType === "newspaper" ? "📰" : cType === "pdf" ? "📄" : cType === "govt" ? "🏛️" : "🌐"}</span>
-                                                </div>
-                                            )}
+                                        {/* Thumbnail inner container */}
+                                        <div className="relative">
+                                            <div className={cn("h-32 w-full flex items-center justify-center transition-all group-hover:bg-gradient-to-br opacity-80 group-hover:opacity-100", TYPE_GRADIENTS[cType] || "from-blue-600/20 to-indigo-700/20")}>
+                                                {article.type_metadata?.image_url ? (
+                                                    <img
+                                                        src={article.type_metadata.image_url}
+                                                        alt={article.title}
+                                                        className="absolute inset-0 w-full h-full object-cover"
+                                                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                                    />
+                                                ) : (
+                                                    <span className="text-4xl filter drop-shadow opacity-50">{cType === "youtube" ? "📺" : cType === "newspaper" ? "📰" : cType === "pdf" ? "📄" : cType === "govt" ? "🏛️" : "🌐"}</span>
+                                                )}
+                                            </div>
                                             {imp >= 7 && (
                                                 <span className={cn(
                                                     "absolute top-2 left-2 px-2 py-0.5 rounded-full text-2xs font-bold",
