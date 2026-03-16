@@ -518,7 +518,10 @@ const TV_SRC=['odishatv','ndtv','timesnow','republic','aajtak','abp','zee','indi
 const NP_SRC=['utkal samachar','dharitri','sambad','pragativadi','samaja','times of india','hindustan times','the hindu','indian express','telegraph','economic times','business standard','livemint','deccan','pioneer','statesman','tribune','orissa post','odisha bhaskar','daily','gazette','guardian'];
 function classifySrc(n,u){ const s=(n||'').toLowerCase(),uu=(u||'').toLowerCase(); for(const t of TV_SRC) if(s.includes(t)||uu.includes(t.replace(/ /g,''))) return 'TV Intelligence'; for(const p of NP_SRC) if(s.includes(p)||uu.includes(p.replace(/ /g,''))) return 'Newspapers'; return 'Online News'; }
 
-async function fetchOgImg(url){ if(!url) return null; try{ const c=new AbortController(); setTimeout(()=>c.abort(),4000); const r=await fetch(url,{signal:c.signal,headers:{'User-Agent':'Mozilla/5.0'},redirect:'follow'}); if(!r.ok) return null; const h=await r.text(); let m=h.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)||h.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i)||h.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i); if(m?.[1]){let i=m[1]; if(i.startsWith('//')) i='https:'+i; if(i.startsWith('/'))i=new URL(url).origin+i; return i;} }catch{} return null; }
+async function fetchOgImg(url){ if(!url) return null; try{ const c=new AbortController(); const tId = setTimeout(()=>c.abort(),2500); // reduced to 2.5s
+const r=await fetch(url,{signal:c.signal,headers:{'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'},redirect:'follow'}); 
+clearTimeout(tId);
+if(!r.ok) return null; const h=await r.text(); let m=h.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)||h.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i)||h.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i); if(m?.[1]){let i=m[1]; if(i.startsWith('//')) i='https:'+i; if(i.startsWith('/'))i=new URL(url).origin+i; return i;} }catch{} return null; }
 
 function svgPh(src,mt){ const c=mt==='TV Intelligence'?{bg:'#ede9fe',ic:'#7c3aed',tx:'#6d28d9'}:mt==='Online News'?{bg:'#e0f7f5',ic:'#0d9488',tx:'#0f766e'}:{bg:'#fff7ed',ic:'#ea580c',tx:'#c2410c'}; const ico=mt==='TV Intelligence'?`<rect x="8" y="12" width="24" height="16" rx="2" fill="${c.ic}" opacity=".8"/><polygon points="18,16 18,24 25,20" fill="white"/>`:`<circle cx="20" cy="20" r="10" fill="none" stroke="${c.ic}" stroke-width="1.5" opacity=".8"/>`; const s=`<svg xmlns="http://www.w3.org/2000/svg" width="130" height="85" viewBox="0 0 130 85"><rect width="130" height="85" rx="6" fill="${c.bg}"/><g transform="translate(45,4)">${ico}</g><text x="65" y="60" text-anchor="middle" font-family="Arial" font-size="8" font-weight="600" fill="${c.tx}">${(src||'').substring(0,16)}</text><text x="65" y="72" text-anchor="middle" font-family="Arial" font-size="7" fill="${c.ic}" opacity=".5">${mt}</text></svg>`; return `data:image/svg+xml;base64,${Buffer.from(s).toString('base64')}`; }
 
@@ -574,12 +577,17 @@ router.post('/generate-media-report', async (req, res) => {
         });
         const enriched = all.filter(a=>isOdisha(a));
 
-        // Fetch og:image in batches of 5
+        // Fetch og:image in batches of 5 — LIMIT to top 30 to prevent 30s timeout
         const imgCache = {};
-        for(let i=0;i<enriched.length;i+=5){
-            const batch=enriched.slice(i,i+5);
-            const results=await Promise.all(batch.map(async a=>({id:a.id,img:await fetchOgImg(a.url)})));
-            results.forEach(r=>{if(r.img)imgCache[r.id]=r.img;});
+        const forImaging = enriched.slice(0, 30);
+        for(let i=0;i<forImaging.length;i+=5){
+            const batch=forImaging.slice(i,i+5);
+            try {
+                const results=await Promise.all(batch.map(async a=>({id:a.id,img:await fetchOgImg(a.url)})));
+                results.forEach(r=>{if(r.img)imgCache[r.id]=r.img;});
+            } catch (imgErr) {
+                console.warn('Image fetch batch failed:', imgErr.message);
+            }
         }
         enriched.forEach(a=>{a.image_url=imgCache[a.id]||null;});
 

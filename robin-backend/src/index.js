@@ -54,8 +54,9 @@ app.use(cors({
     origin: (origin, cb) => {
         if (!origin) return cb(null, true);
         if (allowedOrigins.includes(origin)) return cb(null, true);
-        if (origin.endsWith('.vercel.app')) return cb(null, true);
-        if (origin.endsWith('.render.com')) return cb(null, true);
+        // Better regex for Vercel and Render subdomains
+        if (/\.vercel\.app$/.test(origin)) return cb(null, true);
+        if (/\.onrender\.com$/.test(origin)) return cb(null, true);
         cb(new Error(`CORS blocked: ${origin}`));
     },
     credentials: true,
