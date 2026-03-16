@@ -44,7 +44,7 @@ function detectContentType(article: Article): string {
     }
     // Fallback to URL-based detection
     const url = article.url?.toLowerCase() || "";
-    const sourceName = (article as Record<string, unknown>).source_name as string || "";
+    const sourceName = ((article as unknown as Record<string, unknown>).source_name as string) || "";
     const srcLower = sourceName.toLowerCase();
     if (url.includes("youtube.com") || url.includes("youtu.be")) return "youtube";
     if (url.endsWith(".pdf")) return "pdf";
