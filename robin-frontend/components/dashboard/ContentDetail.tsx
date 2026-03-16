@@ -26,7 +26,20 @@ const TYPE_GRADIENTS: Record<string, string> = {
 };
 
 function detectContentType(article: Article): string {
-    // Prefer database content_type if available
+    const url = article.url?.toLowerCase() || "";
+    const sourceName = ((article as unknown as Record<string, unknown>).source_name as string) || "";
+    const srcLower = sourceName.toLowerCase();
+
+    // 1. Detect TV News
+    if (url.includes("youtube.com") || url.includes("youtu.be")) return "youtube";
+
+    // 2. Detect Newspapers by source name or known domains
+    const newspaperPatterns = ['sambad', 'dharitri', 'samaja', 'pragativadi', 'orissa post', 'odisha bhaskar',
+        'times of india', 'hindustan times', 'the hindu', 'indian express', 'telegraph', 'economic times',
+        'deccan', 'pioneer', 'tribune', 'livemint', 'business standard', 'statesman', 'daily', 'gazette', 'ndtv'];
+    if (newspaperPatterns.some(p => srcLower.includes(p) || url.includes(p.replace(/ /g, '')))) return "newspaper";
+
+    // 3. Prefer database content_type if available for PDFs, Govt, Social
     if (article.content_type) {
         const map: Record<string, string> = {
             article: "article",
@@ -40,21 +53,17 @@ function detectContentType(article: Article): string {
             reddit: "social",
             social_post: "social",
         };
-        return map[article.content_type] || "article";
+        // Don't let DB 'article' override frontend 'newspaper' mapping
+        if (map[article.content_type]) {
+            return map[article.content_type];
+        }
     }
-    // Fallback to URL-based detection
-    const url = article.url?.toLowerCase() || "";
-    const sourceName = ((article as unknown as Record<string, unknown>).source_name as string) || "";
-    const srcLower = sourceName.toLowerCase();
-    if (url.includes("youtube.com") || url.includes("youtu.be")) return "youtube";
+
+    // 4. Fallback to URL-based detection (PDF, Govt, Social)
     if (url.endsWith(".pdf")) return "pdf";
     if (url.includes(".gov") || url.includes("pib.gov")) return "govt";
     if (url.includes("twitter.com") || url.includes("x.com") || url.includes("reddit.com")) return "social";
-    // Detect newspapers by source name or known domains
-    const newspaperPatterns = ['sambad', 'dharitri', 'samaja', 'pragativadi', 'orissa post', 'odisha bhaskar',
-        'times of india', 'hindustan times', 'the hindu', 'indian express', 'telegraph', 'economic times',
-        'deccan', 'pioneer', 'tribune', 'livemint', 'business standard', 'statesman', 'daily', 'gazette'];
-    if (newspaperPatterns.some(p => srcLower.includes(p) || url.includes(p.replace(/ /g, '')))) return "newspaper";
+    
     return "article";
 }
 
