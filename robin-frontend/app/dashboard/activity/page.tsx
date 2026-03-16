@@ -11,14 +11,15 @@ import type { Article } from "@/lib/types";
 import { useContent } from "@/lib/hooks/useIntelligence";
 import ContentDetail, { detectContentType, TYPE_ICONS, TYPE_GRADIENTS } from "@/components/dashboard/ContentDetail";
 
-type ContentType = "all" | "article" | "youtube" | "pdf" | "govt" | "social";
+type ContentType = "all" | "article" | "newspaper" | "youtube" | "pdf" | "govt" | "social";
 type SortOption = "importance" | "recency" | "sentiment";
 type ViewMode = "grid" | "list";
 
 const CONTENT_TABS: { id: ContentType; label: string; emoji: string }[] = [
     { id: "all", label: "All", emoji: "📋" },
-    { id: "article", label: "Articles", emoji: "📰" },
-    { id: "youtube", label: "YouTube", emoji: "🎥" },
+    { id: "newspaper", label: "Newspapers", emoji: "📰" },
+    { id: "article", label: "Web Articles", emoji: "🌐" },
+    { id: "youtube", label: "TV News", emoji: "📺" },
     { id: "pdf", label: "PDF", emoji: "📄" },
     { id: "govt", label: "Govt", emoji: "🏛️" },
     { id: "social", label: "Social", emoji: "📱" },
@@ -232,7 +233,7 @@ export default function ContentFeedPage() {
                                     />
                                 ) : (
                                     <div className="absolute inset-0 flex items-center justify-center opacity-15">
-                                        <span className="text-7xl">{detectContentType(hero) === "youtube" ? "🎥" : "📰"}</span>
+                                        <span className="text-7xl">{detectContentType(hero) === "youtube" ? "📺" : detectContentType(hero) === "newspaper" ? "📰" : "🌐"}</span>
                                     </div>
                                 )}
                                 {(hero.analysis?.importance_score ?? 0) >= 7 && (
@@ -296,7 +297,7 @@ export default function ContentFeedPage() {
                                                 />
                                             ) : (
                                                 <div className="absolute inset-0 flex items-center justify-center opacity-10">
-                                                    <span className="text-4xl">{cType === "youtube" ? "🎥" : cType === "pdf" ? "📄" : cType === "govt" ? "🏛️" : "📰"}</span>
+                                                    <span className="text-4xl">{cType === "youtube" ? "📺" : cType === "newspaper" ? "📰" : cType === "pdf" ? "📄" : cType === "govt" ? "🏛️" : "🌐"}</span>
                                                 </div>
                                             )}
                                             {imp >= 7 && (
@@ -354,7 +355,7 @@ export default function ContentFeedPage() {
                                                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                             />
                                         ) : (
-                                            <span className="text-lg flex-shrink-0">{cType === "youtube" ? "🎥" : cType === "pdf" ? "📄" : cType === "govt" ? "🏛️" : "📰"}</span>
+                                            <span className="text-lg flex-shrink-0">{cType === "youtube" ? "📺" : cType === "newspaper" ? "📰" : cType === "pdf" ? "📄" : cType === "govt" ? "🏛️" : "🌐"}</span>
                                         )}
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm text-text-primary group-hover:text-accent-bright transition-colors truncate">

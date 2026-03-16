@@ -374,7 +374,7 @@ function AddSourceModal({ onClose, onAdded }: { onClose: () => void; onAdded: ()
                             <option value="html">HTML Scraper</option>
                             <option value="browser">Browser Scraper</option>
                             <option value="pdf">PDF</option>
-                            <option value="youtube">YouTube</option>
+                            <option value="youtube">TV News</option>
                         </select>
                     </div>
                     <div className="flex justify-end gap-2 pt-2">

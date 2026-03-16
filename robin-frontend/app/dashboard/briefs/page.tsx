@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import {
     FileText, Plus, Loader2, ChevronDown, ChevronUp,
     CheckCircle, XCircle, Globe, Tag, MapPin, Clock,
-    Zap, AlertCircle, Search, Rss, Monitor, Youtube,
+    Zap, AlertCircle, Search, Rss, Monitor, Tv,
     FileDown, Chrome, RefreshCw, Trash2, Upload, Users
 } from "lucide-react";
 import { formatRelative } from "@/lib/utils";
@@ -101,7 +101,7 @@ const STATUS: Record<string, { label: string; class: string; dot: string }> = {
 const TYPE_CONFIG: Record<string, { label: string; icon: typeof Rss; color: string }> = {
     rss: { label: "RSS Feeds", icon: Rss, color: "text-amber" },
     html: { label: "Websites", icon: Globe, color: "text-sky" },
-    youtube: { label: "YouTube Channels", icon: Youtube, color: "text-rose" },
+    youtube: { label: "TV News Channels", icon: Tv, color: "text-rose" },
     pdf: { label: "Documents & PDFs", icon: FileDown, color: "text-violet" },
     browser: { label: "Browser Rendered", icon: Chrome, color: "text-emerald" },
     reddit: { label: "Reddit", icon: Monitor, color: "text-amber" },

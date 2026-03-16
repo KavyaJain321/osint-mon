@@ -6,9 +6,10 @@ import { cn } from "@/lib/utils";
 import type { Article } from "@/lib/types";
 
 const TYPE_ICONS: Record<string, { icon: React.ReactNode; label: string }> = {
-    article: { icon: <FileText size={14} />, label: "Article" },
-    youtube: { icon: <Video size={14} />, label: "YouTube" },
-    video: { icon: <Video size={14} />, label: "Video" },
+    article: { icon: <FileText size={14} />, label: "Web Article" },
+    youtube: { icon: <Video size={14} />, label: "TV News" },
+    video: { icon: <Video size={14} />, label: "TV News" },
+    newspaper: { icon: <FileText size={14} />, label: "Newspaper" },
     pdf: { icon: <File size={14} />, label: "PDF" },
     govt: { icon: <Building2 size={14} />, label: "Govt Release" },
     social: { icon: <MessageSquare size={14} />, label: "Social" },
@@ -18,6 +19,7 @@ const TYPE_GRADIENTS: Record<string, string> = {
     article: "from-blue-600/30 to-indigo-700/30",
     youtube: "from-red-600/30 to-rose-700/30",
     video: "from-red-600/30 to-rose-700/30",
+    newspaper: "from-amber-600/30 to-yellow-700/30",
     pdf: "from-amber-600/30 to-orange-700/30",
     govt: "from-slate-500/30 to-gray-700/30",
     social: "from-violet-600/30 to-purple-700/30",
@@ -42,10 +44,17 @@ function detectContentType(article: Article): string {
     }
     // Fallback to URL-based detection
     const url = article.url?.toLowerCase() || "";
+    const sourceName = (article as Record<string, unknown>).source_name as string || "";
+    const srcLower = sourceName.toLowerCase();
     if (url.includes("youtube.com") || url.includes("youtu.be")) return "youtube";
     if (url.endsWith(".pdf")) return "pdf";
     if (url.includes(".gov") || url.includes("pib.gov")) return "govt";
     if (url.includes("twitter.com") || url.includes("x.com") || url.includes("reddit.com")) return "social";
+    // Detect newspapers by source name or known domains
+    const newspaperPatterns = ['sambad', 'dharitri', 'samaja', 'pragativadi', 'orissa post', 'odisha bhaskar',
+        'times of india', 'hindustan times', 'the hindu', 'indian express', 'telegraph', 'economic times',
+        'deccan', 'pioneer', 'tribune', 'livemint', 'business standard', 'statesman', 'daily', 'gazette'];
+    if (newspaperPatterns.some(p => srcLower.includes(p) || url.includes(p.replace(/ /g, '')))) return "newspaper";
     return "article";
 }
 
@@ -69,7 +78,7 @@ export default function ContentDetail({ article, onClose }: { article: Article; 
                 {/* Header Image Area */}
                 <div className={cn("relative h-40 bg-gradient-to-br", gradient)}>
                     <div className="absolute inset-0 flex items-center justify-center opacity-20">
-                        <span className="text-6xl">{contentType === "youtube" ? "🎥" : contentType === "pdf" ? "📄" : contentType === "govt" ? "🏛️" : "📰"}</span>
+                        <span className="text-6xl">{contentType === "youtube" ? "📺" : contentType === "newspaper" ? "📰" : contentType === "pdf" ? "📄" : contentType === "govt" ? "🏛️" : "🌐"}</span>
                     </div>
                     <button
                         onClick={onClose}
