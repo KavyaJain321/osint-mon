@@ -115,7 +115,9 @@ export function matchKeywords(text, keywords) {
         if (!lowerKw) continue;
 
         // Tier 1: Exact phrase match (always the strongest signal)
-        if (lowerText.includes(lowerKw)) {
+        // CRITICAL FIX: Use word boundaries so 'RTI' doesn't match 'a-rti-cle'
+        const exactRegex = new RegExp(`\\b${escapeRegex(keyword)}\\b`, 'i');
+        if (exactRegex.test(text)) {
             matched.add(keyword);
             continue;
         }
@@ -248,10 +250,11 @@ export function buildTopicWords(keywords) {
         'protest', 'protests', 'fraud', 'scam', 'corruption', 'crackdown',
         'scandal', 'lawsuit', 'investigation', 'arrested', 'arrest', 'probe',
         'allegation', 'allegations', 'controversy', 'opposition', 'election',
-        'vote', 'voting', 'poll', 'rally', 'strike', 'violence', 'attack',
+        'vote', 'voting', 'poll', 'rally', 'strike', 'strikes', 'violence', 'attack',
         // Generic economic words
         'economy', 'economic', 'budget', 'growth', 'inflation', 'gdp', 'trade',
         'investment', 'stocks', 'shares', 'profit', 'loss', 'revenue', 'funding',
+        'rate', 'interest', 'tariff', 'sanctions', 'compliance',
         // Generic institutional words
         'court', 'minister', 'parliament', 'congress', 'senate', 'bill', 'law',
         'party', 'leader', 'official', 'authority', 'commission', 'department',
