@@ -203,31 +203,42 @@ router.get('/content', async (req, res) => {
             query = query.in('content_type', dbTypes);
         }
 
-        const { data, error } = await query
+        let { data, error } = await query
             .order('published_at', { ascending: false })
-            .limit(limit);
+        if (error || !data || data.length === 0) {
+            // Fallback to articles table if content_items doesn't exist or is empty for this client
+            const isTableMissingError = error && (error.message?.includes('content_items') || error.code === '42P01');
+            
+            // If it's a real DB error other than missing table, throw it. 
+            // If it's just empty data or missing table, fallback.
+            if (error && !isTableMissingError) {
+                throw error;
+            }
 
-        if (error) {
-            // Fallback to articles table if content_items doesn't exist
-            if (error.message?.includes('content_items') || error.code === '42P01') {
-                const { data: articles, error: artErr } = await supabase
-                    .from('articles')
-                    .select('id, title, url, published_at, source_id, matched_keywords, analysis_status, created_at, source:sources(name)')
-                    .eq('client_id', client.id)
-                    .order('published_at', { ascending: false })
-                    .limit(limit);
+            const { data: articles, error: artErr } = await supabase
+                .from('articles')
+                .select('id, title, url, published_at, source_id, matched_keywords, analysis_status, created_at, source:sources(name)')
+                .eq('client_id', client.id)
+                .order('published_at', { ascending: false })
+                .limit(limit);
 
-                if (artErr) throw artErr;
-                const fallbackData = (articles || []).map(a => ({
+            if (artErr) throw artErr;
+            
+            // If we successfully fallback and find articles, use them for the rest of the flow
+            if (articles && articles.length > 0) {
+                data = articles.map(a => ({
                     ...a,
                     content_type: 'article',
                     type_metadata: {},
                     source_name: a.source?.name || null,
                     source: undefined,
                 }));
-                return res.json({ data: fallbackData, client, total: fallbackData.length, source: 'articles_fallback' });
             }
-            throw error;
+            
+            // If articles table also has nothing, just continue with empty data array
+            if (!data) {
+                data = [];
+            }
         }
 
         // Fetch analysis for all items
@@ -241,7 +252,7 @@ router.get('/content', async (req, res) => {
         const analysisMap = new Map((analyses || []).map(a => [a.article_id, a]));
         const enriched = (data || []).map(item => ({
             ...item,
-            source_name: item.source?.name || null,
+            source_name: item.source?.name || item.source_name || null,
             source: undefined,  // don't send nested object to frontend
             analysis: analysisMap.get(item.id) || null,
         }));
