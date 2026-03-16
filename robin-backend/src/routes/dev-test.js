@@ -192,9 +192,10 @@ router.get('/content', async (req, res) => {
         const limit = Math.min(parseInt(rawLimit) || 50, 200);
 
         // Try content_items first (post-migration)
+        // JOIN sources table to get source_name for frontend newspaper detection
         let query = supabase
             .from('content_items')
-            .select('id, title, url, content_type, type_metadata, published_at, source_id, matched_keywords, analysis_status, created_at')
+            .select('id, title, url, content_type, type_metadata, published_at, source_id, matched_keywords, analysis_status, created_at, source:sources(name)')
             .eq('client_id', client.id);
 
         if (type && type !== 'all') {
@@ -211,13 +212,19 @@ router.get('/content', async (req, res) => {
             if (error.message?.includes('content_items') || error.code === '42P01') {
                 const { data: articles, error: artErr } = await supabase
                     .from('articles')
-                    .select('id, title, url, published_at, source_id, matched_keywords, analysis_status, created_at')
+                    .select('id, title, url, published_at, source_id, matched_keywords, analysis_status, created_at, source:sources(name)')
                     .eq('client_id', client.id)
                     .order('published_at', { ascending: false })
                     .limit(limit);
 
                 if (artErr) throw artErr;
-                const fallbackData = (articles || []).map(a => ({ ...a, content_type: 'article', type_metadata: {} }));
+                const fallbackData = (articles || []).map(a => ({
+                    ...a,
+                    content_type: 'article',
+                    type_metadata: {},
+                    source_name: a.source?.name || null,
+                    source: undefined,
+                }));
                 return res.json({ data: fallbackData, client, total: fallbackData.length, source: 'articles_fallback' });
             }
             throw error;
@@ -234,6 +241,8 @@ router.get('/content', async (req, res) => {
         const analysisMap = new Map((analyses || []).map(a => [a.article_id, a]));
         const enriched = (data || []).map(item => ({
             ...item,
+            source_name: item.source?.name || null,
+            source: undefined,  // don't send nested object to frontend
             analysis: analysisMap.get(item.id) || null,
         }));
 
