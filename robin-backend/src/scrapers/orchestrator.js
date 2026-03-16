@@ -28,7 +28,7 @@ const YOUTUBE_CONCURRENCY = 1;
 
 // Max HTML sources per cycle — prevents OOM crashes and 30+ minute scrape runs.
 // Sources rotate across hourly cron cycles so all 480+ get covered over time.
-const MAX_HTML_PER_CYCLE = 30;
+const MAX_HTML_PER_CYCLE = 10;
 
 // Fallback chain: when primary crawler fails, try the next type
 const FALLBACK_CHAIN = {
@@ -180,6 +180,9 @@ async function processBatch(sources, crawlFn, concurrency) {
                 });
             }
         }
+
+        // Force GC between batches to prevent OOM on Render free tier (512MB)
+        if (global.gc) global.gc();
     }
 
     return results;
