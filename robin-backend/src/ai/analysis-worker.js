@@ -183,36 +183,48 @@ export async function analyzeArticle(article) {
         const analyzerUsed = analysis._method === 'groq' ? 'groq_llm' : 'local_fallback';
         const modelUsed = analysis._method === 'groq' ? 'llama-3.3-70b-versatile' : 'rule_based_v1';
 
+        // Detect if this is a content_item (YouTube, Reddit, etc.) vs a real article
+        const isContentItem = article.content_type && article.content_type !== 'article';
+
         // Save to article_analysis (upsert to handle re-runs)
-        const baseData = {
-            article_id: article.id,
-            summary: analysis.summary,
-            sentiment: analysis.sentiment,
-            importance_score: analysis.importance_score,
-            importance_reason: analysis.importance_reason,
-            narrative_frame: analysis.narrative_frame,
-            entities: analysis.entities || { people: [], orgs: [], locations: [], figures: [] },
-            claims: analysis.claims || [],
-        };
+        // SKIP for content_items — they don't have a row in the articles table,
+        // so the FK constraint article_analysis_article_id_fkey will reject them.
+        if (!isContentItem) {
+            const baseData = {
+                article_id: article.id,
+                summary: analysis.summary,
+                sentiment: analysis.sentiment,
+                importance_score: analysis.importance_score,
+                importance_reason: analysis.importance_reason,
+                narrative_frame: analysis.narrative_frame,
+                entities: analysis.entities || { people: [], orgs: [], locations: [], figures: [] },
+                claims: analysis.claims || [],
+            };
 
-        // Try with tracking columns first, fall back to without if they don't exist
-        let analysisError;
-        const { error: fullErr } = await supabase.from('article_analysis').upsert({
-            ...baseData,
-            analyzer_used: analyzerUsed,
-            model_used: modelUsed,
-        }, { onConflict: 'article_id' });
+            // Try with tracking columns first, fall back to without if they don't exist
+            let analysisError;
+            const { error: fullErr } = await supabase.from('article_analysis').upsert({
+                ...baseData,
+                analyzer_used: analyzerUsed,
+                model_used: modelUsed,
+            }, { onConflict: 'article_id' });
 
-        if (fullErr && fullErr.message.includes('analyzer_used')) {
-            // Columns don't exist yet — save without them
-            const { error: fallbackErr } = await supabase.from('article_analysis').upsert(baseData, { onConflict: 'article_id' });
-            analysisError = fallbackErr;
-            log.ai.debug('[ANALYSIS] Tracking columns not in DB yet — saving without');
+            if (fullErr && fullErr.message.includes('analyzer_used')) {
+                // Columns don't exist yet — save without them
+                const { error: fallbackErr } = await supabase.from('article_analysis').upsert(baseData, { onConflict: 'article_id' });
+                analysisError = fallbackErr;
+                log.ai.debug('[ANALYSIS] Tracking columns not in DB yet — saving without');
+            } else {
+                analysisError = fullErr;
+            }
+
+            if (analysisError) throw analysisError;
         } else {
-            analysisError = fullErr;
+            log.ai.debug('[ANALYSIS] Skipping article_analysis for content_item', {
+                id: article.id,
+                type: article.content_type,
+            });
         }
-
-        if (analysisError) throw analysisError;
 
         // Save entities to entity_mentions (filter out the client org name to avoid contamination)
         const entities = analysis.entities || {};
