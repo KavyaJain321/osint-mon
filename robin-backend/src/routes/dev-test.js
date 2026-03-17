@@ -572,12 +572,27 @@ router.post('/generate-media-report', async (req, res) => {
         const client = await getTestClient(req);
         if (!client) return res.status(404).json({ error: 'No client found' });
 
-        // Fetch all data
-        const { data: allArticles } = await db.from('articles')
-            .select('id, title, url, source_id, published_at, created_at, matched_keywords')
-            .eq('client_id', client.id)
-            .order('published_at', { ascending: false })
-            .limit(500);
+        // Fetch all data from both legacy and new tables
+        const [legacyArtRes, newItemsRes] = await Promise.all([
+            db.from('articles')
+                .select('id, title, url, source_id, published_at, created_at, matched_keywords')
+                .eq('client_id', client.id)
+                .order('published_at', { ascending: false })
+                .limit(500),
+            db.from('content_items')
+                .select('id, title, url, source_id, published_at, created_at, matched_keywords')
+                .eq('client_id', client.id)
+                .order('published_at', { ascending: false })
+                .limit(500)
+        ]);
+        
+        const mergedMap = new Map();
+        (legacyArtRes.data || []).forEach(a => mergedMap.set(a.id, a));
+        (newItemsRes.data || []).forEach(c => mergedMap.set(c.id, c));
+        
+        const allArticles = Array.from(mergedMap.values())
+            .sort((a, b) => new Date(b.published_at || b.created_at) - new Date(a.published_at || a.created_at))
+            .slice(0, 500);
 
         const sourceIds = [...new Set((allArticles||[]).map(a=>a.source_id).filter(Boolean))];
         const { data: sources } = sourceIds.length
@@ -2298,16 +2313,33 @@ router.get('/overview', async (req, res) => {
         });
         const brief = briefArr?.[0] || null;
 
-        // Articles last 30 days
-        const articles = await fetchSupa('articles', {
-            select: 'id,title,url,published_at,matched_keywords,source_id',
-            client_id: `eq.${client.id}`,
-            published_at: `gte.${thirtyDaysAgo}`,
-            order: 'published_at.desc',
-            limit: 500,
-        });
+        // Articles last 30 days — Merge both tables
+        const [legacyArticles, newContentItems] = await Promise.all([
+            fetchSupa('articles', {
+                select: 'id,title,url,published_at,matched_keywords,source_id',
+                client_id: `eq.${client.id}`,
+                published_at: `gte.${thirtyDaysAgo}`,
+                order: 'published_at.desc',
+                limit: 500,
+            }),
+            fetchSupa('content_items', {
+                select: 'id,title,url,published_at,matched_keywords,source_id',
+                client_id: `eq.${client.id}`,
+                published_at: `gte.${thirtyDaysAgo}`,
+                order: 'published_at.desc',
+                limit: 500,
+            })
+        ]);
 
-        const articleIds = (articles || []).map(a => a.id);
+        const mergedMap = new Map();
+        (legacyArticles || []).forEach(a => mergedMap.set(a.id, a));
+        (newContentItems || []).forEach(c => mergedMap.set(c.id, c));
+
+        const articles = Array.from(mergedMap.values())
+            .sort((a, b) => new Date(b.published_at) - new Date(a.published_at))
+            .slice(0, 500);
+
+        const articleIds = articles.map(a => a.id);
 
         // Analysis for those articles
         const analyses = articleIds.length > 0

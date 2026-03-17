@@ -50,16 +50,33 @@ router.post('/generate', requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) =
         const { data: client } = await supabase.from('clients').select('name, industry').eq('id', req.user.clientId).single();
         const clientName = client?.name || 'Unknown';
 
-        // Fetch articles in date range with analysis
-        const { data: articles } = await supabase
-            .from('articles')
-            .select('id, title, url, published_at, matched_keywords')
-            .eq('client_id', req.user.clientId)
-            .eq('analysis_status', 'complete')
-            .gte('published_at', date_from)
-            .lte('published_at', date_to)
-            .order('published_at', { ascending: false })
-            .limit(100);
+        // Fetch articles in date range with analysis from both tables
+        const [legacyRes, newItemsRes] = await Promise.all([
+            supabase.from('articles')
+                .select('id, title, url, published_at, matched_keywords')
+                .eq('client_id', req.user.clientId)
+                .eq('analysis_status', 'complete')
+                .gte('published_at', date_from)
+                .lte('published_at', date_to)
+                .order('published_at', { ascending: false })
+                .limit(100),
+            supabase.from('content_items')
+                .select('id, title, url, published_at, matched_keywords')
+                .eq('client_id', req.user.clientId)
+                .eq('analysis_status', 'complete')
+                .gte('published_at', date_from)
+                .lte('published_at', date_to)
+                .order('published_at', { ascending: false })
+                .limit(100)
+        ]);
+        
+        const mergedMap = new Map();
+        (legacyRes.data || []).forEach(a => mergedMap.set(a.id, a));
+        (newItemsRes.data || []).forEach(c => mergedMap.set(c.id, c));
+        
+        const articles = Array.from(mergedMap.values())
+            .sort((a, b) => new Date(b.published_at) - new Date(a.published_at))
+            .slice(0, 100);
 
         // Fetch analyses for these articles
         const articleIds = (articles || []).map((a) => a.id);
