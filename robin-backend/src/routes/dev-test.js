@@ -195,7 +195,7 @@ router.get('/content', async (req, res) => {
         // This ensures the frontend feed doesn't drop legacy items before the DB migration is complete.
         let query1 = supabase
             .from('content_items')
-            .select('id, title, url, content_type, type_metadata, published_at, source_id, matched_keywords, analysis_status, created_at, source:sources(name)')
+            .select('id, title, url, content_type, type_metadata, published_at, source_id, matched_keywords, analysis_status, created_at, source:sources(name, url)')
             .eq('client_id', client.id);
 
         if (type && type !== 'all') {
@@ -205,7 +205,7 @@ router.get('/content', async (req, res) => {
 
         let query2 = supabase
             .from('articles')
-            .select('id, title, url, published_at, source_id, matched_keywords, analysis_status, created_at, source:sources(name)')
+            .select('id, title, url, published_at, source_id, matched_keywords, analysis_status, created_at, source:sources(name, url)')
             .eq('client_id', client.id);
 
         query1 = query1.order('published_at', { ascending: false }).limit(limit);
@@ -232,6 +232,7 @@ router.get('/content', async (req, res) => {
                 content_type: 'article',
                 type_metadata: typeMeta,
                 source_name: a.source?.name || null,
+                source_url: a.source?.url || null,
                 source: undefined,
             };
         });
@@ -242,6 +243,7 @@ router.get('/content', async (req, res) => {
         contentItemsData.forEach(c => mergedMap.set(c.id, {
             ...c,
             source_name: c.source?.name || null,
+            source_url: c.source?.url || null,
             source: undefined
         }));
 
@@ -1754,7 +1756,7 @@ router.get('/intelligence-brief', async (req, res) => {
         const [
             briefRes, threatRes, signalsRes, entitiesRes,
             narrativeRes, inferenceRes, sourcesRes, sourceRelRes,
-            articlesRes,
+            articlesRes, contentItemsRes
         ] = await Promise.all([
             supabase.from('client_briefs')
                 .select('id, title, problem_statement, status, created_at, activated_at, industry, risk_domains, entities_of_interest, geographic_focus')
@@ -1786,6 +1788,10 @@ router.get('/intelligence-brief', async (req, res) => {
                 .select('id, title, url, published_at, source_id, matched_keywords, analysis_status, created_at')
                 .eq('client_id', client.id)
                 .order('published_at', { ascending: false }).limit(200),
+            supabase.from('content_items')
+                .select('id, title, url, published_at, source_id, matched_keywords, analysis_status, created_at')
+                .eq('client_id', client.id)
+                .order('published_at', { ascending: false }).limit(200),
         ]);
 
 
@@ -1797,7 +1803,17 @@ router.get('/intelligence-brief', async (req, res) => {
         const chains = inferenceRes.data || [];
         const sources = sourcesRes.data || [];
         const sourceRel = sourceRelRes.data || [];
-        const articles = articlesRes.data || [];
+        
+        // Merge legacy articles and new content_items
+        const legacyArticles = articlesRes.data || [];
+        const newItems = contentItemsRes.data || [];
+        const mergedMap = new Map();
+        legacyArticles.forEach(a => mergedMap.set(a.id, a));
+        newItems.forEach(c => mergedMap.set(c.id, c));
+        
+        const articles = Array.from(mergedMap.values())
+            .sort((a, b) => new Date(b.published_at) - new Date(a.published_at))
+            .slice(0, 200);
 
         // Fetch keywords separately since we need brief.id
         let keywords = [];
