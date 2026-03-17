@@ -11,6 +11,15 @@ import type { Article } from "@/lib/types";
 import { useContent } from "@/lib/hooks/useIntelligence";
 import ContentDetail, { detectContentType, TYPE_ICONS, TYPE_GRADIENTS } from "@/components/dashboard/ContentDetail";
 
+function getDomain(url?: string): string {
+    if (!url) return "";
+    try {
+        return new URL(url).hostname;
+    } catch {
+        return url;
+    }
+}
+
 type ContentType = "all" | "article" | "newspaper" | "youtube" | "pdf" | "govt" | "social";
 type SortOption = "importance" | "recency" | "sentiment";
 type ViewMode = "grid" | "list";
@@ -231,10 +240,10 @@ export default function ContentFeedPage() {
                                         className="absolute inset-0 w-full h-full object-cover"
                                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                     />
-                                ) : (hero.source_url && (detectContentType(hero) === 'newspaper' || detectContentType(hero) === 'article' || !detectContentType(hero))) ? (
+                                ) : ((hero.source_url || hero.url) && (detectContentType(hero) === 'newspaper' || detectContentType(hero) === 'article' || !detectContentType(hero))) ? (
                                     <div className="absolute inset-0 flex items-center justify-center opacity-80 group-hover:opacity-100 transition-opacity">
                                             <img
-                                                src={`https://www.google.com/s2/favicons?domain=${(function(){try{return new URL(hero.source_url!).hostname}catch{return hero.source_url}})()}&sz=128`}
+                                                src={`https://www.google.com/s2/favicons?domain=${getDomain(hero.source_url || hero.url)}&sz=128`}
                                                 alt={hero.source_name || "Source Logo"}
                                                 className="w-16 h-16 object-contain bg-slate-900/50 rounded-xl shadow-sm p-1.5 backdrop-blur-sm"
                                                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
@@ -372,9 +381,9 @@ export default function ContentFeedPage() {
                                                 className="w-12 h-10 object-cover rounded flex-shrink-0"
                                                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                             />
-                                        ) : (article.source_url && (cType === 'newspaper' || cType === 'article' || !cType)) ? (
+                                        ) : ((article.source_url || article.url) && (cType === 'newspaper' || cType === 'article' || !cType)) ? (
                                             <img
-                                                src={`https://www.google.com/s2/favicons?domain=${(function(){try{return new URL(article.source_url!).hostname}catch{return article.source_url}})()}&sz=128`}
+                                                src={`https://www.google.com/s2/favicons?domain=${getDomain(article.source_url || article.url)}&sz=128`}
                                                 alt={article.source_name || ""}
                                                 className="w-12 h-10 object-contain rounded flex-shrink-0 bg-slate-800/50 p-1"
                                                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
