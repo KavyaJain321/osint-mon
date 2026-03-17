@@ -191,55 +191,63 @@ router.get('/content', async (req, res) => {
         const { type, limit: rawLimit = '50' } = req.query;
         const limit = Math.min(parseInt(rawLimit) || 50, 200);
 
-        // Try content_items first (post-migration)
-        // JOIN sources table to get source_name for frontend newspaper detection
-        let query = supabase
+        // CONCURRENT FETCH: Merge both legacy 'articles' and new 'content_items'
+        // This ensures the frontend feed doesn't drop legacy items before the DB migration is complete.
+        let query1 = supabase
             .from('content_items')
             .select('id, title, url, content_type, type_metadata, published_at, source_id, matched_keywords, analysis_status, created_at, source:sources(name)')
             .eq('client_id', client.id);
 
         if (type && type !== 'all') {
             const dbTypes = CONTENT_TYPE_MAP[type] || [type];
-            query = query.in('content_type', dbTypes);
+            query1 = query1.in('content_type', dbTypes);
         }
 
-        let { data, error } = await query
-            .order('published_at', { ascending: false })
-        if (error || !data || data.length === 0) {
-            // Fallback to articles table if content_items doesn't exist or is empty for this client
-            const isTableMissingError = error && (error.message?.includes('content_items') || error.code === '42P01');
-            
-            // If it's a real DB error other than missing table, throw it. 
-            // If it's just empty data or missing table, fallback.
-            if (error && !isTableMissingError) {
-                throw error;
-            }
+        let query2 = supabase
+            .from('articles')
+            .select('id, title, url, published_at, source_id, matched_keywords, analysis_status, created_at, source:sources(name)')
+            .eq('client_id', client.id);
 
-            const { data: articles, error: artErr } = await supabase
-                .from('articles')
-                .select('id, title, url, published_at, source_id, matched_keywords, analysis_status, created_at, source:sources(name)')
-                .eq('client_id', client.id)
-                .order('published_at', { ascending: false })
-                .limit(limit);
+        query1 = query1.order('published_at', { ascending: false }).limit(limit);
+        query2 = query2.order('published_at', { ascending: false }).limit(limit);
 
-            if (artErr) throw artErr;
-            
-            // If we successfully fallback and find articles, use them for the rest of the flow
-            if (articles && articles.length > 0) {
-                data = articles.map(a => ({
-                    ...a,
-                    content_type: 'article',
-                    type_metadata: {},
-                    source_name: a.source?.name || null,
-                    source: undefined,
-                }));
+        const [res1, res2] = await Promise.all([query1, query2]);
+
+        const contentItemsData = (!res1.error && res1.data) ? res1.data : [];
+        const articlesData = (!res2.error && res2.data) ? res2.data : [];
+
+        // Normalize legacy articlesData to match the new schema format
+        const normalizedArticles = articlesData.map(a => {
+            const isYoutube = a.url && (a.url.includes('youtube.com') || a.url.includes('youtu.be'));
+            let typeMeta = {};
+            if (isYoutube) {
+                try {
+                    const u = new URL(a.url);
+                    const v = u.searchParams.get('v') || a.url.split('youtu.be/')[1]?.split('?')[0];
+                    if (v) typeMeta.image_url = `https://img.youtube.com/vi/${v}/maxresdefault.jpg`;
+                } catch(e){}
             }
-            
-            // If articles table also has nothing, just continue with empty data array
-            if (!data) {
-                data = [];
-            }
-        }
+            return {
+                ...a,
+                content_type: 'article',
+                type_metadata: typeMeta,
+                source_name: a.source?.name || null,
+                source: undefined,
+            };
+        });
+
+        // Merge, preferring contentItemsData since it's the newer schema
+        const mergedMap = new Map();
+        normalizedArticles.forEach(a => mergedMap.set(a.id, a));
+        contentItemsData.forEach(c => mergedMap.set(c.id, {
+            ...c,
+            source_name: c.source?.name || null,
+            source: undefined
+        }));
+
+        let data = Array.from(mergedMap.values())
+            .sort((a, b) => new Date(b.published_at) - new Date(a.published_at))
+            .slice(0, limit);
 
         // Fetch analysis for all items
         const ids = (data || []).map(d => d.id);
