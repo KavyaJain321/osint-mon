@@ -231,6 +231,15 @@ export default function ContentFeedPage() {
                                         className="absolute inset-0 w-full h-full object-cover"
                                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                     />
+                                ) : (hero.source_url && (detectContentType(hero) === 'newspaper' || detectContentType(hero) === 'article' || !detectContentType(hero))) ? (
+                                    <div className="absolute inset-0 flex items-center justify-center opacity-80 group-hover:opacity-100 transition-opacity">
+                                        <img
+                                            src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(hero.source_url)}&sz=128`}
+                                            alt={hero.source_name || "Source Logo"}
+                                            className="w-16 h-16 object-contain bg-slate-900/50 rounded-xl shadow-sm p-1.5 backdrop-blur-sm"
+                                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                        />
+                                    </div>
                                 ) : (
                                     <div className="absolute inset-0 flex items-center justify-center opacity-15">
                                         <span className="text-7xl">{detectContentType(hero) === "youtube" ? "📺" : detectContentType(hero) === "newspaper" ? "📰" : "🌐"}</span>
@@ -296,6 +305,15 @@ export default function ContentFeedPage() {
                                                         className="absolute inset-0 w-full h-full object-cover"
                                                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                                     />
+                                                ) : (article.source_url && (cType === 'newspaper' || cType === 'article' || !cType)) ? (
+                                                    <div className="flex flex-col items-center justify-center space-y-2 opacity-80 group-hover:opacity-100 transition-opacity">
+                                                        <img
+                                                            src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(article.source_url)}&sz=128`}
+                                                            alt={article.source_name || "Source Logo"}
+                                                            className="w-12 h-12 object-contain bg-slate-900/50 rounded-lg shadow-sm p-1 backdrop-blur-sm"
+                                                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                                        />
+                                                    </div>
                                                 ) : (
                                                     <span className="text-4xl filter drop-shadow opacity-50">{cType === "youtube" ? "📺" : cType === "newspaper" ? "📰" : cType === "pdf" ? "📄" : cType === "govt" ? "🏛️" : "🌐"}</span>
                                                 )}
@@ -352,6 +370,13 @@ export default function ContentFeedPage() {
                                                 src={article.type_metadata.image_url}
                                                 alt=""
                                                 className="w-12 h-10 object-cover rounded flex-shrink-0"
+                                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                            />
+                                        ) : (article.source_url && (cType === 'newspaper' || cType === 'article' || !cType)) ? (
+                                            <img
+                                                src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(article.source_url)}&sz=128`}
+                                                alt={article.source_name || ""}
+                                                className="w-12 h-10 object-contain rounded flex-shrink-0 bg-slate-800/50 p-1"
                                                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                             />
                                         ) : (

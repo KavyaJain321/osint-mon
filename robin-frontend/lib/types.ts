@@ -43,6 +43,8 @@ export interface Article {
     analysis_status: 'pending' | 'complete' | 'failed';
     analysis?: ArticleAnalysis;
     content_type?: string;
+    source_name?: string;
+    source_url?: string;
     type_metadata?: { image_url?: string; channel_name?: string; has_captions?: boolean;[key: string]: unknown };
 }
 
