@@ -109,11 +109,16 @@ router.post('/', async (req, res) => {
         // ── Preserve pre-seeded sources before cleanup ──────────
         // Save all existing sources for this client so we can re-insert them
         // after the cleanup (they are the mandatory/seeded sources from Excel)
+        // ── IMPORTANT: include `id` so we can restore sources with their ORIGINAL UUIDs ──
+        // If we let Postgres auto-generate new UUIDs on re-insert, any content_items
+        // rows written during the same scrape cycle (YouTube videos, Reddit posts)
+        // that reference the OLD source_id will violate the FK constraint.
         const { data: preSeededSources } = await admin
             .from('sources')
-            .select('name, url, source_type, client_id, is_active')
+            .select('id, name, url, source_type, client_id, is_active')
             .eq('client_id', clientId);
         const savedSources = (preSeededSources || []).map(s => ({
+            id: s.id,           // ← preserve UUID so FK refs in content_items stay valid
             name: s.name,
             url: s.url,
             source_type: s.source_type,
@@ -139,9 +144,11 @@ router.post('/', async (req, res) => {
             const BATCH = 50;
             for (let i = 0; i < savedSources.length; i += BATCH) {
                 const batch = savedSources.slice(i, i + BATCH);
-                await admin.from('sources').insert(batch);
+                // Use upsert with onConflict:'id' so existing rows are updated in-place
+                // rather than getting new auto-generated UUIDs that would break FK refs.
+                await admin.from('sources').upsert(batch, { onConflict: 'id' });
             }
-            log.system.info('Re-inserted pre-seeded sources', { clientId, count: savedSources.length });
+            log.system.info('Re-inserted pre-seeded sources (UUIDs preserved)', { clientId, count: savedSources.length });
         }
 
         log.system.info('Stale data cleaned for new brief', { clientId });

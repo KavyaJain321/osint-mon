@@ -178,12 +178,21 @@ async function crawlHtmlSourceInternal(source, keywords) {
                             // For other sources: require keyword match
                             if (!match.matched) {
                                 if (!source.briefSource) return;
-                                if (!topicRelevant(articleData.title || '', source.topicWords)) return;
+                                // topicWords can be empty if ALL keyword words were filtered
+                                // by GENERIC_WORDS — in that case, save all articles from
+                                // this brief source rather than silently dropping them.
+                                if (source.topicWords && source.topicWords.size > 0) {
+                                    if (!topicRelevant(articleData.title || '', source.topicWords)) return;
+                                } else {
+                                    log.scraper.debug('Brief source has empty topicWords — saving all articles', {
+                                        source: source.name || source.url,
+                                    });
+                                }
                             }
 
                             const matchedKws = match.matchedKeywords.length > 0
                                 ? match.matchedKeywords
-                                : ['topic_relevant'];
+                                : ['brief_source'];
 
                             const saveResult = await saveArticle({
                                 title: articleData.title || 'Untitled',

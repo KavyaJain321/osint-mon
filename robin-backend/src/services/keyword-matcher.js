@@ -236,15 +236,21 @@ export function buildTopicWords(keywords) {
     // CRITICAL: Single bare words like 'india', 'protest', 'corruption' would match
     // unrelated BBC/Reuters global headlines. Only allow these through when they appear
     // as PART of a multi-word keyword (e.g. "Odisha protest", "BJD corruption").
+    //
+    // ⚠️  DO NOT add specific state/district/city names here (e.g. 'odisha',
+    //     'bhubaneswar', 'cuttack', 'puri'). Those are the PRIMARY signal for
+    //     region-specific clients and must pass through.
+    //     Only country-level names (india, china, russia...) are blocked because
+    //     they appear on virtually every global news page.
     const GENERIC_WORDS = new Set([
-        // Common article boilerplate
+        // Common article boilerplate words
         'social', 'media', 'risks', 'risk', 'warnings', 'warning', 'issues', 'issue',
-        'treatment', 'effects', 'impact', 'analysis', 'report', 'system', 'global',
+        'treatment', 'effects', 'impact', 'analysis', 'report', 'system',
         'new', 'market', 'markets', 'news', 'world', 'government', 'policy',
         'people', 'public', 'data', 'information', 'health', 'crisis', 'major',
         'latest', 'breaking', 'today', 'state', 'national', 'international',
-        // Country/region names — too broad on their own, match everything
-        'india', 'usa', 'us', 'uk', 'china', 'russia', 'pakistan', 'europe',
+        // Continental / country-level geography only (NOT state / district / city names)
+        'india', 'usa', 'uk', 'china', 'russia', 'pakistan', 'europe',
         'america', 'britain', 'east', 'west', 'north', 'south', 'asian', 'global',
         // Generic political/crime trigger words — match any global news headline
         'protest', 'protests', 'fraud', 'scam', 'corruption', 'crackdown',
@@ -268,6 +274,19 @@ export function buildTopicWords(keywords) {
             }
         }
     }
+
+    // ── Safety net: if GENERIC_WORDS filtered EVERYTHING (e.g. a brief whose
+    //    keywords are all very generic), fall back to unfiltered significant words.
+    //    Without this, briefSource articles would silently pass the topicRelevant
+    //    check with an empty set (which always returns false → article dropped).
+    if (topicWords.size === 0 && keywords.length > 0) {
+        for (const kw of keywords) {
+            for (const word of getSignificantWords(kw)) {
+                if (word.length >= 4) topicWords.add(word);
+            }
+        }
+    }
+
     return topicWords;
 }
 
