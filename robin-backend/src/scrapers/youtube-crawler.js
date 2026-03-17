@@ -13,7 +13,8 @@ import { updateSourceScrapeStatus } from '../services/article-saver.js';
 import { saveContent } from '../services/content-saver.js';
 import { log } from '../lib/logger.js';
 
-const MAX_VIDEOS = 15;
+const MAX_VIDEOS_API = 50; // API lookback window (very wide for news channels)
+const MAX_VIDEOS_RSS = 15; // RSS hard limit by YouTube
 const TRANSCRIPT_TIMEOUT_MS = 20000; // 20s max to wait for yt-dlp transcript
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
@@ -155,9 +156,58 @@ async function resolveChannelId(url) {
     }
 }
 
-// ── YouTube RSS feed fetcher ─────────────────────────────────
+// ── YouTube Data API v3 fetcher ──────────────────────────────
 /**
- * Fetch the last MAX_VIDEOS videos from a channel's RSS feed.
+ * Fetch the last MAX_VIDEOS_API videos from a channel using the official API.
+ * This looks at the "Uploads" playlist (UU instead of UC).
+ * Costs 1 quota unit.
+ */
+async function fetchChannelVideosAPI(channelId) {
+    const apiKey = process.env.YOUTUBE_API_KEY;
+    if (!apiKey) return null;
+
+    // Convert channel ID (UC...) to Uploads playlist ID (UU...)
+    const uploadsPlaylistId = channelId.replace(/^UC/, 'UU');
+    const apiUrl = `https://youtube.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${uploadsPlaylistId}&maxResults=${MAX_VIDEOS_API}&key=${apiKey}`;
+
+    try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
+        const res = await fetch(apiUrl, { signal: controller.signal });
+        clearTimeout(timeout);
+
+        if (!res.ok) {
+            const errorText = await res.text();
+            log.scraper.warn('YouTube API fetch failed (will fallback)', { channelId, status: res.status, error: errorText });
+            return null; // Signals fallback to RSS
+        }
+
+        const data = await res.json();
+        const videos = [];
+
+        for (const item of data.items || []) {
+            const snippet = item.snippet;
+            const videoId = snippet?.resourceId?.videoId;
+            if (!videoId) continue;
+
+            videos.push({
+                videoId,
+                title: snippet.title || '',
+                description: (snippet.description || '').substring(0, 1500),
+                publishedAt: snippet.publishedAt ? new Date(snippet.publishedAt) : new Date(),
+            });
+        }
+
+        return videos;
+    } catch (error) {
+        log.scraper.warn('YouTube API fetch errored (will fallback)', { channelId, error: error.message });
+        return null;
+    }
+}
+
+// ── YouTube RSS feed fetcher (Fallback) ──────────────────────
+/**
+ * Fetch the last MAX_VIDEOS_RSS videos from a channel's RSS feed.
  * Works on ALL YouTube channels — no API key, no yt-dlp, no blocking.
  */
 async function fetchChannelRSS(channelId) {
@@ -203,7 +253,7 @@ async function fetchChannelRSS(channelId) {
             });
         }
 
-        return videos.slice(0, MAX_VIDEOS);
+        return videos.slice(0, MAX_VIDEOS_RSS);
     } catch (error) {
         log.scraper.warn('YouTube RSS fetch failed', { channelId, error: error.message });
         return [];
@@ -243,17 +293,34 @@ async function crawlYoutubeSourceInternal(source, keywords) {
             return result;
         }
 
-        // Step 2: Fetch RSS feed — instant, works on every channel
-        const videos = await fetchChannelRSS(channelId);
+        // Step 2: Fetch videos (Try API first, fallback to RSS)
+        let videos = [];
+        let sourceMethod = 'rss';
+
+        // Attempt API if configured
+        if (process.env.YOUTUBE_API_KEY) {
+            const apiVideos = await fetchChannelVideosAPI(channelId);
+            if (apiVideos) {
+                videos = apiVideos;
+                sourceMethod = 'api';
+            }
+        }
+
+        // Fallback to RSS if API didn't run or failed
+        if (videos.length === 0 && sourceMethod !== 'api') {
+            videos = await fetchChannelRSS(channelId);
+            sourceMethod = 'rss';
+        }
+
         result.articlesFound = videos.length;
 
         if (videos.length === 0) {
-            log.scraper.info('YouTube: no videos in RSS feed', { source: source.name, channelId });
+            log.scraper.info('YouTube: no videos found', { source: source.name, channelId, method: sourceMethod });
             await updateSourceScrapeStatus(source.id, true);
             return result;
         }
 
-        log.scraper.info(`YouTube RSS: ${videos.length} videos found`, {
+        log.scraper.info(`YouTube: ${videos.length} videos found via ${sourceMethod}`, {
             source: source.name,
             channelId,
         });
