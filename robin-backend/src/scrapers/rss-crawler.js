@@ -6,7 +6,7 @@
 import RSSParser from 'rss-parser';
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { Readability } from '@mozilla/readability';
-import { matchArticle, topicRelevant, cleanArticleContent } from '../services/keyword-matcher.js';
+import { matchArticle, cleanArticleContent } from '../services/keyword-matcher.js';
 import { saveArticle, updateSourceScrapeStatus } from '../services/article-saver.js';
 import { log } from '../lib/logger.js';
 
@@ -143,12 +143,7 @@ export async function crawlRssSource(source, keywords) {
                     const quickText = cleanArticleContent(`${item.title || ''} ${item.contentSnippet || item.content || ''}`);
                     const quickMatch = matchArticle({ title: item.title || '', content: quickText }, keywords);
 
-                    // For brief sources: require topic word in TITLE (strict but fair)
-                    // For other sources: require keyword match
-                    if (!quickMatch.matched) {
-                        if (!source.briefSource) return;
-                        if (!topicRelevant(item.title || '', source.topicWords)) return;
-                    }
+                    if (!quickMatch.matched) return;
 
                     // Fetch full article content
                     const fullArticle = await fetchFullArticleContent(item.link);
@@ -161,13 +156,8 @@ export async function crawlRssSource(source, keywords) {
                         keywords
                     );
 
-                    // For non-brief sources, require full content match too
-                    if (!fullMatch.matched && !source.briefSource) return;
-
-                    // Save article — use matched keywords or 'topic_relevant' tag
-                    const matchedKws = fullMatch.matchedKeywords.length > 0
-                        ? fullMatch.matchedKeywords
-                        : ['topic_relevant'];
+                    if (!fullMatch.matched) return;
+                    const matchedKws = fullMatch.matchedKeywords;
 
                     // Collect image: try RSS enclosure, media:thumbnail, then og:image from fetched HTML
                     const rssImage = item.enclosure?.url

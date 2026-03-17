@@ -64,6 +64,8 @@ async function scrapeRedditInternal(source, clientId, keywords = []) {
             const fullText = `${title} ${content}`.toLowerCase();
             const matchedKws = keywords.filter(kw => fullText.includes(kw.toLowerCase()));
 
+            if (matchedKws.length === 0) continue;
+
             results.push({
                 contentType: 'reddit',
                 title: title.substring(0, 500),
@@ -72,7 +74,7 @@ async function scrapeRedditInternal(source, clientId, keywords = []) {
                 publishedAt: pubDate,
                 sourceId: source.id,
                 clientId,
-                matchedKeywords: matchedKws.length > 0 ? matchedKws : ['topic_relevant'],
+                matchedKeywords: matchedKws,
                 language: 'en',
                 sourceTier: 3, // Reddit = tier 3 by default
                 typeMetadata: {

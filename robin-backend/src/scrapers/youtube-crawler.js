@@ -8,7 +8,7 @@ import { spawn } from 'child_process';
 import { readFile, unlink, mkdtemp } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { matchArticle, topicRelevant } from '../services/keyword-matcher.js';
+import { matchArticle } from '../services/keyword-matcher.js';
 import { updateSourceScrapeStatus } from '../services/article-saver.js';
 import { saveContent } from '../services/content-saver.js';
 import { log } from '../lib/logger.js';
@@ -333,12 +333,9 @@ async function crawlYoutubeSourceInternal(source, keywords) {
                 const searchText = `${video.title} ${shortDesc}`;
                 const match = matchArticle({ title: video.title, content: searchText }, keywords);
                 
-                if (!match.matched) {
-                    if (!source.briefSource) continue;
-                    if (!topicRelevant(video.title, source.topicWords)) continue;
-                }
+                if (!match.matched) continue;
                 
-                const matchedKws = match.matchedKeywords.length > 0 ? match.matchedKeywords : ['topic_relevant'];
+                const matchedKws = match.matchedKeywords;
 
                 // Step 4 (optional): Try to enrich with full transcript via yt-dlp
                 // Non-blocking: we save the video regardless of whether transcript succeeds

@@ -50,6 +50,8 @@ async function scrapeGoogleNewsInternal(source, clientId, keywords = []) {
                 content.toLowerCase().includes(kw.toLowerCase())
             );
 
+            if (matchedKws.length === 0) continue;
+
             results.push({
                 contentType: 'article',
                 title: cleanGoogleNewsTitle(title),
@@ -58,7 +60,7 @@ async function scrapeGoogleNewsInternal(source, clientId, keywords = []) {
                 publishedAt: pubDate ? new Date(pubDate) : new Date(),
                 sourceId: source.id,
                 clientId,
-                matchedKeywords: matchedKws.length > 0 ? matchedKws : ['topic_relevant'],
+                matchedKeywords: matchedKws,
                 language: 'en',
                 sourceTier: 2,
                 typeMetadata: {

@@ -6,7 +6,7 @@
 import * as cheerio from 'cheerio';
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { Readability } from '@mozilla/readability';
-import { matchArticle, topicRelevant } from '../services/keyword-matcher.js';
+import { matchArticle } from '../services/keyword-matcher.js';
 import { saveArticle, updateSourceScrapeStatus } from '../services/article-saver.js';
 import { log } from '../lib/logger.js';
 
@@ -174,25 +174,8 @@ async function crawlHtmlSourceInternal(source, keywords) {
                                 keywords
                             );
 
-                            // For brief sources: require topic word in TITLE
-                            // For other sources: require keyword match
-                            if (!match.matched) {
-                                if (!source.briefSource) return;
-                                // topicWords can be empty if ALL keyword words were filtered
-                                // by GENERIC_WORDS — in that case, save all articles from
-                                // this brief source rather than silently dropping them.
-                                if (source.topicWords && source.topicWords.size > 0) {
-                                    if (!topicRelevant(articleData.title || '', source.topicWords)) return;
-                                } else {
-                                    log.scraper.debug('Brief source has empty topicWords — saving all articles', {
-                                        source: source.name || source.url,
-                                    });
-                                }
-                            }
-
-                            const matchedKws = match.matchedKeywords.length > 0
-                                ? match.matchedKeywords
-                                : ['brief_source'];
+                            if (!match.matched) return;
+                            const matchedKws = match.matchedKeywords;
 
                             const saveResult = await saveArticle({
                                 title: articleData.title || 'Untitled',
