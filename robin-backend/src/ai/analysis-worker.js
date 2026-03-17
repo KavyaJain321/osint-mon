@@ -21,7 +21,7 @@ const TYPE_INSTRUCTIONS = {
     article: 'Analyze this news article.',
     video_transcript: 'Analyze this video transcript. Focus on key statements, speakers, and claims made in the video.',
     tweet: 'Analyze this tweet/social media post. Consider its virality potential and public sentiment impact.',
-    reddit_post: 'Analyze this Reddit post and discussion. Consider community sentiment and grassroots opinion signals.',
+    reddit: 'Analyze this Reddit post and discussion. Consider community sentiment and grassroots opinion signals.',
     pdf_document: 'Analyze this document. Focus on official positions, policy implications, and regulatory impact.',
     govt_release: 'Analyze this government press release. Focus on policy changes, official statements, and regulatory implications.',
     news_api_article: 'Analyze this news article.',

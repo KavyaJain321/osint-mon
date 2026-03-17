@@ -65,7 +65,7 @@ async function scrapeRedditInternal(source, clientId, keywords = []) {
             const matchedKws = keywords.filter(kw => fullText.includes(kw.toLowerCase()));
 
             results.push({
-                contentType: 'reddit_post',
+                contentType: 'reddit',
                 title: title.substring(0, 500),
                 content: content.substring(0, 5000) || title,
                 url,

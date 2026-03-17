@@ -230,7 +230,7 @@ export function saveVideoContent(raw) {
 }
 
 export function saveRedditContent(raw) {
-    return saveContent({ ...raw, contentType: 'reddit_post' });
+    return saveContent({ ...raw, contentType: 'reddit' });
 }
 
 export function saveTweetContent(raw) {
