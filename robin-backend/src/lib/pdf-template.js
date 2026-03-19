@@ -20,7 +20,7 @@ export function generateMediaReportHtml({
         
         return `
       <div style="display:flex;gap:16px;padding:16px 0;border-bottom:1px solid #f1f5f9;break-inside:avoid;">
-        <img src="${img}" alt="" style="width:130px;height:85px;object-fit:cover;border-radius:8px;flex-shrink:0;border:1px solid #e2e8f0;" onerror="this.src='${fb}'">
+        <img src="${img}" alt="" data-article-url="${a.url || ''}" style="width:130px;height:85px;object-fit:cover;border-radius:8px;flex-shrink:0;border:1px solid #e2e8f0;" onerror="this.src='${fb}'">
         <div style="flex:1;min-width:0;">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap;">
             <span style="background:${ss.bg};color:${ss.col};border:1px solid ${ss.br||'transparent'};padding:2px 10px;border-radius:4px;font-size:10px;font-weight:600;">● ${ss.lbl}</span>
@@ -217,6 +217,35 @@ ${buildSec('Newspapers','📰',npA,'#ea580c')}
   <p style="color:rgba(255,255,255,0.3);font-size:12px;">Only ${client.name}-relevant articles from ${enriched.length} monitored stories are included.</p>
   <p style="color:rgba(255,255,255,0.2);font-size:11px;margin-top:30px;">© 2026 ROBIN Intelligence. Confidential — Government of ${client.name}.</p>
 </div>
+<script>
+// Client-side og:image loader — fetches article pages and extracts og:image meta tags
+(function() {
+  const imgs = document.querySelectorAll('img[data-article-url]');
+  const PROXY = 'https://api.allorigins.win/raw?url=';
+  let i = 0;
+  function next() {
+    if (i >= imgs.length) return;
+    const img = imgs[i++];
+    const url = img.getAttribute('data-article-url');
+    if (!url || url === '#' || img.src.startsWith('http')) { next(); return; }
+    fetch(PROXY + encodeURIComponent(url), { signal: AbortSignal.timeout(4000) })
+      .then(r => r.ok ? r.text() : '')
+      .then(html => {
+        let m = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
+             || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+        if (m && m[1]) {
+          let src = m[1];
+          if (src.startsWith('//')) src = 'https:' + src;
+          img.src = src;
+        }
+      })
+      .catch(() => {})
+      .finally(() => setTimeout(next, 100));
+  }
+  // Process 3 at a time
+  next(); next(); next();
+})();
+</script>
 </body></html>`;
 }
 

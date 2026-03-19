@@ -622,19 +622,10 @@ router.post('/generate-media-report', async (req, res) => {
         });
         const enriched = all.filter(a=>isOdisha(a));
 
-        // Fetch og:image in batches of 5 — LIMIT to top 30 to prevent 30s timeout
-        const imgCache = {};
-        const forImaging = enriched.slice(0, 30);
-        for(let i=0;i<forImaging.length;i+=5){
-            const batch=forImaging.slice(i,i+5);
-            try {
-                const results=await Promise.all(batch.map(async a=>({id:a.id,img:await fetchOgImg(a.url)})));
-                results.forEach(r=>{if(r.img)imgCache[r.id]=r.img;});
-            } catch (imgErr) {
-                console.warn('Image fetch batch failed:', imgErr.message);
-            }
-        }
-        enriched.forEach(a=>{a.image_url=imgCache[a.id]||null;});
+        // Images will be loaded CLIENT-SIDE via a JS snippet in the HTML.
+        // This avoids the 30s Render request timeout caused by fetching 30+ og:images on the server.
+        console.log('[MEDIA-REPORT] Enriched articles:', enriched.length, '(images will load client-side)');
+        enriched.forEach(a => { a.image_url = null; });
 
         // Stats
         const analyzed=enriched.filter(a=>a.analysis);
