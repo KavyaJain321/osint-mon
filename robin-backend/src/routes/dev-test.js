@@ -676,32 +676,9 @@ router.post('/generate-media-report', async (req, res) => {
             svgPh
         });
 
-        // Generate PDF from HTML using Puppeteer
-
-
-
-        // Generate PDF from HTML using Puppeteer
-        const browser = await getBrowserInstance();
-        let pdfBuffer;
-        try {
-            const page = await browser.newPage();
-            page.setDefaultNavigationTimeout(120000);
-            page.setDefaultTimeout(120000);
-            // networkidle2 is safer if some tracking pixels/images hang, preventing timeouts.
-            await page.setContent(html, { waitUntil: 'networkidle2', timeout: 120000 });
-            pdfBuffer = await page.pdf({
-                format: 'A4',
-                printBackground: true,
-                margin: { top: '0px', right: '0px', bottom: '0px', left: '0px' },
-                timeout: 120000
-            });
-        } finally {
-            await browser.close().catch(() => {});
-        }
-
-        res.setHeader('Content-Type','application/pdf');
-        res.setHeader('Content-Disposition',`attachment; filename="ROBIN_Media_Report_${new Date().toISOString().split('T')[0]}.pdf"`);
-        res.send(Buffer.from(pdfBuffer));
+        // Return HTML directly — the frontend opens it in a new tab for print-to-PDF
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.send(html);
     } catch(err){
         console.error('[MEDIA-REPORT]',err.message);
         res.status(500).json({error:err.message});

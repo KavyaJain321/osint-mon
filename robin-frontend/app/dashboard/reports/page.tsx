@@ -103,15 +103,14 @@ export default function ReportsPage() {
                 headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
             });
             if (!res.ok) throw new Error('Media report generation failed');
-            const blob = await res.blob();
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `ROBIN_Media_Report_${new Date().toISOString().split('T')[0]}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            const html = await res.text();
+            const w = window.open('', '_blank');
+            if (w) {
+                w.document.write(html);
+                w.document.close();
+                // Auto-trigger print dialog after images load
+                w.onload = () => setTimeout(() => w.print(), 800);
+            }
         } catch (err) {
             alert('Media report generation failed. Please try again.');
         }
@@ -129,15 +128,13 @@ export default function ReportsPage() {
                 body: JSON.stringify({ period, template, sections, headerText, classification }),
             });
             if (!res.ok) throw new Error('Report generation failed');
-            const blob = await res.blob();
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `ROBIN_Media_Report_${new Date().toISOString().split('T')[0]}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            const html = await res.text();
+            const w = window.open('', '_blank');
+            if (w) {
+                w.document.write(html);
+                w.document.close();
+                w.onload = () => setTimeout(() => w.print(), 800);
+            }
         } catch (err) {
             alert('Report generation failed. Please try again.');
         }
