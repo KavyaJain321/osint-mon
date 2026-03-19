@@ -616,16 +616,36 @@ router.post('/generate-media-report', async (req, res) => {
         const all = (allArticles||[]).map(a=>{
             const src=srcMap[a.source_id]||{};
             const ana=anaMap[a.id]||null;
-            return {...a, source_name:src.name||'Unknown', analysis:ana,
+            return {...a, source_name:src.name||'Unknown', source_url:src.url||'', analysis:ana,
                 sentiment:ana?.sentiment||'neutral', importance:ana?.importance_score||0,
                 summary:ana?.summary||'', mediaType:classifySrc(src.name||'',a.url)};
         });
         const enriched = all.filter(a=>isOdisha(a));
 
-        // Use image URLs already stored in the DB from scraping (YouTube thumbnails, og:images, etc.)
+        // Use image URLs already stored in the DB from scraping (YouTube thumbnails, og:images)
+        // Fall back to Google favicon for articles without stored images (same as Activity Feed)
         console.log('[MEDIA-REPORT] Enriched articles:', enriched.length);
         enriched.forEach(a => {
-            a.image_url = a.type_metadata?.image_url || null;
+            if (a.type_metadata?.image_url) {
+                a.image_url = a.type_metadata.image_url;
+            } else if (a.source_url) {
+                // Google favicon — same as the Activity Feed uses
+                try {
+                    const domain = new URL(a.source_url).hostname;
+                    a.image_url = `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
+                } catch {
+                    a.image_url = null;
+                }
+            } else if (a.url) {
+                try {
+                    const domain = new URL(a.url).hostname;
+                    a.image_url = `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
+                } catch {
+                    a.image_url = null;
+                }
+            } else {
+                a.image_url = null;
+            }
         });
 
         // Stats
