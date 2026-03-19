@@ -106,6 +106,9 @@ export const contentApi = {
     /** All content items (articles + videos + PDFs + etc.) with optional type filter */
     list: (limit = 50, type?: string) =>
         apiFetch(`/api/test/content?limit=${limit}${type && type !== 'all' ? `&type=${type}` : ''}`),
+    /** Delete a single content item by ID */
+    delete: (id: string) =>
+        apiFetch(`/api/test/content/${id}`, { method: 'DELETE' }),
 };
 
 // ── Convenience: expose top-level helpers page components expect ─

@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import {
     Newspaper, Search, Clock, AlertTriangle, ChevronLeft, ChevronRight,
-    LayoutGrid, List, ExternalLink, TrendingDown, TrendingUp, Minus,
+    LayoutGrid, List, ExternalLink, TrendingDown, TrendingUp, Minus, Trash2,
 } from "lucide-react";
 import { formatRelative } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { Article } from "@/lib/types";
 import { useContent } from "@/lib/hooks/useIntelligence";
+import { contentApi } from "@/lib/api";
+import { useQueryClient } from "@tanstack/react-query";
 import ContentDetail, { detectContentType, TYPE_ICONS, TYPE_GRADIENTS } from "@/components/dashboard/ContentDetail";
 
 function getDomain(url?: string): string {
@@ -63,6 +65,18 @@ export default function ContentFeedPage() {
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
     const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
+    const queryClient = useQueryClient();
+
+    const handleDelete = useCallback(async (e: React.MouseEvent, article: Article) => {
+        e.stopPropagation(); // Prevent opening the detail panel
+        if (!confirm(`Delete "${article.title?.substring(0, 80)}..."?\n\nThis will permanently remove this article.`)) return;
+        try {
+            await contentApi.delete(article.id);
+            queryClient.invalidateQueries({ queryKey: ["content"] });
+        } catch (err) {
+            alert('Failed to delete article. Please try again.');
+        }
+    }, [queryClient]);
 
     // Add content type to each article
     const articlesWithType = useMemo(() =>
@@ -333,6 +347,13 @@ export default function ContentFeedPage() {
                                                     {imp}/10
                                                 </span>
                                             )}
+                                            <button
+                                                onClick={(e) => handleDelete(e, article)}
+                                                className="absolute bottom-2 right-2 p-1.5 rounded-md bg-black/50 text-white/70 hover:bg-rose/80 hover:text-white opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm"
+                                                title="Delete article"
+                                            >
+                                                <Trash2 size={12} />
+                                            </button>
                                             <span className="absolute top-2 right-2 badge badge-muted text-2xs backdrop-blur-sm">
                                                 {TYPE_ICONS[cType]?.label || "Article"}
                                             </span>
@@ -418,6 +439,13 @@ export default function ContentFeedPage() {
                                                 {imp}
                                             </span>
                                         )}
+                                        <button
+                                            onClick={(e) => handleDelete(e, article)}
+                                            className="p-1 rounded hover:bg-rose/10 text-text-muted hover:text-rose opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
+                                            title="Delete article"
+                                        >
+                                            <Trash2 size={13} />
+                                        </button>
                                         <ExternalLink size={12} className="text-text-muted opacity-0 group-hover:opacity-60 flex-shrink-0" />
                                     </div>
                                 );

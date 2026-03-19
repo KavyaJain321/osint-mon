@@ -279,6 +279,28 @@ router.get('/content', async (req, res) => {
     }
 });
 
+// DELETE /content/:id — remove a single article/content item
+router.delete('/content/:id', async (req, res) => {
+    try {
+        const db = mkAdmin();
+        const articleId = req.params.id;
+        if (!articleId) return res.status(400).json({ error: 'Missing article ID' });
+
+        // Delete from article_analysis first (FK dependency)
+        await db.from('article_analysis').delete().eq('article_id', articleId);
+        // Delete from both tables (it may exist in one or both)
+        const [r1, r2] = await Promise.all([
+            db.from('content_items').delete().eq('id', articleId),
+            db.from('articles').delete().eq('id', articleId),
+        ]);
+        console.log(`[DELETE] Removed article ${articleId}`);
+        res.json({ success: true, id: articleId });
+    } catch (err) {
+        console.error('[DELETE] Error:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // GET /analytics — sentiment & volume stats
 router.get('/analytics', async (req, res) => {
     try {
