@@ -685,12 +685,15 @@ router.post('/generate-media-report', async (req, res) => {
         let pdfBuffer;
         try {
             const page = await browser.newPage();
-            // Network idle is necessary to load external images (og:images)
-            await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60000 });
+            page.setDefaultNavigationTimeout(120000);
+            page.setDefaultTimeout(120000);
+            // networkidle2 is safer if some tracking pixels/images hang, preventing timeouts.
+            await page.setContent(html, { waitUntil: 'networkidle2', timeout: 120000 });
             pdfBuffer = await page.pdf({
                 format: 'A4',
                 printBackground: true,
-                margin: { top: '0px', right: '0px', bottom: '0px', left: '0px' }
+                margin: { top: '0px', right: '0px', bottom: '0px', left: '0px' },
+                timeout: 120000
             });
         } finally {
             await browser.close().catch(() => {});
