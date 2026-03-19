@@ -344,6 +344,11 @@ export default function ContentFeedPage() {
                                             <h3 className="text-sm font-medium text-text-primary group-hover:text-accent-bright transition-colors line-clamp-2 mb-2 leading-snug">
                                                 {article.title}
                                             </h3>
+                                            {article.analysis?.summary && (
+                                                <p className="text-xs text-text-secondary line-clamp-2 mb-3">
+                                                    {article.analysis.summary}
+                                                </p>
+                                            )}
                                             <div className="flex items-center gap-2 text-2xs text-text-muted">
                                                 <span className="flex items-center gap-0.5"><Clock size={9} /> {formatRelative(article.published_at)}</span>
                                                 {article.analysis?.sentiment && (
@@ -395,6 +400,11 @@ export default function ContentFeedPage() {
                                             <p className="text-sm text-text-primary group-hover:text-accent-bright transition-colors truncate">
                                                 {article.title}
                                             </p>
+                                            {article.analysis?.summary && (
+                                                <p className="text-xs text-text-secondary truncate mt-0.5">
+                                                    {article.analysis.summary}
+                                                </p>
+                                            )}
                                             <div className="flex items-center gap-2 text-2xs text-text-muted mt-0.5">
                                                 <span>{formatRelative(article.published_at)}</span>
                                                 {article.analysis?.sentiment && (

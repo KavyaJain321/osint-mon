@@ -148,16 +148,6 @@ export default function ContentDetail({ article, onClose }: { article: Article; 
                         </div>
                     )}
 
-                    {/* Summary */}
-                    {article.analysis?.summary && (
-                        <div>
-                            <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">Summary</h3>
-                            <p className="text-sm text-text-secondary leading-relaxed">
-                                {article.analysis.summary}
-                            </p>
-                        </div>
-                    )}
-
                     {/* Transcript / Full Content */}
                     {article.content && contentType === "youtube" && (
                         <div>
@@ -165,6 +155,16 @@ export default function ContentDetail({ article, onClose }: { article: Article; 
                             <div className="text-sm text-text-secondary leading-relaxed bg-surface border border-border p-3 rounded-md max-h-60 overflow-y-auto whitespace-pre-wrap">
                                 {article.content}
                             </div>
+                        </div>
+                    )}
+
+                    {/* Context (formerly Summary) */}
+                    {article.analysis?.summary && (
+                        <div>
+                            <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">Context</h3>
+                            <p className="text-sm text-text-secondary leading-relaxed">
+                                {article.analysis.summary}
+                            </p>
                         </div>
                     )}
 
