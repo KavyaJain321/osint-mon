@@ -217,35 +217,6 @@ ${buildSec('Newspapers','📰',npA,'#ea580c')}
   <p style="color:rgba(255,255,255,0.3);font-size:12px;">Only ${client.name}-relevant articles from ${enriched.length} monitored stories are included.</p>
   <p style="color:rgba(255,255,255,0.2);font-size:11px;margin-top:30px;">© 2026 ROBIN Intelligence. Confidential — Government of ${client.name}.</p>
 </div>
-<script>
-// Client-side og:image loader — fetches article pages and extracts og:image meta tags
-(function() {
-  const imgs = document.querySelectorAll('img[data-article-url]');
-  const PROXY = 'https://api.allorigins.win/raw?url=';
-  let i = 0;
-  function next() {
-    if (i >= imgs.length) return;
-    const img = imgs[i++];
-    const url = img.getAttribute('data-article-url');
-    if (!url || url === '#' || img.src.startsWith('http')) { next(); return; }
-    fetch(PROXY + encodeURIComponent(url), { signal: AbortSignal.timeout(4000) })
-      .then(r => r.ok ? r.text() : '')
-      .then(html => {
-        let m = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
-             || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
-        if (m && m[1]) {
-          let src = m[1];
-          if (src.startsWith('//')) src = 'https:' + src;
-          img.src = src;
-        }
-      })
-      .catch(() => {})
-      .finally(() => setTimeout(next, 100));
-  }
-  // Process 3 at a time
-  next(); next(); next();
-})();
-</script>
 </body></html>`;
 }
 

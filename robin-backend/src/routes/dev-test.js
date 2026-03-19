@@ -575,12 +575,12 @@ router.post('/generate-media-report', async (req, res) => {
         // Fetch all data from both legacy and new tables
         const [legacyArtRes, newItemsRes] = await Promise.all([
             db.from('articles')
-                .select('id, title, url, source_id, published_at, created_at, matched_keywords')
+                .select('id, title, url, source_id, published_at, created_at, matched_keywords, type_metadata')
                 .eq('client_id', client.id)
                 .order('published_at', { ascending: false })
                 .limit(500),
             db.from('content_items')
-                .select('id, title, url, source_id, published_at, created_at, matched_keywords')
+                .select('id, title, url, source_id, published_at, created_at, matched_keywords, type_metadata')
                 .eq('client_id', client.id)
                 .order('published_at', { ascending: false })
                 .limit(500)
@@ -622,10 +622,11 @@ router.post('/generate-media-report', async (req, res) => {
         });
         const enriched = all.filter(a=>isOdisha(a));
 
-        // Images will be loaded CLIENT-SIDE via a JS snippet in the HTML.
-        // This avoids the 30s Render request timeout caused by fetching 30+ og:images on the server.
-        console.log('[MEDIA-REPORT] Enriched articles:', enriched.length, '(images will load client-side)');
-        enriched.forEach(a => { a.image_url = null; });
+        // Use image URLs already stored in the DB from scraping (YouTube thumbnails, og:images, etc.)
+        console.log('[MEDIA-REPORT] Enriched articles:', enriched.length);
+        enriched.forEach(a => {
+            a.image_url = a.type_metadata?.image_url || null;
+        });
 
         // Stats
         const analyzed=enriched.filter(a=>a.analysis);
