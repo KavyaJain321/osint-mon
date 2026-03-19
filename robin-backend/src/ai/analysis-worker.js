@@ -56,9 +56,9 @@ Title: ${article.title}
 Content: ${content}
 Published: ${article.published_at} | Source: ${article.source_name || 'Unknown'}
 
-Return ONLY a JSON object with:
+Return ONLY a JSON object IN ENGLISH (translate any non-English content to English) with:
 {
-  "summary": "3 specific factual sentences",
+  "summary": "3 specific factual sentences in English",
   "sentiment": "positive|negative|neutral",
   "importance_score": 1-10,
   "importance_reason": "one sentence re: impact on the topic above",
@@ -187,9 +187,8 @@ export async function analyzeArticle(article) {
         const isContentItem = article.content_type && article.content_type !== 'article';
 
         // Save to article_analysis (upsert to handle re-runs)
-        // SKIP for content_items — they don't have a row in the articles table,
-        // so the FK constraint article_analysis_article_id_fkey will reject them.
-        if (!isContentItem) {
+        // ALWAYS run for all content types since content-saver writes everything to articles.
+        if (true) {
             const baseData = {
                 article_id: article.id,
                 summary: analysis.summary,

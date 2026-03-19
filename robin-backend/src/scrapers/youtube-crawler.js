@@ -245,9 +245,17 @@ async function fetchChannelRSS(channelId) {
                 .replace(/&quot;/g, '"')
                 .trim();
 
+            const decodedTitle = decode(rawTitle);
+            
+            // Skip livestreams and scheduled premieres
+            if (/\b(?:Live|LIVE)\b/.test(decodedTitle) || /🔴/.test(decodedTitle)) {
+                log.scraper.debug?.('Skipping YouTube livestream/premiere', { channelId, title: decodedTitle });
+                continue;
+            }
+
             videos.push({
                 videoId,
-                title: decode(rawTitle),
+                title: decodedTitle,
                 description: decode(rawDesc).substring(0, 1500),
                 publishedAt: published ? new Date(published) : new Date(),
             });
@@ -328,10 +336,8 @@ async function crawlYoutubeSourceInternal(source, keywords) {
         // Step 3: Match + save each video
         for (const video of videos) {
             try {
-                // Keyword match on title + first 150 chars of description (avoids SEO boilerplate)
-                const shortDesc = video.description.substring(0, 150);
-                const searchText = `${video.title} ${shortDesc}`;
-                const match = matchArticle({ title: video.title, content: searchText }, keywords);
+                // Keyword match on TITLE + DESCRIPTION
+                const match = matchArticle({ title: video.title, content: video.description }, keywords);
                 
                 if (!match.matched) continue;
                 
@@ -406,7 +412,7 @@ export async function crawlYoutubeSource(source, keywords) {
     const result = { sourceId: source.id, articlesFound: 0, articlesSaved: 0, errors: [] };
     try {
         const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('YouTube source timeout after 30s')), 30000)
+            setTimeout(() => reject(new Error('YouTube source timeout after 5m')), 300000)
         );
         return await Promise.race([
             crawlYoutubeSourceInternal(source, keywords),

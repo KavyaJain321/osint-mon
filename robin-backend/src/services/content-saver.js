@@ -186,10 +186,9 @@ export async function saveContent(raw) {
             id: data.id,
         });
 
-        // 6. Backward compat: also write to articles table if type is article
-        if (item.contentType === 'article') {
-            try {
-                await supabase.from('articles').upsert({
+        // 6. Backward compat: write ALL types to articles table to enable AI analysis
+        try {
+            await supabase.from('articles').upsert({
                     id: data.id,
                     client_id: item.clientId,
                     source_id: item.sourceId,
@@ -205,7 +204,6 @@ export async function saveContent(raw) {
             } catch {
                 // Silent — articles table backward compat only
             }
-        }
 
         return { saved: true, contentId: data.id };
 
