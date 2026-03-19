@@ -8,7 +8,7 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "start": "node --max-old-space-size=380 --expose-gc --dns-result-order=ipv4first src/index.js",
+    "start": "node --expose-gc --dns-result-order=ipv4first src/index.js",
     "dev": "node --dns-result-order=ipv4first --watch src/index.js",
     "scrape": "node --dns-result-order=ipv4first src/scrapers/run-once.js",
     "seed": "node --dns-result-order=ipv4first database/seed.js"
@@ -20,7 +20,6 @@
     "cheerio": "^1.0.0",
     "cors": "^2.8.5",
     "crawlee": "^3.8.0",
-    "dotenv": "^16.4.0",
     "express": "^4.18.0",
     "express-rate-limit": "^7.2.0",
     "groq-sdk": "^0.5.0",
@@ -42,5 +41,9 @@
     "scraper"
   ],
   "license": "UNLICENSED",
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "dotenv": "^17.3.1",
+    "pg": "^8.20.0"
+  }
 }
