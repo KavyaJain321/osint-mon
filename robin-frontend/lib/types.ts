@@ -40,6 +40,7 @@ export interface Article {
     published_at: string;
     source_id: string;
     matched_keywords: string[];
+    content?: string;
     analysis_status: 'pending' | 'complete' | 'failed';
     analysis?: ArticleAnalysis;
     content_type?: string;

@@ -158,6 +158,16 @@ export default function ContentDetail({ article, onClose }: { article: Article; 
                         </div>
                     )}
 
+                    {/* Transcript / Full Content */}
+                    {article.content && contentType === "youtube" && (
+                        <div>
+                            <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">Transcript / Description</h3>
+                            <div className="text-sm text-text-secondary leading-relaxed bg-surface border border-border p-3 rounded-md max-h-60 overflow-y-auto whitespace-pre-wrap">
+                                {article.content}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Entities */}
                     {article.analysis?.entities && article.analysis.entities.length > 0 && (
                         <div>

@@ -195,7 +195,7 @@ router.get('/content', async (req, res) => {
         // This ensures the frontend feed doesn't drop legacy items before the DB migration is complete.
         let query1 = supabase
             .from('content_items')
-            .select('id, title, url, content_type, type_metadata, published_at, source_id, matched_keywords, analysis_status, created_at, source:sources(name, url)')
+            .select('id, title, content, url, content_type, type_metadata, published_at, source_id, matched_keywords, analysis_status, created_at, source:sources(name, url)')
             .eq('client_id', client.id);
 
         if (type && type !== 'all') {
@@ -205,7 +205,7 @@ router.get('/content', async (req, res) => {
 
         let query2 = supabase
             .from('articles')
-            .select('id, title, url, published_at, source_id, matched_keywords, analysis_status, created_at, source:sources(name, url)')
+            .select('id, title, content, url, published_at, source_id, matched_keywords, analysis_status, created_at, source:sources(name, url)')
             .eq('client_id', client.id);
 
         query1 = query1.order('published_at', { ascending: false }).limit(limit);
