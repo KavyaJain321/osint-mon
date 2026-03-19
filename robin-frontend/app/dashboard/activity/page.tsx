@@ -274,6 +274,13 @@ export default function ContentFeedPage() {
                                         ⚡ {hero.analysis?.importance_score}/10
                                     </div>
                                 )}
+                                <button
+                                    onClick={(e) => handleDelete(e, hero)}
+                                    className="absolute bottom-3 right-3 p-1.5 rounded-md bg-black/50 text-white/70 hover:bg-rose/80 hover:text-white opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm z-10"
+                                    title="Delete article"
+                                >
+                                    <Trash2 size={14} />
+                                </button>
                                 <span className="absolute top-3 right-3 badge badge-muted backdrop-blur-sm">
                                     {TYPE_ICONS[detectContentType(hero)]?.label || "Article"}
                                 </span>
