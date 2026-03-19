@@ -1,6 +1,6 @@
 "use client";
 
-import { X, ExternalLink, MessageSquare, ArrowUpRight, Clock, Shield, FileText, Video, Building2, File } from "lucide-react";
+import { X, ExternalLink, MessageSquare, ArrowUpRight, Clock, Shield, FileText, Video, Bell, File } from "lucide-react";
 import { formatRelative } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { Article } from "@/lib/types";
@@ -11,7 +11,7 @@ const TYPE_ICONS: Record<string, { icon: React.ReactNode; label: string }> = {
     video: { icon: <Video size={14} />, label: "TV News" },
     newspaper: { icon: <FileText size={14} />, label: "Newspaper" },
     pdf: { icon: <File size={14} />, label: "PDF" },
-    govt: { icon: <Building2 size={14} />, label: "Govt Release" },
+    govt: { icon: <Bell size={14} />, label: "Notification" },
     social: { icon: <MessageSquare size={14} />, label: "Social" },
 };
 
@@ -87,7 +87,7 @@ export default function ContentDetail({ article, onClose }: { article: Article; 
                 {/* Header Image Area */}
                 <div className={cn("relative h-40 bg-gradient-to-br", gradient)}>
                     <div className="absolute inset-0 flex items-center justify-center opacity-20">
-                        <span className="text-6xl">{contentType === "youtube" ? "📺" : contentType === "newspaper" ? "📰" : contentType === "pdf" ? "📄" : contentType === "govt" ? "🏛️" : "🌐"}</span>
+                        <span className="text-6xl">{contentType === "youtube" ? "📺" : contentType === "newspaper" ? "📰" : contentType === "pdf" ? "📄" : contentType === "govt" ? "📢" : "🌐"}</span>
                     </div>
                     <button
                         onClick={onClose}

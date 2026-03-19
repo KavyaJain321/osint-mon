@@ -29,9 +29,7 @@ const CONTENT_TABS: { id: ContentType; label: string; emoji: string }[] = [
     { id: "newspaper", label: "Newspapers", emoji: "📰" },
     { id: "article", label: "Web Articles", emoji: "🌐" },
     { id: "youtube", label: "TV News", emoji: "📺" },
-    { id: "pdf", label: "PDF", emoji: "📄" },
-    { id: "govt", label: "Govt", emoji: "🏛️" },
-    { id: "social", label: "Social", emoji: "📱" },
+    { id: "govt", label: "Notifications", emoji: "📢" },
 ];
 
 const ITEMS_PER_PAGE = 20;
@@ -324,7 +322,7 @@ export default function ContentFeedPage() {
                                                         />
                                                     </div>
                                                 ) : (
-                                                    <span className="text-4xl filter drop-shadow opacity-50">{cType === "youtube" ? "📺" : cType === "newspaper" ? "📰" : cType === "pdf" ? "📄" : cType === "govt" ? "🏛️" : "🌐"}</span>
+                                                    <span className="text-4xl filter drop-shadow opacity-50">{cType === "youtube" ? "📺" : cType === "newspaper" ? "📰" : cType === "pdf" ? "📄" : cType === "govt" ? "📢" : "🌐"}</span>
                                                 )}
                                             </div>
                                             {imp >= 7 && (
@@ -394,7 +392,7 @@ export default function ContentFeedPage() {
                                                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                             />
                                         ) : (
-                                            <span className="text-lg flex-shrink-0">{cType === "youtube" ? "📺" : cType === "newspaper" ? "📰" : cType === "pdf" ? "📄" : cType === "govt" ? "🏛️" : "🌐"}</span>
+                                            <span className="text-lg flex-shrink-0">{cType === "youtube" ? "📺" : cType === "newspaper" ? "📰" : cType === "pdf" ? "📄" : cType === "govt" ? "📢" : "🌐"}</span>
                                         )}
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm text-text-primary group-hover:text-accent-bright transition-colors truncate">
