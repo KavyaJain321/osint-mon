@@ -127,6 +127,8 @@ export default function ContentFeedPage() {
                 type_metadata: {
                     ...first.type_metadata,
                     is_grouped: true,
+                    image_url: undefined, // Strip the clipping image so it doesn't show as a giant hero image
+                    image_crop_url: undefined,
                     clippings: clippings,
                 },
                 _contentType: "newspaper"
@@ -395,6 +397,11 @@ export default function ContentFeedPage() {
                                                         className="absolute inset-0 w-full h-full object-cover"
                                                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                                     />
+                                                ) : article.type_metadata?.is_grouped ? (
+                                                    <div className="flex flex-col items-center justify-center space-y-2 opacity-80 group-hover:opacity-100 transition-opacity">
+                                                        <span className="text-4xl filter drop-shadow">📄</span>
+                                                        <span className="text-xs font-semibold text-white bg-black/50 px-2 py-0.5 rounded backdrop-blur-sm">PDF Edition</span>
+                                                    </div>
                                                 ) : (article.source_url && (cType === 'newspaper' || cType === 'article' || !cType)) ? (
                                                     <div className="flex flex-col items-center justify-center space-y-2 opacity-80 group-hover:opacity-100 transition-opacity">
                                                         <img

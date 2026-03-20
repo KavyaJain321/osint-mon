@@ -356,20 +356,30 @@ export default function ContentDetail({ article, onClose }: { article: Article; 
                     {/* NEWSPAPER GROUP PANEL (Multiple Clippings) */}
                     {Boolean(article.type_metadata?.is_grouped && article.type_metadata.clippings) && (
                         <div className="space-y-4 mt-2 border-t border-border pt-4">
-                            <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">
-                                Extracted Cuttings ({((article.type_metadata?.clippings || []) as Article[]).length})
-                            </h3>
+                            <div className="flex items-center justify-between mb-2">
+                                <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider">
+                                    Extracted Cuttings ({((article.type_metadata?.clippings || []) as Article[]).length})
+                                </h3>
+                                {article.url && (
+                                    <a href={article.url} target="_blank" rel="noopener noreferrer" className="btn btn-primary text-xs flex items-center gap-1.5 px-3 py-1.5">
+                                        <ExternalLink size={14} /> View Full PDF
+                                    </a>
+                                )}
+                            </div>
                             <div className="space-y-4">
                                 {((article.type_metadata?.clippings || []) as Article[]).map((clip, i) => {
                                     const rawKeywords = clip.matched_keywords || [];
                                     const kwArray = Array.isArray(rawKeywords) ? rawKeywords : typeof rawKeywords === 'string' ? (rawKeywords as string).split(',').map(k => k.trim()) : [];
                                     
+                                    const imgUrl = (clip.type_metadata?.image_url || clip.type_metadata?.image_crop_url) as string | undefined;
+                                    const clipText = (clip.analysis?.summary || clip.content) as string | undefined;
+                                    
                                     return (
                                         <div key={clip.id || i} className="card p-4 space-y-3 bg-raised/30">
-                                            {clip.type_metadata?.image_url && (
-                                                <a href={clip.type_metadata.image_url} target="_blank" rel="noreferrer">
+                                            {imgUrl && (
+                                                <a href={imgUrl} target="_blank" rel="noreferrer">
                                                     <img 
-                                                        src={clip.type_metadata.image_url} 
+                                                        src={imgUrl} 
                                                         alt="Newspaper Clipping" 
                                                         className="w-full h-auto rounded-md border border-border hover:ring-1 hover:ring-accent transition-all cursor-zoom-in" 
                                                     />
@@ -384,15 +394,15 @@ export default function ContentDetail({ article, onClose }: { article: Article; 
                                                     </div>
                                                 )}
                                                 
-                                                {clip.analysis?.summary && (
-                                                    <p className="text-xs text-text-secondary mt-2 leading-relaxed bg-surface p-2.5 rounded border border-border">
-                                                        {clip.analysis.summary}
+                                                {clipText && (
+                                                    <p className="text-xs text-text-secondary mt-2 leading-relaxed bg-surface p-2.5 rounded border border-border line-clamp-4">
+                                                        {clipText}
                                                     </p>
                                                 )}
                                                 
                                                 <div className="flex items-center justify-between mt-3 text-2xs text-text-muted">
                                                     <span>{clip.type_metadata?.page_number ? `Page ${clip.type_metadata.page_number}` : 'Unknown Page'}</span>
-                                                    {clip.analysis?.importance_score ? <span className="font-mono font-medium">{clip.analysis.importance_score}/10</span> : null}
+                                                    <span className="font-mono font-medium">{clip.analysis?.importance_score || 0}/10 Importance</span>
                                                 </div>
                                             </div>
                                         </div>
