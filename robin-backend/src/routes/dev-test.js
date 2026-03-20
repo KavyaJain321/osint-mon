@@ -670,17 +670,24 @@ router.post('/generate-media-report', async (req, res) => {
             }
         });
 
-        // Stats
+        // Stats (use ALL enriched articles for accurate percentages)
         const analyzed=enriched.filter(a=>a.analysis);
         const pos=analyzed.filter(a=>a.sentiment==='positive').length;
         const neg=analyzed.filter(a=>a.sentiment==='negative').length;
         const neu=analyzed.filter(a=>a.sentiment==='neutral').length;
         const tot=analyzed.length||1;
-        const tvA=enriched.filter(a=>a.mediaType==='TV Intelligence');
-        const onA=enriched.filter(a=>a.mediaType==='Online News');
-        const npA=enriched.filter(a=>a.mediaType==='Newspapers');
-        const cmA=enriched.filter(a=>{const t=`${a.title} ${a.summary}`.toLowerCase(); return t.includes('mohan majhi')||t.includes('chief minister')||t.includes('cm majhi');});
+
+        // Sort by importance (highest first) for section display
+        const byImportance = (a, b) => (b.importance || 0) - (a.importance || 0);
+        const SECTION_CAP = 20; // Cap each section to top 20 articles to keep HTML small
+
+        const tvA=enriched.filter(a=>a.mediaType==='TV Intelligence').sort(byImportance).slice(0, SECTION_CAP);
+        const onA=enriched.filter(a=>a.mediaType==='Online News').sort(byImportance).slice(0, SECTION_CAP);
+        const npA=enriched.filter(a=>a.mediaType==='Newspapers').sort(byImportance).slice(0, SECTION_CAP);
+        const cmA=enriched.filter(a=>{const t=`${a.title} ${a.summary}`.toLowerCase(); return t.includes('mohan majhi')||t.includes('chief minister')||t.includes('cm majhi');}).sort(byImportance).slice(0, 10);
         const cmPos=cmA.filter(a=>a.sentiment==='positive').length, cmNeg=cmA.filter(a=>a.sentiment==='negative').length, cmNeu=cmA.filter(a=>a.sentiment==='neutral').length;
+
+        console.log('[MEDIA-REPORT] Sections — TV:', tvA.length, 'Online:', onA.length, 'NP:', npA.length, 'CM:', cmA.length);
 
         const issues=[
             {name:'Infrastructure & Development',kw:['infrastructure','development','road','bridge','highway','construction','smart city','industrial','idco']},
