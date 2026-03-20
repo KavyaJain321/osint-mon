@@ -89,6 +89,7 @@ Generate keywords for these 5 categories:
 
 CRITICAL RULES FOR MATCHING:
 - Keywords MUST be highly PRECISE and UNIQUE to the specific client/context so they don't match unrelated global news.
+- REGIONAL STRICTNESS: If the client focus is a specific state or region (e.g., Odisha), DO NOT generate names of other states (like Kerala, West Bengal, Maharashtra, etc.). Stick ONLY to the geography directly requested.
 - Keywords MUST be 1-3 words maximum — they are used for substring matching against news headlines.
 - DO NOT generate generic single-word terms like "protest", "fraud", "corruption", "crackdown", "India", "SEC" unless tightly coupled with the client name or region (e.g. "Odisha protest", "Odisha fraud").
 - If a concept is broad, you MUST combine it with the client entity or geography to form a 2-3 word phrase.
@@ -147,6 +148,7 @@ Generate keywords for these 5 categories:
 
 CRITICAL RULES FOR MATCHING:
 - Keywords MUST be highly PRECISE and UNIQUE to the specific client/context so they don't match unrelated global news.
+- REGIONAL STRICTNESS: If the client focus is a specific state or region (e.g., Odisha), DO NOT generate names of other states (like Kerala, West Bengal, Maharashtra, etc.). Stick ONLY to the geography directly requested.
 - Keywords MUST be 1-3 words maximum — they are used for substring matching against news headlines.
 - DO NOT generate generic single-word terms like "protest", "fraud", "corruption", "crackdown", "India", "SEC", "bailout", "investigation" unless tightly coupled with the client name (e.g. "Odisha bailout", "Odisha investigation").
 - If a concept is broad, you MUST combine it with the client entity or geography to form a 2-3 word phrase.

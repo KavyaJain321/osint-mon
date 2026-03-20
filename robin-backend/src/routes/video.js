@@ -7,6 +7,7 @@ import { Router } from 'express';
 import { supabase } from '../lib/supabase.js';
 import { log } from '../lib/logger.js';
 import { searchKeyword, formatTimestamp } from '../services/video-processor/search-service.js';
+import { enqueueVideo } from '../services/video-processor/video-queue.js';
 
 const router = Router();
 
@@ -183,13 +184,21 @@ router.post('/:id/process', async (req, res) => {
         const videoId = videoIdMatch[1];
         const keywords = article.matched_keywords || [];
 
-        // Fire-and-forget
-        import('../services/video-processor/pipeline.js')
-            .then(m => m.processVideo(videoId, id, keywords))
-            .catch(err => log.system.error('Manual video processing failed', { error: err.message }));
+        // Reset status to 'queued' so the DB poller picks it up sequentially
+        await supabase.from('content_items').update({
+            type_metadata: {
+                ...(article.type_metadata || {}),
+                processing_status: 'queued',
+                processing_message: 'Queued for transcription and clip generation',
+                processing_updated_at: new Date().toISOString(),
+            },
+        }).eq('id', id);
+
+        // Signal the DB queue to pick it up immediately
+        enqueueVideo(videoId, id, keywords, article.title || '');
 
         res.json({
-            message: 'Video processing started',
+            message: 'Video added to processing queue',
             videoId,
             articleId: id,
             keywords,

@@ -17,7 +17,8 @@ RUN npm ci --production
 # Copy application code
 COPY . .
 
-EXPOSE 3001
+EXPOSE 10000
 
-# Use --expose-gc for manual GC in memory-constrained environments (Render free tier)
-CMD ["node", "--expose-gc", "--dns-result-order=ipv4first", "src/index.js"]
+# --expose-gc: enables manual GC calls to keep RAM under 512MB on Render free tier
+# --max-old-space-size: hard cap heap at 400MB (leaves headroom for subprocesses)
+CMD ["node", "--expose-gc", "--max-old-space-size=400", "--dns-result-order=ipv4first", "src/index.js"]

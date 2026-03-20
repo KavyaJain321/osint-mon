@@ -1,83 +1,75 @@
-// Quick cleanup script: remove overly-broad keywords from the active brief
-// These single-word generic terms match ANY global news and pull in unrelated articles/videos
-// (e.g., Trump/Iran/Pune stories matching "coverup", "crackdown", "collapse" etc.)
-//
-// Run: node scripts/cleanup-keywords.js
-
+// Remove all briefs & keywords EXCEPT the Odisha brief
+// Also deactivate non-Odisha clients so they don't trigger scraping
 import { createClient } from '@supabase/supabase-js';
 import 'dotenv/config';
 
-const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-// Keywords that are TOO GENERIC — they match any global news headline
-// and cause unrelated articles to appear (Trump, Pune crashes, Iran war, etc.)
-const KEYWORDS_TO_REMOVE = [
-    // Generic crisis/scandal words — match everything
-    'meltdown', 'collapse', 'turmoil', 'outage', 'scandal', 'leak',
-    'coverup', 'crackdown', 'probe', 'whistleblower', 'shakeup', 'downturn',
-    'default', 'bailout', 'inflation',
-    // Overly broad industry terms
-    'Banking', 'Finance', 'Network', 'Database', 'Grid', 'Cloud',
-    // Overly broad person name
-    'Khan',
-];
+const ODISHA_CLIENT_ID = '7b5390a0-0d5b-419e-84b4-533fd9c44d36';
 
 async function main() {
-    // Get the active brief
-    const { data: clients } = await supabase.from('clients').select('id').limit(1).single();
-    if (!clients) { console.error('No client found'); return; }
-
-    const { data: brief } = await supabase
+    // 1. Get all briefs NOT belonging to Odisha
+    const { data: otherBriefs } = await supabase
         .from('client_briefs')
-        .select('id, title')
-        .eq('client_id', clients.id)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+        .select('id, title, client_id')
+        .neq('client_id', ODISHA_CLIENT_ID);
 
-    if (!brief) { console.error('No active brief found'); return; }
-    console.log(`Active brief: "${brief.title}" (${brief.id})`);
-
-    // Fetch current keywords
-    const { data: keywords } = await supabase
-        .from('brief_generated_keywords')
-        .select('id, keyword')
-        .eq('brief_id', brief.id);
-
-    console.log(`Current keywords: ${keywords.length}`);
-    
-    const toRemove = keywords.filter(k => 
-        KEYWORDS_TO_REMOVE.some(bad => k.keyword.toLowerCase() === bad.toLowerCase())
-    );
-
-    if (toRemove.length === 0) {
-        console.log('No matching keywords to remove.');
-        return;
+    console.log(`Found ${otherBriefs.length} non-Odisha brief(s) to remove:`);
+    for (const b of otherBriefs) {
+        console.log(`  ❌ "${b.title}" (client: ${b.client_id})`);
     }
 
-    console.log(`\nRemoving ${toRemove.length} overly-broad keywords:`);
-    toRemove.forEach(k => console.log(`  ❌ "${k.keyword}"`));
+    if (otherBriefs.length > 0) {
+        const briefIds = otherBriefs.map(b => b.id);
 
-    const idsToDelete = toRemove.map(k => k.id);
-    const { error } = await supabase
-        .from('brief_generated_keywords')
-        .delete()
-        .in('id', idsToDelete);
+        // Delete keywords first (FK)
+        const { error: kwErr } = await supabase
+            .from('brief_generated_keywords')
+            .delete()
+            .in('brief_id', briefIds);
+        if (kwErr) console.error('  Keyword delete error:', kwErr.message);
+        else console.log(`  ✅ Deleted keywords for ${briefIds.length} brief(s)`);
 
-    if (error) {
-        console.error('Delete failed:', error.message);
-    } else {
-        console.log(`\n✅ Removed ${toRemove.length} keywords. Remaining: ${keywords.length - toRemove.length}`);
+        // Delete the briefs themselves
+        const { error: bErr } = await supabase
+            .from('client_briefs')
+            .delete()
+            .in('id', briefIds);
+        if (bErr) console.error('  Brief delete error:', bErr.message);
+        else console.log(`  ✅ Deleted ${briefIds.length} brief(s)`);
     }
 
-    // Show remaining keywords
-    const remaining = keywords.filter(k => !idsToDelete.includes(k.id));
-    console.log('\nRemaining keywords:');
-    remaining.forEach(k => console.log(`  ✅ "${k.keyword}"`));
+    // 2. Deactivate sources from other clients so scraper doesn't process them
+    const { data: otherSources } = await supabase
+        .from('sources')
+        .select('id, name, client_id')
+        .neq('client_id', ODISHA_CLIENT_ID)
+        .eq('is_active', true);
+
+    if (otherSources && otherSources.length > 0) {
+        console.log(`\nDeactivating ${otherSources.length} non-Odisha source(s)...`);
+        const { error: srcErr } = await supabase
+            .from('sources')
+            .update({ is_active: false })
+            .neq('client_id', ODISHA_CLIENT_ID);
+        if (srcErr) console.error('  Source deactivate error:', srcErr.message);
+        else console.log(`  ✅ Deactivated ${otherSources.length} source(s)`);
+    }
+
+    // 3. Verify remaining
+    const { data: remaining } = await supabase
+        .from('client_briefs')
+        .select('id, title, status, client_id');
+    console.log(`\n=== REMAINING BRIEFS ===`);
+    for (const b of remaining) {
+        console.log(`  ✅ "${b.title}" (status: ${b.status})`);
+    }
+
+    const { data: activeSources } = await supabase
+        .from('sources')
+        .select('id')
+        .eq('is_active', true);
+    console.log(`\nActive sources remaining: ${activeSources.length} (all Odisha)`);
 }
 
 main().catch(console.error);

@@ -31,6 +31,7 @@ import adminRouter from './routes/admin.js';
 import { startScheduler } from './scheduler/cron.js';
 import { startAnalysisWorker } from './ai/analysis-worker.js';
 import { loadPipelineProgress } from './lib/pipeline-tracker.js';
+import { startQueuePoller } from './services/video-processor/video-queue.js';
 import { supabase } from './lib/supabase.js';
 import { authenticate } from './middleware/auth.js';
 import { requireRole } from './middleware/roleCheck.js';
@@ -194,16 +195,12 @@ const server = app.listen(config.port, async () => {
     await loadPipelineProgress();
     log.system.info('Pipeline progress restored from DB');
 
-    // On Render: the scraper + analysis worker run in the dedicated
-    // robin-worker Background Service (render-worker.js), NOT here.
-    // The API service stays lean so it can cold-start fast after sleeping.
-    if (process.env.SERVER_ROLE === 'api') {
-        log.system.info('SERVER_ROLE=api — scheduler and analysis worker running in robin-worker service');
-    } else {
-        // Local dev or single-process deploy — run everything in one process
-        startScheduler();
-        startAnalysisWorker();
-    }
+    // Single-process deploy: run everything here.
+    // The DB-driven video queue poller picks up any videos stuck in
+    // 'queued' state after a restart (Render free-tier spin-down safe).
+    startScheduler();
+    startAnalysisWorker();
+    startQueuePoller();
 });
 
 // ── Graceful Shutdown ────────────────────────────────────────
