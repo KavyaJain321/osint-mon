@@ -247,8 +247,15 @@ async function fetchChannelRSS(channelId) {
 
             const decodedTitle = decode(rawTitle);
             
-            // Skip livestreams and scheduled premieres
-            if (/\b(?:Live|LIVE)\b/.test(decodedTitle) || /🔴/.test(decodedTitle)) {
+            // Skip actual livestreams/premieres — but NOT regular videos with "Live" in title
+            // Many Odia news channels title uploaded clips "...Live Update" etc.
+            const titleUpper = decodedTitle.toUpperCase();
+            if (
+                /🔴/.test(decodedTitle) ||
+                /\bLIVE\s*(NOW|STREAM|STREAMING|TELECAST)\b/i.test(decodedTitle) ||
+                /\bLIVE\s*[:|]\s*$/i.test(decodedTitle) ||
+                titleUpper === 'LIVE'
+            ) {
                 log.scraper.debug?.('Skipping YouTube livestream/premiere', { channelId, title: decodedTitle });
                 continue;
             }
