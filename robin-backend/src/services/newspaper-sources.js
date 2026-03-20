@@ -124,7 +124,7 @@ export const SOURCES = [
         name: 'Dharitri',
         language: 'or',
         scraper_type: 'flipbook_intercept',
-        base_url: 'https://dharitri.com/epaper',
+        base_url: 'https://dharitriepaper.in/',
         geographic_states: ['Odisha'],
         cities: ['Bhubaneswar', 'Cuttack', 'Sambalpur'],
     },
