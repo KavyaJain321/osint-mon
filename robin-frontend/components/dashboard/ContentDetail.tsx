@@ -353,15 +353,64 @@ export default function ContentDetail({ article, onClose }: { article: Article; 
                     {/* VIDEO PROCESSING PANEL (TV News only) */}
                     {isVideo && <VideoProcessingPanel article={article} />}
 
-                    {/* Context (non-video content) */}
-                    {!isVideo && article.analysis?.summary && (
+                    {/* NEWSPAPER GROUP PANEL (Multiple Clippings) */}
+                    {Boolean(article.type_metadata?.is_grouped && article.type_metadata.clippings) && (
+                        <div className="space-y-4 mt-2 border-t border-border pt-4">
+                            <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">
+                                Extracted Cuttings ({((article.type_metadata?.clippings || []) as Article[]).length})
+                            </h3>
+                            <div className="space-y-4">
+                                {((article.type_metadata?.clippings || []) as Article[]).map((clip, i) => {
+                                    const rawKeywords = clip.matched_keywords || [];
+                                    const kwArray = Array.isArray(rawKeywords) ? rawKeywords : typeof rawKeywords === 'string' ? (rawKeywords as string).split(',').map(k => k.trim()) : [];
+                                    
+                                    return (
+                                        <div key={clip.id || i} className="card p-4 space-y-3 bg-raised/30">
+                                            {clip.type_metadata?.image_url && (
+                                                <a href={clip.type_metadata.image_url} target="_blank" rel="noreferrer">
+                                                    <img 
+                                                        src={clip.type_metadata.image_url} 
+                                                        alt="Newspaper Clipping" 
+                                                        className="w-full h-auto rounded-md border border-border hover:ring-1 hover:ring-accent transition-all cursor-zoom-in" 
+                                                    />
+                                                </a>
+                                            )}
+                                            <div>
+                                                <h4 className="text-sm font-semibold text-text-primary leading-snug">{clip.title}</h4>
+                                                
+                                                {kwArray.length > 0 && (
+                                                    <div className="flex flex-wrap gap-1.5 mt-2">
+                                                        {kwArray.map(kw => <span key={kw} className="badge badge-muted text-2xs">{kw}</span>)}
+                                                    </div>
+                                                )}
+                                                
+                                                {clip.analysis?.summary && (
+                                                    <p className="text-xs text-text-secondary mt-2 leading-relaxed bg-surface p-2.5 rounded border border-border">
+                                                        {clip.analysis.summary}
+                                                    </p>
+                                                )}
+                                                
+                                                <div className="flex items-center justify-between mt-3 text-2xs text-text-muted">
+                                                    <span>{clip.type_metadata?.page_number ? `Page ${clip.type_metadata.page_number}` : 'Unknown Page'}</span>
+                                                    {clip.analysis?.importance_score ? <span className="font-mono font-medium">{clip.analysis.importance_score}/10</span> : null}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Context (non-video, non-grouped content) */}
+                    {!isVideo && !article.type_metadata?.is_grouped && article.analysis?.summary && (
                         <div>
                             <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">Context</h3>
                             <p className="text-sm text-text-secondary leading-relaxed">{article.analysis.summary}</p>
                         </div>
                     )}
 
-                    {article.analysis?.entities && article.analysis.entities.length > 0 && (
+                    {!article.type_metadata?.is_grouped && article.analysis?.entities && article.analysis.entities.length > 0 && (
                         <div>
                             <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">Entities</h3>
                             <div className="flex flex-wrap gap-1.5">
@@ -370,7 +419,7 @@ export default function ContentDetail({ article, onClose }: { article: Article; 
                         </div>
                     )}
 
-                    {article.matched_keywords?.length > 0 && (
+                    {!article.type_metadata?.is_grouped && article.matched_keywords?.length > 0 && (
                         <div>
                             <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">Keywords</h3>
                             <div className="flex flex-wrap gap-1.5">

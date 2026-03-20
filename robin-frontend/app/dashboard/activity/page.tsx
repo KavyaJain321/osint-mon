@@ -78,11 +78,64 @@ export default function ContentFeedPage() {
         }
     }, [queryClient]);
 
-    // Add content type to each article
-    const articlesWithType = useMemo(() =>
-        articles.map(a => ({ ...a, _contentType: detectContentType(a) })),
-        [articles]
-    );
+    // Add content type to each article and group newspaper clippings by job_id or URL
+    const articlesWithType = useMemo(() => {
+        const processed: (Article & { _contentType: string })[] = [];
+        const newspaperGroups = new Map<string, Article[]>();
+
+        for (const a of articles) {
+            const cType = detectContentType(a);
+            if (cType === "newspaper") {
+                // Group by job_id, fallback to URL + Date
+                const dateStr = a.published_at ? new Date(a.published_at).toISOString().split('T')[0] : "";
+                const groupKey = a.type_metadata?.job_id 
+                    || `${a.url || 'unknown_url'}_${dateStr}`;
+                
+                if (!newspaperGroups.has(groupKey as string)) {
+                     newspaperGroups.set(groupKey as string, []);
+                }
+                newspaperGroups.get(groupKey as string)!.push(a);
+            } else {
+                processed.push({ ...a, _contentType: cType });
+            }
+        }
+
+        // Convert groups into parent articles representing the entire PDF issue
+        newspaperGroups.forEach((clippings, key) => {
+            const first = clippings[0];
+            const maxImportance = Math.max(...clippings.map(c => c.analysis?.importance_score ?? 0));
+            const allKeywords = Array.from(new Set(clippings.flatMap(c => c.matched_keywords || [])));
+            
+            const sourceName = first.source_name || (first.type_metadata as any)?.newspaper || "Newspaper";
+            const dateStr = first.published_at ? new Date(first.published_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "";
+            const title = `${sourceName} Edition ${dateStr ? `(${dateStr})` : ""}`;
+
+            const groupedArticle = {
+                ...first,
+                id: `grouped_${key}`,
+                title: title,
+                analysis: {
+                    ...(first.analysis || { 
+                        article_id: `grouped_${key}`, summary: "", sentiment: "neutral", 
+                        importance_score: 0, importance_reason: "", narrative_frame: "", entities: [] 
+                    }),
+                    importance_score: maxImportance,
+                    summary: `Found ${clippings.length} relevant clipping${clippings.length > 1 ? 's' : ''} in this edition covering: ${allKeywords.slice(0, 4).join(", ")}.`,
+                    entities: Array.from(new Set(clippings.flatMap(c => c.analysis?.entities || [])))
+                },
+                matched_keywords: allKeywords,
+                type_metadata: {
+                    ...first.type_metadata,
+                    is_grouped: true,
+                    clippings: clippings,
+                },
+                _contentType: "newspaper"
+            };
+            processed.push(groupedArticle as any);
+        });
+
+        return processed;
+    }, [articles]);
 
     // Content type counts
     const typeCounts = useMemo(() => {
