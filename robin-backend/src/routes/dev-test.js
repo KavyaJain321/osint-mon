@@ -2410,13 +2410,21 @@ router.get('/overview', async (req, res) => {
 
         const articleIds = articles.map(a => a.id);
 
-        // Analysis for those articles
-        const analyses = articleIds.length > 0
-            ? await fetchSupa('article_analysis', {
-                select: 'article_id,sentiment,importance_score,narrative_frame,entities,claims,summary',
-                article_id: `in.(${articleIds.join(',')})`,
-            })
-            : [];
+        // Analysis for those articles — batch into chunks of 100 to avoid URL length limits
+        // (500 UUIDs in a single GET query string = ~18KB, most servers reject > 8KB)
+        let analyses = [];
+        if (articleIds.length > 0) {
+            const CHUNK = 100;
+            const chunks = [];
+            for (let i = 0; i < articleIds.length; i += CHUNK) chunks.push(articleIds.slice(i, i + CHUNK));
+            const results = await Promise.all(chunks.map(chunk =>
+                fetchSupa('article_analysis', {
+                    select: 'article_id,sentiment,importance_score,narrative_frame,entities,claims,summary',
+                    article_id: `in.(${chunk.join(',')})`,
+                })
+            ));
+            analyses = results.flat();
+        }
 
         const analysisMap = {};
         (analyses || []).forEach(a => { analysisMap[a.article_id] = a; });

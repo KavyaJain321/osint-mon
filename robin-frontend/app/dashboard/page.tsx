@@ -270,7 +270,7 @@ export default function StrategicMonitor() {
                             <Activity size={12} className="text-amber-500" />
                             <span className="text-[10px] font-mono text-slate-500 tracking-wider">RISK PULSE — 24H</span>
                         </div>
-                        <div className="flex-1 px-2">
+                        <div className="flex-1 px-2 min-h-0">
                             <ResponsiveContainer width="100%" height="100%">
                                 <AreaChart data={data.riskTimeline} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
                                     <defs>
