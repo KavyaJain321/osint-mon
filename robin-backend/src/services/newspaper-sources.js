@@ -7,9 +7,7 @@
 // Each entry describes a single newspaper edition:
 //   name            — canonical name passed to the extraction service
 //   language        — ISO 639-1 code (hi/en/or/bn/te/ta/ml)
-//   scraper_type    — how the service fetches the PDF:
-//                       "aggregator_pdf"     → direct PDF from aggregator
-//                       "flipbook_intercept" → e-paper viewer PDF intercept
+//   scraper_type    — how the service fetches the PDF (all use flipbook_intercept now)
 //   base_url        — e-paper portal URL; the service resolves today's
 //                     PDF URL from this (passed as pdf_url to /extract)
 //   geographic_states — Indian state codes this edition covers;
@@ -18,61 +16,12 @@
 // ============================================================
 
 export const SOURCES = [
+    // ── NATIONAL ENGLISH PAPERS ───────────────────────
 
-    // ── TIER 1 — Direct PDF / Aggregator ─────────────────────
-
-    {
-        name: 'Dainik Jagran',
-        language: 'hi',
-        scraper_type: 'aggregator_pdf',
-        base_url: 'https://epaper.jagran.com',
-        geographic_states: ['UP', 'Uttarakhand', 'Bihar', 'MP', 'Jharkhand'],
-        cities: ['Delhi', 'Lucknow', 'Patna', 'Dehradun', 'Varanasi', 'Agra', 'Kanpur'],
-    },
-    {
-        name: 'Amar Ujala',
-        language: 'hi',
-        scraper_type: 'aggregator_pdf',
-        base_url: 'https://epaper.amarujala.com',
-        geographic_states: ['UP', 'Uttarakhand', 'HP', 'Punjab', 'J&K'],
-        cities: ['Delhi', 'Lucknow', 'Dehradun', 'Agra', 'Meerut', 'Chandigarh', 'Shimla'],
-    },
-    {
-        name: 'Dainik Bhaskar',
-        language: 'hi',
-        scraper_type: 'aggregator_pdf',
-        base_url: 'https://epaper.bhaskar.com',
-        geographic_states: ['MP', 'Rajasthan', 'Gujarat', 'Chhattisgarh', 'Bihar'],
-        cities: ['Bhopal', 'Indore', 'Jaipur', 'Ahmedabad', 'Raipur', 'Patna'],
-    },
-    {
-        name: 'Hindustan',
-        language: 'hi',
-        scraper_type: 'aggregator_pdf',
-        base_url: 'https://epaper.livehindustan.com',
-        geographic_states: ['Bihar', 'Jharkhand', 'UP'],
-        cities: ['Delhi', 'Patna', 'Lucknow', 'Ranchi'],
-    },
-    {
-        name: 'Rajasthan Patrika',
-        language: 'hi',
-        scraper_type: 'aggregator_pdf',
-        base_url: 'https://epaper.patrika.com',
-        geographic_states: ['Rajasthan'],
-        cities: ['Jaipur', 'Jodhpur', 'Udaipur', 'Kota', 'Ajmer'],
-    },
-    {
-        name: 'Punjab Kesari',
-        language: 'hi',
-        scraper_type: 'aggregator_pdf',
-        base_url: 'https://epaper.punjabkesari.in',
-        geographic_states: ['Punjab', 'Haryana', 'HP', 'Delhi', 'J&K'],
-        cities: ['Delhi', 'Chandigarh', 'Jalandhar', 'Ludhiana'],
-    },
     {
         name: 'The Hindu',
         language: 'en',
-        scraper_type: 'aggregator_pdf',
+        scraper_type: 'flipbook_intercept',
         base_url: 'https://epaper.thehindu.com',
         geographic_states: ['all'],
         cities: ['Delhi', 'Mumbai', 'Chennai', 'Bengaluru', 'Hyderabad', 'Kolkata'],
@@ -80,19 +29,16 @@ export const SOURCES = [
     {
         name: 'Indian Express',
         language: 'en',
-        scraper_type: 'aggregator_pdf',
+        scraper_type: 'flipbook_intercept',
         base_url: 'https://epaper.indianexpress.com',
         geographic_states: ['all'],
         cities: ['Delhi', 'Mumbai', 'Pune', 'Chandigarh', 'Ahmedabad', 'Lucknow'],
     },
-
-    // ── TIER 2 — Flipbook Intercept ───────────────────────────
-
     {
         name: 'Times of India',
         language: 'en',
         scraper_type: 'flipbook_intercept',
-        base_url: 'https://epaper.timesofIndia.com',
+        base_url: 'https://epaper.timesgroup.com',
         geographic_states: ['all'],
         cities: ['Delhi', 'Mumbai', 'Kolkata', 'Bengaluru', 'Chennai', 'Hyderabad', 'Pune'],
     },
@@ -105,6 +51,73 @@ export const SOURCES = [
         cities: ['Delhi', 'Mumbai', 'Chandigarh', 'Lucknow', 'Patna'],
     },
     {
+        name: 'Deccan Herald',
+        language: 'en',
+        scraper_type: 'flipbook_intercept',
+        base_url: 'https://epaper.deccanherald.com',
+        geographic_states: ['Karnataka'],
+        cities: ['Bengaluru', 'Mysuru', 'Mangaluru', 'Hubli'],
+    },
+    {
+        name: 'The Tribune',
+        language: 'en',
+        scraper_type: 'flipbook_intercept',
+        base_url: 'https://epaper.tribuneindia.com',
+        geographic_states: ['Punjab', 'Haryana', 'HP', 'Uttarakhand'],
+        cities: ['Chandigarh', 'Delhi', 'Jalandhar', 'Dehradun'],
+    },
+
+    // ── HINDI PAPERS ─────────────────────────────────
+
+    {
+        name: 'Dainik Jagran',
+        language: 'hi',
+        scraper_type: 'flipbook_intercept',
+        base_url: 'https://epaper.jagran.com',
+        geographic_states: ['UP', 'Uttarakhand', 'Bihar', 'MP', 'Jharkhand'],
+        cities: ['Delhi', 'Lucknow', 'Patna', 'Dehradun', 'Varanasi', 'Agra', 'Kanpur'],
+    },
+    {
+        name: 'Amar Ujala',
+        language: 'hi',
+        scraper_type: 'flipbook_intercept',
+        base_url: 'https://epaper.amarujala.com',
+        geographic_states: ['UP', 'Uttarakhand', 'HP', 'Punjab', 'J&K'],
+        cities: ['Delhi', 'Lucknow', 'Dehradun', 'Agra', 'Meerut', 'Chandigarh', 'Shimla'],
+    },
+    {
+        name: 'Dainik Bhaskar',
+        language: 'hi',
+        scraper_type: 'flipbook_intercept',
+        base_url: 'https://www.bhaskar.com/epaper',
+        geographic_states: ['MP', 'Rajasthan', 'Gujarat', 'Chhattisgarh', 'Bihar'],
+        cities: ['Bhopal', 'Indore', 'Jaipur', 'Ahmedabad', 'Raipur', 'Patna'],
+    },
+    {
+        name: 'Hindustan',
+        language: 'hi',
+        scraper_type: 'flipbook_intercept',
+        base_url: 'https://www.livehindustan.com/epaper',
+        geographic_states: ['Bihar', 'Jharkhand', 'UP'],
+        cities: ['Delhi', 'Patna', 'Lucknow', 'Ranchi'],
+    },
+    {
+        name: 'Rajasthan Patrika',
+        language: 'hi',
+        scraper_type: 'flipbook_intercept',
+        base_url: 'https://epaper.patrika.com',
+        geographic_states: ['Rajasthan'],
+        cities: ['Jaipur', 'Jodhpur', 'Udaipur', 'Kota', 'Ajmer'],
+    },
+    {
+        name: 'Punjab Kesari',
+        language: 'hi',
+        scraper_type: 'flipbook_intercept',
+        base_url: 'https://www.punjabkesari.in/epaper',
+        geographic_states: ['Punjab', 'Haryana', 'HP', 'Delhi', 'J&K'],
+        cities: ['Delhi', 'Chandigarh', 'Jalandhar', 'Ludhiana'],
+    },
+    {
         name: 'Prabhat Khabar',
         language: 'hi',
         scraper_type: 'flipbook_intercept',
@@ -112,22 +125,61 @@ export const SOURCES = [
         geographic_states: ['Jharkhand', 'Bihar', 'WB'],
         cities: ['Ranchi', 'Patna', 'Dhanbad', 'Jamshedpur'],
     },
-    {
-        name: 'Samaja',
-        language: 'or',
-        scraper_type: 'flipbook_intercept',
-        base_url: 'https://www.thesamaja.com/epaper',
-        geographic_states: ['Odisha'],
-        cities: ['Bhubaneswar', 'Cuttack', 'Sambalpur', 'Berhampur'],
-    },
+
+    // ── ODISHA — Primary focus sources ──────────────────
+
     {
         name: 'Dharitri',
         language: 'or',
         scraper_type: 'flipbook_intercept',
-        base_url: 'https://dharitriepaper.in/',
+        base_url: 'https://dharitriepaper.in',
         geographic_states: ['Odisha'],
         cities: ['Bhubaneswar', 'Cuttack', 'Sambalpur'],
     },
+    {
+        name: 'Pragativadi',
+        language: 'or',
+        scraper_type: 'flipbook_intercept',
+        base_url: 'https://pragativadi.com',
+        geographic_states: ['Odisha'],
+        cities: ['Bhubaneswar', 'Cuttack', 'Bhadrak', 'Balasore'],
+    },
+    {
+        name: 'Sambad',
+        language: 'or',
+        scraper_type: 'flipbook_intercept',
+        base_url: 'https://sambad.in',
+        geographic_states: ['Odisha'],
+        cities: ['Bhubaneswar', 'Cuttack', 'Sambalpur', 'Berhampur'],
+    },
+    {
+        name: 'Orissa Post',
+        language: 'en',
+        scraper_type: 'flipbook_intercept',
+        base_url: 'https://www.orissapost.com',
+        geographic_states: ['Odisha'],
+        cities: ['Bhubaneswar', 'Cuttack'],
+    },
+    // SSL cert error currently on epaper.thesamaja.com — keeping inactive here or commenting out
+    // {
+    //     name: 'Samaja',
+    //     language: 'or',
+    //     scraper_type: 'flipbook_intercept',
+    //     base_url: 'https://epaper.thesamaja.com',
+    //     geographic_states: ['Odisha'],
+    //     cities: ['Bhubaneswar', 'Cuttack', 'Sambalpur', 'Berhampur'],
+    // },
+    {
+        name: 'Odisha TV (OTV)',
+        language: 'or',
+        scraper_type: 'html_article',
+        base_url: 'https://odishatv.in',
+        geographic_states: ['Odisha'],
+        cities: ['Bhubaneswar'],
+    },
+
+    // ── OTHER REGIONAL PAPERS ─────────────────────────
+
     {
         name: 'Anandabazar Patrika',
         language: 'bn',
@@ -142,7 +194,7 @@ export const SOURCES = [
         scraper_type: 'flipbook_intercept',
         base_url: 'https://epaper.eenadu.net',
         geographic_states: ['Telangana', 'Andhra Pradesh'],
-        cities: ['Hyderabad', 'Vijayawada', 'Visakhapatnam'],
+        cities: ['Hyderabad', 'Vijayawada', 'Visakhapatnam', 'Tirupati'],
     },
     {
         name: 'Dinamalar',
@@ -153,14 +205,6 @@ export const SOURCES = [
         cities: ['Chennai', 'Madurai', 'Coimbatore'],
     },
     {
-        name: 'Deccan Herald',
-        language: 'en',
-        scraper_type: 'flipbook_intercept',
-        base_url: 'https://epaper.deccanherald.com',
-        geographic_states: ['Karnataka'],
-        cities: ['Bengaluru', 'Mysuru', 'Mangaluru'],
-    },
-    {
         name: 'Mathrubhumi',
         language: 'ml',
         scraper_type: 'flipbook_intercept',
@@ -168,53 +212,26 @@ export const SOURCES = [
         geographic_states: ['Kerala'],
         cities: ['Kozhikode', 'Kochi', 'Thiruvananthapuram'],
     },
+    {
+        name: 'Divya Bhaskar',
+        language: 'gu',
+        scraper_type: 'flipbook_intercept',
+        base_url: 'https://epaper.divyabhaskar.co.in',
+        geographic_states: ['Gujarat'],
+        cities: ['Ahmedabad', 'Surat', 'Vadodara'],
+    },
 ];
 
-// ── Helper: normalise a state/language string for comparison ──
-const norm = s => (s || '').toLowerCase().trim();
-
-/**
- * Return sources relevant to a brief's geographic focus.
- *
- * @param {string[]} geographicStates  List of state names/codes from brief
- *                                     (e.g. ["Odisha", "Bhubaneswar", "WB"])
- * @param {string[]} [languages]       Optional ISO language codes to further filter
- *                                     (e.g. ["or", "en"])
- * @returns {Array<object>}            Deduplicated list of matching SOURCES entries
- */
-export function getSourcesForBrief(geographicStates = [], languages = null) {
-    if (!geographicStates.length) return [...SOURCES];
-
-    const normStates = geographicStates.map(norm);
-
-    const matched = SOURCES.filter(source => {
-        if (languages?.length) {
-            if (!languages.map(norm).includes(norm(source.language))) return false;
-        }
-
-        const sourceStates = source.geographic_states.map(norm);
-        if (sourceStates.includes('all')) return true;
-
-        const sourceCities = (source.cities || []).map(norm);
-
-        return normStates.some(
-            s => sourceStates.includes(s) || sourceCities.includes(s)
-        );
+export function getSourcesForBrief(brief) {
+    if (!brief || !brief.geographic_focus || !brief.languages) return [];
+    
+    // Exact matched sources by state + national sources
+    const allowedStates = brief.geographic_focus;
+    const allowedLangs = brief.languages.map(l => l.toLowerCase());
+    
+    return SOURCES.filter(s => {
+        const matchesState = s.geographic_states.some(st => st === 'all' || allowedStates.includes(st));
+        const matchesLang = allowedLangs.includes(s.language.toLowerCase());
+        return matchesState || matchesLang;
     });
-
-    const seen = new Set();
-    return matched.filter(s => {
-        if (seen.has(s.name)) return false;
-        seen.add(s.name);
-        return true;
-    });
-}
-
-/**
- * Return all newspaper names in the registry.
- *
- * @returns {string[]}
- */
-export function getSourceNames() {
-    return SOURCES.map(s => s.name);
 }
