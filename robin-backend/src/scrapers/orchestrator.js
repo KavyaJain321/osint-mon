@@ -202,6 +202,10 @@ function getCrawlFunction(sourceType) {
         case 'youtube': return crawlYoutubeSource;
         case 'google_news': return crawlGoogleNewsWrapper;
         case 'reddit': return crawlRedditWrapper;
+        // Newspaper sources are handled exclusively by the newspaper-intel-service
+        // microservice (triggered via brief activation). The orchestrator skips them
+        // to prevent overlap with the OCR/fuzzy-match pipeline.
+        case 'newspaper': return null;
         default: return null;
     }
 }
@@ -343,6 +347,12 @@ export async function runScraperCycle() {
         const youtubeSources = sources.filter((s) => s.source_type === 'youtube');
         const gnewsSources = sources.filter((s) => s.source_type === 'google_news');
         const redditSources = sources.filter((s) => s.source_type === 'reddit');
+
+        // Newspaper sources are skipped — handled by newspaper-intel-service microservice
+        const newspaperSources = sources.filter((s) => s.source_type === 'newspaper');
+        if (newspaperSources.length > 0) {
+            log.scraper.info(`Skipping ${newspaperSources.length} newspaper source(s) — handled by newspaper-intel-service`);
+        }
 
         log.scraper.info('Sources to crawl', {
             rss: rssSources.length,

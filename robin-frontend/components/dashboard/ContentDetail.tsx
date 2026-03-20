@@ -33,25 +33,33 @@ function detectContentType(article: Article): string {
     const sourceName = ((article as unknown as Record<string, unknown>).source_name as string) || "";
     const srcLower = sourceName.toLowerCase();
 
-    if (url.includes("youtube.com") || url.includes("youtu.be")) return "youtube";
-
-    const newspaperPatterns = ['sambad', 'dharitri', 'samaja', 'pragativadi', 'orissa post', 'odisha bhaskar',
-        'times of india', 'hindustan times', 'the hindu', 'indian express', 'telegraph', 'economic times',
-        'deccan', 'pioneer', 'tribune', 'livemint', 'business standard', 'statesman', 'daily', 'gazette', 'ndtv'];
-    if (newspaperPatterns.some(p => srcLower.includes(p) || url.includes(p.replace(/ /g, '')))) return "newspaper";
-
+    // 1. DB content_type is the authoritative source — check it first
     if (article.content_type) {
         const map: Record<string, string> = {
-            article: "article", video: "youtube", tv_transcript: "youtube", podcast: "youtube",
+            newspaper: "newspaper",                                    // newspaper-intel-service
+            article: "article",
+            video: "youtube", tv_transcript: "youtube", podcast: "youtube",
             pdf: "pdf", govt_release: "govt", press_release: "govt",
             tweet: "social", reddit: "social", social_post: "social",
         };
         if (map[article.content_type]) return map[article.content_type];
     }
 
+    // 2. URL-based overrides (most reliable for legacy content)
+    if (url.includes("youtube.com") || url.includes("youtu.be")) return "youtube";
     if (url.endsWith(".pdf")) return "pdf";
     if (url.includes(".gov") || url.includes("pib.gov")) return "govt";
     if (url.includes("twitter.com") || url.includes("x.com") || url.includes("reddit.com")) return "social";
+
+    // 3. Source name pattern matching (fallback for articles without content_type)
+    const newspaperPatterns = [
+        'sambad', 'dharitri', 'samaja', 'pragativadi', 'orissa post', 'odisha bhaskar',
+        'times of india', 'hindustan times', 'the hindu', 'indian express', 'telegraph',
+        'economic times', 'deccan', 'pioneer', 'tribune', 'livemint', 'business standard',
+        'statesman', 'daily', 'gazette', 'ndtv', 'dainik', 'amar ujala', 'bhaskar',
+        'eenadu', 'dinamalar', 'mathrubhumi', 'anandabazar', 'prabhat khabar',
+    ];
+    if (newspaperPatterns.some(p => srcLower.includes(p) || url.includes(p.replace(/ /g, '')))) return "newspaper";
 
     return "article";
 }

@@ -176,6 +176,7 @@ router.get('/articles', async (req, res) => {
 // Map frontend filter IDs → database content_type values
 // These MUST match the DB CHECK constraint on content_items.content_type
 const CONTENT_TYPE_MAP = {
+    newspaper: ['newspaper'],                          // newspaper-intel-service extractions
     youtube: ['video', 'tv_transcript', 'podcast'],
     pdf: ['pdf'],
     govt: ['govt_release', 'press_release'],
@@ -203,15 +204,19 @@ router.get('/content', async (req, res) => {
             query1 = query1.in('content_type', dbTypes);
         }
 
-        let query2 = supabase
+        // Types that only exist in content_items — skip legacy articles table entirely
+        const contentItemsOnlyTypes = new Set(['newspaper', 'video', 'pdf', 'govt_release', 'press_release', 'tweet', 'reddit']);
+        const skipLegacyArticles = type && type !== 'all' && contentItemsOnlyTypes.has(type);
+
+        let query2 = skipLegacyArticles ? null : supabase
             .from('articles')
             .select('id, title, content, url, published_at, source_id, matched_keywords, analysis_status, created_at, source:sources(name, url)')
             .eq('client_id', client.id);
 
         query1 = query1.order('published_at', { ascending: false }).limit(limit);
-        query2 = query2.order('published_at', { ascending: false }).limit(limit);
+        if (query2) query2 = query2.order('published_at', { ascending: false }).limit(limit);
 
-        const [res1, res2] = await Promise.all([query1, query2]);
+        const [res1, res2] = await Promise.all([query1, query2 || Promise.resolve({ data: [], error: null })]);
 
         const contentItemsData = (!res1.error && res1.data) ? res1.data : [];
         const articlesData = (!res2.error && res2.data) ? res2.data : [];
@@ -2773,6 +2778,151 @@ router.get('/overview', async (req, res) => {
         });
     } catch (err) {
         console.error('[OVERVIEW] Error:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ── POST /api/test/newspaper/trigger ─────────────────────────
+// Manually trigger newspaper extraction for the active client's brief.
+// Queues extraction jobs for all relevant sources and returns job IDs.
+// Uses the newspaper-intel-service microservice.
+router.post('/newspaper/trigger', async (req, res) => {
+    try {
+        const { triggerAndStore } = await import('../services/newspaper-intel-client.js');
+        const { getSourcesForBrief } = await import('../services/newspaper-sources.js');
+        const { config } = await import('../config.js');
+
+        if (!config.hasNewspaperIntel) {
+            return res.status(503).json({
+                error: 'Newspaper intel service not configured. Set NEWSPAPER_INTEL_URL and NEWSPAPER_INTEL_KEY in .env',
+            });
+        }
+
+        // Allow explicit client_id override in body or query
+        const overrideClientId = req.body?.client_id || req.query?.client_id;
+        let client;
+        if (overrideClientId) {
+            const { data: c } = await supabase.from('clients').select('id, name').eq('id', overrideClientId).single();
+            client = c;
+        } else {
+            client = await getTestClient(req);
+        }
+        if (!client) return res.status(404).json({ error: 'No client found' });
+
+        // Fetch the active brief for this client
+        const { data: brief } = await supabase
+            .from('client_briefs')
+            .select('id, geographic_focus, status')
+            .eq('client_id', client.id)
+            .eq('status', 'active')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+        if (!brief) return res.status(404).json({ error: 'No active brief found for this client' });
+
+        // Get keywords from the brief
+        const { data: kwRows } = await supabase
+            .from('brief_generated_keywords')
+            .select('keyword')
+            .eq('brief_id', brief.id)
+            .limit(100);
+
+        const keywords = (kwRows || []).map(r => r.keyword);
+        if (!keywords.length) return res.status(400).json({ error: 'Brief has no keywords yet — run brief processing first' });
+
+        // Resolve sources for this brief's geography
+        const geographicFocus = brief.geographic_focus || [];
+        // Allow override from body
+        const sourcesOverride = req.body?.sources; // optional: ["Samaja", "Dharitri"]
+        const allSources = getSourcesForBrief(geographicFocus.length ? geographicFocus : ['Odisha']);
+        const sources = sourcesOverride
+            ? allSources.filter(s => sourcesOverride.includes(s.name))
+            : allSources.slice(0, req.body?.max_sources || 3); // default: first 3 to avoid flooding
+
+        if (!sources.length) return res.status(400).json({ error: 'No newspaper sources found for this brief geography' });
+
+        log.system.info('[newspaper/trigger] Queuing extraction jobs', {
+            briefId: brief.id, clientId: client.id,
+            sources: sources.map(s => s.name), keywords: keywords.slice(0, 5),
+        });
+
+        const jobs = [];
+        const errors = [];
+
+        for (const source of sources) {
+            try {
+                const jobId = await triggerAndStore(
+                    source.base_url || '',     // pdf_url — service resolves actual PDF from source_name
+                    keywords,
+                    source.name,
+                    brief.id,
+                    client.id,
+                    supabase,
+                    {
+                        source_language: source.language,
+                        is_flipbook: source.scraper_type === 'flipbook_intercept',
+                        fuzzy_threshold: 70,
+                    }
+                );
+                jobs.push({ source: source.name, job_id: jobId, language: source.language });
+                log.system.info(`[newspaper/trigger] Queued: ${source.name} → job ${jobId}`);
+            } catch (err) {
+                errors.push({ source: source.name, error: err.message });
+                log.system.warn(`[newspaper/trigger] Failed to queue ${source.name}: ${err.message}`);
+            }
+        }
+
+        res.json({
+            message: `Queued ${jobs.length} newspaper extraction job(s)`,
+            brief_id: brief.id,
+            client_id: client.id,
+            keywords_used: keywords.slice(0, 10),
+            jobs,
+            errors,
+        });
+    } catch (err) {
+        log.system.error('[newspaper/trigger] Error', { error: err.message });
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ── GET /api/test/newspaper/jobs ─────────────────────────────
+// Check status of all newspaper extraction jobs for the current client's active brief.
+router.get('/newspaper/jobs', async (req, res) => {
+    try {
+        const client = await getTestClient(req);
+        if (!client) return res.status(404).json({ error: 'No client found' });
+
+        const { data: brief } = await supabase
+            .from('client_briefs')
+            .select('id')
+            .eq('client_id', client.id)
+            .eq('status', 'active')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+        if (!brief) return res.status(404).json({ error: 'No active brief found' });
+
+        const { data: jobs, error } = await supabase
+            .from('brief_newspaper_jobs')
+            .select('*')
+            .eq('brief_id', brief.id)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        const counts = { pending: 0, completed: 0, failed: 0 };
+        (jobs || []).forEach(j => { counts[j.status] = (counts[j.status] || 0) + 1; });
+
+        res.json({
+            brief_id: brief.id,
+            total: (jobs || []).length,
+            counts,
+            jobs: jobs || [],
+        });
+    } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
