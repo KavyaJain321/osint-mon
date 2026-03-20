@@ -1,112 +1,39 @@
 // ============================================================
-// ROBIN OSINT — YouTube Crawler (RSS-based)
-// Primary: YouTube Channel RSS Feed (works on ALL channels)
-// Secondary: yt-dlp transcript enrichment (optional, non-blocking)
+// ROBIN OSINT — YouTube Crawler (RSS + API)
+// Scrapes YouTube channels via RSS feed (no API key needed) or
+// YouTube Data API v3 (broader lookback window).
+// Pre-filters videos by title/description keyword match, then
+// fires the full pipeline (Whisper transcription → translation →
+// clip generation → AI summary) automatically for each saved video.
 // ============================================================
 
-import { spawn } from 'child_process';
-import { readFile, unlink, mkdtemp } from 'fs/promises';
-import { tmpdir } from 'os';
-import { join } from 'path';
 import { matchArticle } from '../services/keyword-matcher.js';
 import { updateSourceScrapeStatus } from '../services/article-saver.js';
 import { saveContent } from '../services/content-saver.js';
+import { enqueueVideo } from '../services/video-processor/video-queue.js';
 import { log } from '../lib/logger.js';
 
-const MAX_VIDEOS_API = 50; // API lookback window (very wide for news channels)
-const MAX_VIDEOS_RSS = 15; // RSS hard limit by YouTube
-const TRANSCRIPT_TIMEOUT_MS = 20000; // 20s max to wait for yt-dlp transcript
+const MAX_VIDEOS_API = 20;        // Fetch pool to search through
+const MAX_VIDEOS_RSS = 15;        // RSS hard limit (YouTube)
+const MAX_VIDEOS_PER_SOURCE = 5;  // Max new videos saved per source per scrape cycle
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
-// ── VTT parser ───────────────────────────────────────────────
-function parseVttToText(vttContent) {
-    const lines = vttContent.split('\n');
-    const seen = new Set();
-    const textLines = [];
-
-    for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed) continue;
-        if (trimmed.startsWith('WEBVTT')) continue;
-        if (trimmed.startsWith('Kind:') || trimmed.startsWith('Language:')) continue;
-        if (/^\d{2}:\d{2}/.test(trimmed)) continue;
-        if (/^NOTE/.test(trimmed)) continue;
-
-        const clean = trimmed
-            .replace(/<[^>]+>/g, '')
-            .replace(/&amp;/g, '&')
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>')
-            .replace(/&nbsp;/g, ' ')
-            .trim();
-
-        if (!clean) continue;
-        if (!seen.has(clean)) {
-            seen.add(clean);
-            textLines.push(clean);
-        }
-    }
-
-    return textLines.join(' ').replace(/\s+/g, ' ').trim();
-}
-
-// ── yt-dlp transcript (optional enrichment) ─────────────────
 /**
- * Try to fetch a transcript via yt-dlp. 
- * Returns null if unavailable — caller always continues without it.
+ * Returns true if the video title indicates a live stream, news bulletin,
+ * or headline roundup — these are too generic or still-streaming to be useful.
  */
-async function fetchTranscriptYtDlp(videoId) {
-    const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-    let tmpDir = null;
-
-    try {
-        tmpDir = await mkdtemp(join(tmpdir(), 'yt_sub_'));
-        const outputTemplate = join(tmpDir, videoId);
-
-        await new Promise((resolve, reject) => {
-            const proc = spawn('yt-dlp', [
-                '--write-auto-sub',
-                '--sub-langs', 'en',
-                '--skip-download',
-                '--no-playlist',
-                '--output', outputTemplate,
-                '--quiet',
-                '--no-warnings',
-                videoUrl,
-            ], { timeout: 30000 });
-
-            let stderr = '';
-            proc.stderr.on('data', (d) => { stderr += d.toString(); });
-            proc.on('close', (code) => {
-                if (code === 0) resolve();
-                else reject(new Error(stderr.substring(0, 200) || `yt-dlp exited ${code}`));
-            });
-            proc.on('error', reject);
-        });
-
-        const vttPath = `${outputTemplate}.en.vtt`;
-        let vttContent;
-        try {
-            vttContent = await readFile(vttPath, 'utf-8');
-        } catch {
-            return null;
-        }
-
-        const text = parseVttToText(vttContent);
-        await unlink(vttPath).catch(() => { });
-        return text.length >= 100 ? text.substring(0, 15000) : null;
-
-    } catch (error) {
-        log.scraper.debug?.('yt-dlp transcript unavailable', { videoId, error: error.message });
-        return null;
-    } finally {
-        if (tmpDir) {
-            try {
-                const { rm } = await import('fs/promises');
-                await rm(tmpDir, { recursive: true, force: true });
-            } catch { /* ignore */ }
-        }
-    }
+function isLiveOrBulletin(title) {
+    if (!title) return false;
+    return (
+        /🔴/.test(title) ||                                               // Red dot = live indicator
+        /\bLIVE\s*(NOW|STREAM|STREAMING|TELECAST)\b/i.test(title) ||     // Explicit live stream
+        /\bLIVE\s*[:|]\s*$/i.test(title) ||                              // Ends with "Live:"
+        /^\s*LIVE\s*$/i.test(title) ||                                    // Title is just "LIVE"
+        /\b\d{1,2}\s*(AM|PM)\s*(Bulletin|Headlines?|News\s*Bulletin)\b/i.test(title) || // "9AM Bulletin"
+        /\bTop\s+Headlines?\b/i.test(title) ||                           // "Top Headlines"
+        /\b(Morning|Evening|Night|Afternoon)\s+(Bulletin|Headlines?)\b/i.test(title) || // "Morning Headlines"
+        /\b(Daily|Weekly)\s+(Bulletin|Headlines?|Roundup|Wrap)\b/i.test(title)  // "Daily Bulletin"
+    );
 }
 
 // ── Channel ID resolver ──────────────────────────────────────
@@ -340,36 +267,35 @@ async function crawlYoutubeSourceInternal(source, keywords) {
             channelId,
         });
 
-        // Step 3: Match + save each video
+        // Step 3: Match + save each video (cap at MAX_VIDEOS_PER_SOURCE per cycle)
+        let savedThisCycle = 0;
         for (const video of videos) {
-            try {
-                // Keyword match on TITLE + DESCRIPTION
-                const match = matchArticle({ title: video.title, content: video.description }, keywords);
-                
-                if (!match.matched) continue;
-                
-                const matchedKws = match.matchedKeywords;
+            if (savedThisCycle >= MAX_VIDEOS_PER_SOURCE) break;
 
-                // Step 4 (optional): Try to enrich with full transcript via yt-dlp
-                // Non-blocking: we save the video regardless of whether transcript succeeds
-                let transcript = null;
-                try {
-                    transcript = await Promise.race([
-                        fetchTranscriptYtDlp(video.videoId),
-                        new Promise((resolve) => setTimeout(() => resolve(null), TRANSCRIPT_TIMEOUT_MS)),
-                    ]);
-                } catch {
-                    // Transcript unavailable — fine, save without it
+            try {
+                // Skip live streams, bulletins, and headline roundups —
+                // these are either still streaming or too generic.
+                if (isLiveOrBulletin(video.title)) {
+                    log.scraper.debug?.('Skipping live/bulletin video', { title: video.title });
+                    continue;
                 }
 
-                const thumbnailUrl = `https://img.youtube.com/vi/${video.videoId}/maxresdefault.jpg`;
-                // Use transcript if available (richer content), else use description
-                const content = transcript || video.description || video.title;
+                // Pre-filter: keyword match on title + description.
+                // The real transcript-based filter runs in the pipeline (which deletes
+                // videos where the keyword doesn't appear in the Whisper transcript).
+                const match = matchArticle({ title: video.title, content: video.description }, keywords);
 
+                if (!match.matched) continue;
+
+                const matchedKws = match.matchedKeywords;
+                const thumbnailUrl = `https://img.youtube.com/vi/${video.videoId}/maxresdefault.jpg`;
+
+                // Save with description as initial content.
+                // The pipeline will replace this with the full English transcript after Whisper processing.
                 const saveResult = await saveContent({
                     contentType: 'video',
                     title: `[VIDEO] ${video.title}`,
-                    content,
+                    content: video.description || video.title,
                     url: `https://www.youtube.com/watch?v=${video.videoId}`,
                     publishedAt: video.publishedAt,
                     sourceId: source.id,
@@ -377,18 +303,23 @@ async function crawlYoutubeSourceInternal(source, keywords) {
                     matchedKeywords: match.matchedKeywords,
                     typeMetadata: {
                         channel_name: source.name || '',
-                        has_captions: !!transcript,
                         image_url: thumbnailUrl,
+                        processing_status: 'queued',
+                        processing_message: 'Queued for transcription and clip generation',
                     },
                 });
 
                 if (saveResult.saved) {
                     result.articlesSaved++;
-                    log.scraper.info('YouTube video saved via RSS', {
+                    savedThisCycle++;
+                    log.scraper.info('YouTube video saved — queued for pipeline', {
                         title: video.title.substring(0, 60),
                         videoId: video.videoId,
-                        hasTranscript: !!transcript,
                     });
+
+                    // Add to sequential queue — videos are processed one at a time
+                    // to avoid exhausting Groq API rate limits.
+                    enqueueVideo(video.videoId, saveResult.contentId, matchedKws, video.title);
                 }
             } catch (error) {
                 result.errors.push({ videoId: video.videoId, error: error.message });

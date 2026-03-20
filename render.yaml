@@ -1,23 +1,99 @@
+# ============================================================
+# ROBIN OSINT — Render Free-Tier Deployment
+#
+# Architecture: 2 free Docker services sharing one Dockerfile
+#
+#  robin-backend  Web Service   — API only, sleeps when idle
+#  robin-worker   Bkg Worker    — Scraper + Video pipeline, NEVER sleeps
+#  robin-frontend Web Service   — Next.js on Vercel (separate)
+#
+# The Dockerfile already installs ffmpeg (apt-get) + yt-dlp (pip).
+# Both services use the SAME image, different start commands.
+# Supabase is the message bus between them.
+# ============================================================
+
 services:
+
+  # ── 1. API (Web Service — existing service, kept same name) ─
+  # Keeps all your existing env vars set in the Render dashboard.
+  # SERVER_ROLE=api tells index.js to skip the scheduler/worker
+  # (those move to robin-worker which never sleeps).
   - type: web
     name: robin-backend
-    env: node
-    rootDir: robin-backend
-    buildCommand: npm install
-    startCommand: npm start
+    runtime: docker
+    plan: free
+    dockerfilePath: robin-backend/Dockerfile
+    dockerContext: robin-backend
+    dockerCommand: node --expose-gc --dns-result-order=ipv4first src/index.js
     healthCheckPath: /health
     envVars:
+      - key: SERVER_ROLE
+        value: api
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: "3001"
+        value: "10000"
 
-  - type: web
-    name: robin-frontend
-    env: node
-    rootDir: robin-frontend
-    buildCommand: npm install && npm run build
-    startCommand: npm start
+  # ── 2. Worker (Background — NEW service, never sleeps) ──────
+  # Copy ALL env vars from your existing robin-backend service
+  # into this new service in the Render dashboard.
+  - type: worker
+    name: robin-worker
+    runtime: docker
+    plan: free
+    dockerfilePath: robin-backend/Dockerfile
+    dockerContext: robin-backend
+    dockerCommand: node --expose-gc --dns-result-order=ipv4first src/render-worker.js
     envVars:
+      - key: SERVER_ROLE
+        value: worker
       - key: NODE_ENV
         value: production
+      - key: RENDER_SKIP_BROWSER
+        value: "true"
+      # ── Set all of these in the Render dashboard ──────────
+      # (same values as your existing robin-backend service)
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: GROQ_API_KEY_1
+        sync: false
+      - key: GROQ_API_KEY_2
+        sync: false
+      - key: GROQ_API_KEY_3
+        sync: false
+      - key: GROQ_API_KEY_4
+        sync: false
+      - key: GROQ_API_KEY_5
+        sync: false
+      - key: GROQ_API_KEY_6
+        sync: false
+      - key: GROQ_API_KEY_7
+        sync: false
+      - key: GROQ_API_KEY_8
+        sync: false
+      - key: GROQ_API_KEY_9
+        sync: false
+      - key: GROQ_API_KEY_10
+        sync: false
+      - key: GROQ_API_KEY_11
+        sync: false
+      - key: GROQ_API_KEY_12
+        sync: false
+      - key: GROQ_API_KEY_13
+        sync: false
+      - key: GROQ_API_KEY_14
+        sync: false
+      - key: YOUTUBE_API_KEY
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: SCRAPER_INTERVAL_HOURS
+        sync: false

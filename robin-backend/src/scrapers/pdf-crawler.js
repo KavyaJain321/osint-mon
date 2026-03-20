@@ -213,10 +213,20 @@ async function getPdfLinksFromApi(sourceUrl, keywords) {
  */
 async function getPdfBrowserInstance() {
     const puppeteer = (await import('puppeteer-core')).default;
+
+    if (process.env.CHROME_PATH) {
+        return await puppeteer.launch({
+            headless: 'new',
+            executablePath: process.env.CHROME_PATH,
+            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+        });
+    }
+
     try {
         const chromium = await import('@sparticuz/chromium');
         const execPath = await chromium.default.executablePath();
-        return puppeteer.launch({
+        // `return await` required — without it, ENOENT from launch() escapes the catch block
+        return await puppeteer.launch({
             args: chromium.default.args,
             defaultViewport: chromium.default.defaultViewport,
             executablePath: execPath,
@@ -228,17 +238,20 @@ async function getPdfBrowserInstance() {
             'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
             'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
             process.env.LOCALAPPDATA + '\\Google\\Chrome\\Application\\chrome.exe',
+            'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+            'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
             '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+            '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
             '/usr/bin/google-chrome', '/usr/bin/chromium-browser', '/usr/bin/chromium',
         ];
         let execPath = null;
         for (const p of possiblePaths) {
             if (p && fs.existsSync(p)) { execPath = p; break; }
         }
-        if (!execPath) throw new Error('No Chrome/Chromium found');
-        return puppeteer.launch({
+        if (!execPath) throw new Error('No Chrome/Edge/Chromium found. Set CHROME_PATH env var.');
+        return await puppeteer.launch({
             headless: 'new',
-            executablePath: process.env.CHROME_PATH || execPath,
+            executablePath: execPath,
             args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
         });
     }

@@ -251,6 +251,17 @@ router.get('/content', async (req, res) => {
             .sort((a, b) => new Date(b.published_at) - new Date(a.published_at))
             .slice(0, limit);
 
+        // ── Server-side: remove unprocessed video items ──────────────────
+        // Videos are added to the DB immediately when scraped (as "queued"),
+        // but should only appear in the feed once the pipeline finishes.
+        // This prevents "Queued" / "Processing" cards from ever reaching the frontend.
+        data = data.filter(item => {
+            const isVideo = item.content_type === 'video' || item.content_type === 'youtube';
+            if (!isVideo) return true; // non-video items always included
+            const ps = item.type_metadata?.processing_status;
+            return ps === 'complete'; // only show fully processed videos
+        });
+
         // Fetch analysis for all items
         const ids = (data || []).map(d => d.id);
         const { data: analyses } = ids.length > 0
@@ -1497,6 +1508,13 @@ router.get('/scraper-status', async (req, res) => {
             if (s.is_active) typeBreakdown[s.source_type].active++;
         }
 
+        // Video queue status
+        let videoQueue = { isProcessing: false, queueLength: 0, pending: [] };
+        try {
+            const { getQueueStatus } = await import('../services/video-processor/video-queue.js');
+            videoQueue = getQueueStatus();
+        } catch { /* queue module may not be loaded yet */ }
+
         res.json({
             scraper_running: lockRes.data?.value === 'true',
             last_run: lockRes.data?.updated_at,
@@ -1507,6 +1525,7 @@ router.get('/scraper-status', async (req, res) => {
             pending_analysis: pendingRes.count || 0,
             cross_source_duplicates: dupesRes.count || 0,
             source_types: typeBreakdown,
+            video_queue: videoQueue,
         });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -2329,13 +2348,28 @@ router.get('/overview', async (req, res) => {
             const qs = Object.entries(params)
                 .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v)).replace(/%3A/g, ':').replace(/%2C/g, ',')}`)
                 .join('&');
-            const r = await fetch(`${SUPA_URL}/rest/v1/${table}?${qs}`, { headers });
-            if (!r.ok) {
-                const err = await r.text().catch(() => '?');
-                console.error(`[OVERVIEW] fetchSupa ${table} failed ${r.status}: ${err.substring(0, 100)}`);
-                return [];
+            
+            let lastErr;
+            for (let i = 0; i < 3; i++) {
+                try {
+                    const r = await fetch(`${SUPA_URL}/rest/v1/${table}?${qs}`, { headers });
+                    if (!r.ok) {
+                        const err = await r.text().catch(() => '?');
+                        console.error(`[OVERVIEW] fetchSupa ${table} failed ${r.status}: ${err.substring(0, 100)}`);
+                        return [];
+                    }
+                    return await r.json();
+                } catch (err) {
+                    lastErr = err;
+                    if (err.message?.includes('fetch failed') || err.code === 'ECONNRESET') {
+                        await new Promise(res => setTimeout(res, 500 * (i + 1)));
+                    } else {
+                        throw err;
+                    }
+                }
             }
-            return r.json();
+            console.error(`[OVERVIEW] fetchSupa ${table} failed after 3 retries: ${lastErr?.message}`);
+            return [];
         };
 
         // Active brief (mission)

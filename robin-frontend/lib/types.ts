@@ -46,7 +46,39 @@ export interface Article {
     content_type?: string;
     source_name?: string;
     source_url?: string;
-    type_metadata?: { image_url?: string; channel_name?: string; has_captions?: boolean;[key: string]: unknown };
+    type_metadata?: { image_url?: string; channel_name?: string; has_captions?: boolean; processing_status?: string; processing_message?: string;[key: string]: unknown };
+}
+
+// ── Video Processing ────────────────────────────────────────
+export interface KeywordOccurrence {
+    keyword: string;
+    timestamp: number;
+    context: string;
+    level: string;
+}
+
+export interface VideoTranscript {
+    fullText: string;
+    segments: Array<{ start: number; end: number; text: string }>;
+    words: Array<{ word: string; start: number; end: number }>;
+    durationSeconds: number;
+    language: string;
+    keywordOccurrences: KeywordOccurrence[];
+    aiSummary: string;
+    createdAt: string;
+}
+
+export interface VideoClip {
+    id: string;
+    keyword: string;
+    startTime: number;
+    endTime: number;
+    duration: number;
+    clipUrl: string;
+    transcriptSegment: string;
+    aiSummary: string;
+    startFormatted: string;
+    endFormatted: string;
 }
 
 // ── Intelligence ────────────────────────────────────────────

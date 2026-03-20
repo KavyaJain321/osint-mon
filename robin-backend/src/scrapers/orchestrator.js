@@ -13,6 +13,7 @@ import { crawlPdfSource } from './pdf-crawler.js';
 import { crawlYoutubeSource } from './youtube-crawler.js';
 import { scrapeGoogleNews } from './gnews-crawler.js';
 import { scrapeReddit } from './reddit-crawler.js';
+import { runYoutubeKeywordSearch } from './youtube-search-crawler.js';
 import { saveContent } from '../services/content-saver.js';
 import { buildTopicWords } from '../services/keyword-matcher.js';
 import { runTemporalAnalysis } from '../ai/temporal-analyzer.js';
@@ -30,12 +31,11 @@ const YOUTUBE_CONCURRENCY = 1;
 // Sources rotate across hourly cron cycles so all 480+ get covered over time.
 const MAX_HTML_PER_CYCLE = 10;
 
-// Fallback chain: when primary crawler fails, try the next type
-const FALLBACK_CHAIN = {
-    rss: ['html', 'browser'],
-    html: ['browser'],
-    // browser, pdf, youtube have no fallbacks
-};
+// Fallback chain: when primary crawler fails, try the next type.
+// On Render (RENDER_SKIP_BROWSER=true), browser is excluded from all fallbacks.
+const FALLBACK_CHAIN = process.env.RENDER_SKIP_BROWSER === 'true'
+    ? { rss: ['html'], html: [] }      // No browser fallback on Render (saves 250MB RAM)
+    : { rss: ['html', 'browser'], html: ['browser'] };
 
 /**
  * Acquire the scraper lock. Overrides if stuck for > 2 hours.
@@ -373,17 +373,45 @@ export async function runScraperCycle() {
         const htmlResults = await processBatch(htmlSourcesSorted, crawlHtmlSource, HTML_CONCURRENCY);
 
         // Process PDF (parallel, concurrency 2)
-        const pdfResults = await processBatch(pdfSources, crawlPdfSource, PDF_CONCURRENCY);
+        // Skipped on Render free tier: PDF crawler uses Chromium (same RAM concern as browser)
+        const pdfResults = process.env.RENDER_SKIP_BROWSER === 'true'
+            ? (pdfSources.length > 0 && log.scraper.info(`Skipping ${pdfSources.length} PDF source(s) — RENDER_SKIP_BROWSER=true`), [])
+            : await processBatch(pdfSources, crawlPdfSource, PDF_CONCURRENCY);
 
         // Process YouTube (parallel, concurrency 3)
         await updatePipelineStage('scraping', 'Scraping YouTube & browser sources...', { phase: 'youtube' });
         const youtubeResults = await processBatch(youtubeSources, crawlYoutubeSource, YOUTUBE_CONCURRENCY);
 
+        // NEW: YouTube keyword search — discovers additional videos from ANY channel
+        // Build clientKeywordMap from sources data
+        const clientKeywordMap = {};
+        for (const src of sources) {
+            if (!clientKeywordMap[src.client_id] && src.keywords?.length > 0) {
+                clientKeywordMap[src.client_id] = { keywords: src.keywords, clientId: src.client_id };
+            }
+        }
+        let ytSearchResults = { totalFound: 0, totalSaved: 0, errors: [] };
+        try {
+            await updatePipelineStage('scraping', 'YouTube keyword search (discovering new videos)...', { phase: 'youtube_search' });
+            ytSearchResults = await runYoutubeKeywordSearch(clientKeywordMap);
+            log.scraper.info('YouTube keyword search done', { found: ytSearchResults.totalFound, saved: ytSearchResults.totalSaved });
+        } catch (ytSearchErr) {
+            log.scraper.warn('YouTube keyword search failed (non-blocking)', { error: ytSearchErr.message });
+        }
+
         // Process Browser (SEQUENTIAL — memory intensive)
+        // Skipped on Render free tier: Chromium needs ~250MB which exhausts the 512MB limit
+        // when running alongside yt-dlp + ffmpeg. Set RENDER_SKIP_BROWSER=true in render.yaml.
         const browserResults = [];
-        for (const source of browserSources) {
-            const result = await crawlBrowserSource(source, source.keywords);
-            browserResults.push(result);
+        if (process.env.RENDER_SKIP_BROWSER === 'true') {
+            if (browserSources.length > 0) {
+                log.scraper.info(`Skipping ${browserSources.length} browser source(s) — RENDER_SKIP_BROWSER=true`);
+            }
+        } else {
+            for (const source of browserSources) {
+                const result = await crawlBrowserSource(source, source.keywords);
+                browserResults.push(result);
+            }
         }
 
         // Process Google News (parallel, concurrency 5)
@@ -395,9 +423,9 @@ export async function runScraperCycle() {
 
         // Summary
         const allResults = [...rssResults, ...htmlResults, ...pdfResults, ...youtubeResults, ...browserResults, ...gnewsResults, ...redditResults];
-        const totalFound = allResults.reduce((sum, r) => sum + r.articlesFound, 0);
-        const totalSaved = allResults.reduce((sum, r) => sum + r.articlesSaved, 0);
-        const totalErrors = allResults.reduce((sum, r) => sum + r.errors.length, 0);
+        const totalFound = allResults.reduce((sum, r) => sum + r.articlesFound, 0) + (ytSearchResults.totalFound || 0);
+        const totalSaved = allResults.reduce((sum, r) => sum + r.articlesSaved, 0) + (ytSearchResults.totalSaved || 0);
+        const totalErrors = allResults.reduce((sum, r) => sum + r.errors.length, 0) + (ytSearchResults.errors?.length || 0);
         const duration = Date.now() - startTime;
 
         log.scraper.info('=== Scraper cycle completed ===', {

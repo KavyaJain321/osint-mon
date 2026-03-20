@@ -111,6 +111,26 @@ export const contentApi = {
         apiFetch(`/api/test/content/${id}`, { method: 'DELETE' }),
 };
 
+// ── Video Processing API ────────────────────────────────────
+
+export const videoApi = {
+    /** Get full transcript + keyword occurrences */
+    transcript: (articleId: string) =>
+        apiFetch(`/api/test/video/${articleId}/transcript`),
+    /** Get all clips with summaries */
+    clips: (articleId: string) =>
+        apiFetch(`/api/test/video/${articleId}/clips`),
+    /** Search within a video's transcript */
+    search: (articleId: string, query: string) =>
+        apiFetch(`/api/test/video/${articleId}/search?q=${encodeURIComponent(query)}`),
+    /** Get processing status */
+    status: (articleId: string) =>
+        apiFetch(`/api/test/video/${articleId}/status`),
+    /** Manually trigger processing */
+    process: (articleId: string) =>
+        apiFetch(`/api/test/video/${articleId}/process`, { method: 'POST' }),
+};
+
 // ── Convenience: expose top-level helpers page components expect ─
 
 /** Article data — wraps testApi.articles for components */

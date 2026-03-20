@@ -21,25 +21,40 @@ const MAX_ARTICLES = 10;
  * In local dev: uses locally installed Chrome/Chromium
  */
 async function getBrowserInstance() {
+    // If CHROME_PATH is explicitly set, use it directly
+    if (process.env.CHROME_PATH) {
+        return await puppeteer.launch({
+            headless: 'new',
+            executablePath: process.env.CHROME_PATH,
+            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+        });
+    }
+
     try {
-        // Try serverless chromium first (cloud/Render)
+        // Try serverless chromium first (cloud/Render/Lambda)
         const chromium = await import('@sparticuz/chromium');
         const execPath = await chromium.default.executablePath();
-        return puppeteer.launch({
+        // `return await` is required — without it, ENOENT from launch() escapes the catch block
+        return await puppeteer.launch({
             args: chromium.default.args,
             defaultViewport: chromium.default.defaultViewport,
             executablePath: execPath,
             headless: chromium.default.headless,
         });
     } catch {
-        // Fallback: local Chrome for development
+        // Fallback: local Chrome/Edge for development (Windows, macOS, Linux)
+        const fs = await import('fs');
         const possiblePaths = [
-            // Windows
+            // Windows Chrome
             'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
             'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
             process.env.LOCALAPPDATA + '\\Google\\Chrome\\Application\\chrome.exe',
+            // Windows Edge (pre-installed on Win10+/Win11)
+            'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+            'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
             // macOS
             '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+            '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
             // Linux
             '/usr/bin/google-chrome',
             '/usr/bin/chromium-browser',
@@ -47,27 +62,18 @@ async function getBrowserInstance() {
         ];
 
         let execPath = null;
-        const fs = await import('fs');
         for (const p of possiblePaths) {
-            if (p && fs.existsSync(p)) {
-                execPath = p;
-                break;
-            }
+            if (p && fs.existsSync(p)) { execPath = p; break; }
         }
 
         if (!execPath) {
-            throw new Error('No Chrome/Chromium found. Install Chrome or set CHROME_PATH env var.');
+            throw new Error('No Chrome/Edge/Chromium found. Set CHROME_PATH env var to your browser executable.');
         }
 
-        return puppeteer.launch({
+        return await puppeteer.launch({
             headless: 'new',
-            executablePath: process.env.CHROME_PATH || execPath,
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-gpu',
-            ],
+            executablePath: execPath,
+            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
         });
     }
 }

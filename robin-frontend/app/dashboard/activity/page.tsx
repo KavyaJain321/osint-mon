@@ -102,6 +102,15 @@ export default function ContentFeedPage() {
             result = result.filter(a => a._contentType === contentFilter);
         }
 
+        // For video/youtube content: only show fully processed items.
+        // The backend already filters these, but guard again on the frontend
+        // in case of cached/stale data.
+        result = result.filter(a => {
+            if (a._contentType !== "youtube" && a._contentType !== "video") return true;
+            const ps = a.type_metadata?.processing_status;
+            return ps === "complete";
+        });
+
         // Search
         if (search.trim()) {
             const kw = search.toLowerCase();

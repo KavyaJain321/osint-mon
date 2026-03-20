@@ -88,6 +88,13 @@ if (!config.isProduction) {
     }
 }
 
+// ── Video Processing API routes ─────────────────────────────
+{
+    const { default: videoRouter } = await import('./routes/video.js');
+    app.use('/api/test/video', videoRouter);
+    log.system.info('Video processing routes mounted at /api/test/video');
+}
+
 // ── Public Auth Routes ──────────────────────────────────────
 app.use('/api/auth', authRouter);
 
@@ -187,8 +194,16 @@ const server = app.listen(config.port, async () => {
     await loadPipelineProgress();
     log.system.info('Pipeline progress restored from DB');
 
-    startScheduler();
-    startAnalysisWorker();
+    // On Render: the scraper + analysis worker run in the dedicated
+    // robin-worker Background Service (render-worker.js), NOT here.
+    // The API service stays lean so it can cold-start fast after sleeping.
+    if (process.env.SERVER_ROLE === 'api') {
+        log.system.info('SERVER_ROLE=api — scheduler and analysis worker running in robin-worker service');
+    } else {
+        // Local dev or single-process deploy — run everything in one process
+        startScheduler();
+        startAnalysisWorker();
+    }
 });
 
 // ── Graceful Shutdown ────────────────────────────────────────
