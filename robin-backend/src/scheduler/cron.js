@@ -9,6 +9,7 @@ import { config } from '../config.js';
 import { runScraperCycle } from '../scrapers/orchestrator.js';
 import { supabase } from '../lib/supabase.js';
 import { log } from '../lib/logger.js';
+import { getJobStatus } from '../services/newspaper-intel-client.js';
 
 // Lazy import to break circular dependency
 let runBatchIntelligence;
@@ -63,7 +64,103 @@ export function startScheduler() {
         await runExpiredCleanup();
     });
 
+    // Newspaper job poller — every 30 seconds (only if service is configured)
+    // node-cron supports 6-field patterns: second minute hour day month weekday
+    if (config.hasNewspaperIntel) {
+        cron.schedule('*/30 * * * * *', async () => {
+            await pollNewspaperJobs();
+        });
+        log.cron.info('Newspaper job poller scheduled (every 30s)');
+    }
+
     log.cron.info('Scraper: "' + scraperCron + '" | Batch: "0 2 * * *" | Cleanup: "0 3 * * *"');
+}
+
+/**
+ * Poll all pending newspaper extraction jobs and sync their status.
+ * Articles are already written to content_items by the newspaper-intel-service —
+ * this just marks jobs done and records match counts in brief_newspaper_jobs.
+ * Runs every 30s; skips gracefully if service is not configured.
+ */
+export async function pollNewspaperJobs() {
+    if (!config.hasNewspaperIntel) return;
+
+    try {
+        const { data: pendingJobs, error: fetchErr } = await supabase
+            .from('brief_newspaper_jobs')
+            .select('*')
+            .eq('status', 'pending');
+
+        if (fetchErr) {
+            log.cron.warn('[newspaper_poller] Failed to fetch pending jobs', { error: fetchErr.message });
+            return;
+        }
+
+        if (!pendingJobs?.length) return;
+
+        log.cron.info(`[newspaper_poller] Checking ${pendingJobs.length} pending job(s)`);
+
+        for (const job of pendingJobs) {
+            try {
+                const statusData = await getJobStatus(job.job_id);
+
+                if (!statusData) {
+                    // Job not found in the service — mark as failed
+                    await supabase.from('brief_newspaper_jobs').update({
+                        status:     'failed',
+                        error:      'Job not found in newspaper-intel-service',
+                        updated_at: new Date().toISOString(),
+                    }).eq('job_id', job.job_id);
+                    continue;
+                }
+
+                const { status } = statusData;
+
+                if (status === 'completed') {
+                    const result     = statusData.result || {};
+                    const matchCount = result.total_matches ?? 0;
+
+                    await supabase.from('brief_newspaper_jobs').update({
+                        status:      'completed',
+                        match_count: matchCount,
+                        updated_at:  new Date().toISOString(),
+                    }).eq('job_id', job.job_id);
+
+                    log.cron.info('[newspaper_poller] Job completed', {
+                        jobId:      job.job_id,
+                        sourceName: job.source_name,
+                        briefId:    job.brief_id,
+                        matchCount,
+                    });
+
+                } else if (status === 'failed') {
+                    const errorMsg = statusData.result?.error || statusData.error || 'unknown';
+
+                    await supabase.from('brief_newspaper_jobs').update({
+                        status:     'failed',
+                        error:      String(errorMsg).substring(0, 500),
+                        updated_at: new Date().toISOString(),
+                    }).eq('job_id', job.job_id);
+
+                    log.cron.warn('[newspaper_poller] Job failed', {
+                        jobId:      job.job_id,
+                        sourceName: job.source_name,
+                        briefId:    job.brief_id,
+                        error:      errorMsg,
+                    });
+                }
+                // status === 'queued' | 'processing' → leave as pending, check next tick
+
+            } catch (jobErr) {
+                log.cron.error('[newspaper_poller] Error checking job', {
+                    jobId: job.job_id,
+                    error: jobErr.message,
+                });
+            }
+        }
+    } catch (err) {
+        log.cron.error('[newspaper_poller] Unexpected error', { error: err.message });
+    }
 }
 
 /**

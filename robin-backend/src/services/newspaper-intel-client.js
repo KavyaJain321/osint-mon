@@ -86,7 +86,8 @@ export async function triggerExtraction(
     is_flipbook = false,
     fuzzy_threshold = 75,
 ) {
-    if (!pdf_url)    throw new Error('triggerExtraction: pdf_url is required');
+    // pdf_url may be empty — the service resolves today's PDF URL internally
+    // from source_name when no explicit URL is provided.
     if (!keywords?.length) throw new Error('triggerExtraction: keywords array must not be empty');
     if (!source_name) throw new Error('triggerExtraction: source_name is required');
     if (!brief_id)   throw new Error('triggerExtraction: brief_id is required');

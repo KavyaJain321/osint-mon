@@ -121,11 +121,12 @@ describe('triggerExtraction', () => {
         );
     });
 
-    it('throws when pdf_url is empty', async () => {
-        await assert.rejects(
-            () => triggerExtraction('', ['kw'], 'Samaja', 'b-1', 'c-1'),
-            /pdf_url is required/,
-        );
+    it('accepts empty pdf_url (service resolves URL from source_name)', async () => {
+        // pdf_url is now optional — the newspaper-intel-service resolves today's
+        // PDF URL internally from source_name when no explicit URL is provided.
+        globalThis.fetch = makeFetchMock(200, { job_id: 'job-no-url', status: 'queued' });
+        const jobId = await triggerExtraction('', ['kw'], 'Samaja', 'b-1', 'c-1');
+        assert.equal(jobId, 'job-no-url');
     });
 
     it('throws when keywords array is empty', async () => {

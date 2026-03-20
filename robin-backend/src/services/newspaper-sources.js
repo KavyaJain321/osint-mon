@@ -10,6 +10,8 @@
 //   scraper_type    — how the service fetches the PDF:
 //                       "aggregator_pdf"     → direct PDF from aggregator
 //                       "flipbook_intercept" → e-paper viewer PDF intercept
+//   base_url        — e-paper portal URL; the service resolves today's
+//                     PDF URL from this (passed as pdf_url to /extract)
 //   geographic_states — Indian state codes this edition covers;
 //                       ["all"] means it's a national paper
 //   cities          — cities with dedicated editions or strong coverage
@@ -23,6 +25,7 @@ export const SOURCES = [
         name: 'Dainik Jagran',
         language: 'hi',
         scraper_type: 'aggregator_pdf',
+        base_url: 'https://epaper.jagran.com',
         geographic_states: ['UP', 'Uttarakhand', 'Bihar', 'MP', 'Jharkhand'],
         cities: ['Delhi', 'Lucknow', 'Patna', 'Dehradun', 'Varanasi', 'Agra', 'Kanpur'],
     },
@@ -30,6 +33,7 @@ export const SOURCES = [
         name: 'Amar Ujala',
         language: 'hi',
         scraper_type: 'aggregator_pdf',
+        base_url: 'https://epaper.amarujala.com',
         geographic_states: ['UP', 'Uttarakhand', 'HP', 'Punjab', 'J&K'],
         cities: ['Delhi', 'Lucknow', 'Dehradun', 'Agra', 'Meerut', 'Chandigarh', 'Shimla'],
     },
@@ -37,6 +41,7 @@ export const SOURCES = [
         name: 'Dainik Bhaskar',
         language: 'hi',
         scraper_type: 'aggregator_pdf',
+        base_url: 'https://epaper.bhaskar.com',
         geographic_states: ['MP', 'Rajasthan', 'Gujarat', 'Chhattisgarh', 'Bihar'],
         cities: ['Bhopal', 'Indore', 'Jaipur', 'Ahmedabad', 'Raipur', 'Patna'],
     },
@@ -44,6 +49,7 @@ export const SOURCES = [
         name: 'Hindustan',
         language: 'hi',
         scraper_type: 'aggregator_pdf',
+        base_url: 'https://epaper.livehindustan.com',
         geographic_states: ['Bihar', 'Jharkhand', 'UP'],
         cities: ['Delhi', 'Patna', 'Lucknow', 'Ranchi'],
     },
@@ -51,6 +57,7 @@ export const SOURCES = [
         name: 'Rajasthan Patrika',
         language: 'hi',
         scraper_type: 'aggregator_pdf',
+        base_url: 'https://epaper.patrika.com',
         geographic_states: ['Rajasthan'],
         cities: ['Jaipur', 'Jodhpur', 'Udaipur', 'Kota', 'Ajmer'],
     },
@@ -58,6 +65,7 @@ export const SOURCES = [
         name: 'Punjab Kesari',
         language: 'hi',
         scraper_type: 'aggregator_pdf',
+        base_url: 'https://epaper.punjabkesari.in',
         geographic_states: ['Punjab', 'Haryana', 'HP', 'Delhi', 'J&K'],
         cities: ['Delhi', 'Chandigarh', 'Jalandhar', 'Ludhiana'],
     },
@@ -65,6 +73,7 @@ export const SOURCES = [
         name: 'The Hindu',
         language: 'en',
         scraper_type: 'aggregator_pdf',
+        base_url: 'https://epaper.thehindu.com',
         geographic_states: ['all'],
         cities: ['Delhi', 'Mumbai', 'Chennai', 'Bengaluru', 'Hyderabad', 'Kolkata'],
     },
@@ -72,6 +81,7 @@ export const SOURCES = [
         name: 'Indian Express',
         language: 'en',
         scraper_type: 'aggregator_pdf',
+        base_url: 'https://epaper.indianexpress.com',
         geographic_states: ['all'],
         cities: ['Delhi', 'Mumbai', 'Pune', 'Chandigarh', 'Ahmedabad', 'Lucknow'],
     },
@@ -82,6 +92,7 @@ export const SOURCES = [
         name: 'Times of India',
         language: 'en',
         scraper_type: 'flipbook_intercept',
+        base_url: 'https://epaper.timesofIndia.com',
         geographic_states: ['all'],
         cities: ['Delhi', 'Mumbai', 'Kolkata', 'Bengaluru', 'Chennai', 'Hyderabad', 'Pune'],
     },
@@ -89,6 +100,7 @@ export const SOURCES = [
         name: 'Hindustan Times',
         language: 'en',
         scraper_type: 'flipbook_intercept',
+        base_url: 'https://epaper.hindustantimes.com',
         geographic_states: ['all'],
         cities: ['Delhi', 'Mumbai', 'Chandigarh', 'Lucknow', 'Patna'],
     },
@@ -96,6 +108,7 @@ export const SOURCES = [
         name: 'Prabhat Khabar',
         language: 'hi',
         scraper_type: 'flipbook_intercept',
+        base_url: 'https://epaper.prabhatkhabar.com',
         geographic_states: ['Jharkhand', 'Bihar', 'WB'],
         cities: ['Ranchi', 'Patna', 'Dhanbad', 'Jamshedpur'],
     },
@@ -103,6 +116,7 @@ export const SOURCES = [
         name: 'Samaja',
         language: 'or',
         scraper_type: 'flipbook_intercept',
+        base_url: 'https://www.thesamaja.com/epaper',
         geographic_states: ['Odisha'],
         cities: ['Bhubaneswar', 'Cuttack', 'Sambalpur', 'Berhampur'],
     },
@@ -110,6 +124,7 @@ export const SOURCES = [
         name: 'Dharitri',
         language: 'or',
         scraper_type: 'flipbook_intercept',
+        base_url: 'https://dharitri.com/epaper',
         geographic_states: ['Odisha'],
         cities: ['Bhubaneswar', 'Cuttack', 'Sambalpur'],
     },
@@ -117,6 +132,7 @@ export const SOURCES = [
         name: 'Anandabazar Patrika',
         language: 'bn',
         scraper_type: 'flipbook_intercept',
+        base_url: 'https://epaper.anandabazar.com',
         geographic_states: ['West Bengal'],
         cities: ['Kolkata', 'Siliguri'],
     },
@@ -124,6 +140,7 @@ export const SOURCES = [
         name: 'Eenadu',
         language: 'te',
         scraper_type: 'flipbook_intercept',
+        base_url: 'https://epaper.eenadu.net',
         geographic_states: ['Telangana', 'Andhra Pradesh'],
         cities: ['Hyderabad', 'Vijayawada', 'Visakhapatnam'],
     },
@@ -131,6 +148,7 @@ export const SOURCES = [
         name: 'Dinamalar',
         language: 'ta',
         scraper_type: 'flipbook_intercept',
+        base_url: 'https://epaper.dinamalar.com',
         geographic_states: ['Tamil Nadu'],
         cities: ['Chennai', 'Madurai', 'Coimbatore'],
     },
@@ -138,6 +156,7 @@ export const SOURCES = [
         name: 'Deccan Herald',
         language: 'en',
         scraper_type: 'flipbook_intercept',
+        base_url: 'https://epaper.deccanherald.com',
         geographic_states: ['Karnataka'],
         cities: ['Bengaluru', 'Mysuru', 'Mangaluru'],
     },
@@ -145,6 +164,7 @@ export const SOURCES = [
         name: 'Mathrubhumi',
         language: 'ml',
         scraper_type: 'flipbook_intercept',
+        base_url: 'https://epaper.mathrubhumi.com',
         geographic_states: ['Kerala'],
         cities: ['Kozhikode', 'Kochi', 'Thiruvananthapuram'],
     },
@@ -161,10 +181,6 @@ const norm = s => (s || '').toLowerCase().trim();
  * @param {string[]} [languages]       Optional ISO language codes to further filter
  *                                     (e.g. ["or", "en"])
  * @returns {Array<object>}            Deduplicated list of matching SOURCES entries
- *
- * @example
- * getSourcesForBrief(["Odisha", "Bhubaneswar"], ["or", "en"])
- * // → [Samaja, Dharitri, The Hindu, Indian Express, Times of India, Hindustan Times, Deccan Herald]
  */
 export function getSourcesForBrief(geographicStates = [], languages = null) {
     if (!geographicStates.length) return [...SOURCES];
@@ -172,13 +188,10 @@ export function getSourcesForBrief(geographicStates = [], languages = null) {
     const normStates = geographicStates.map(norm);
 
     const matched = SOURCES.filter(source => {
-        // Language filter (optional)
         if (languages?.length) {
             if (!languages.map(norm).includes(norm(source.language))) return false;
         }
 
-        // State match: source covers "all" OR any of its states/cities
-        // overlaps with the requested list (case-insensitive)
         const sourceStates = source.geographic_states.map(norm);
         if (sourceStates.includes('all')) return true;
 
@@ -189,7 +202,6 @@ export function getSourcesForBrief(geographicStates = [], languages = null) {
         );
     });
 
-    // Deduplicate by name (shouldn't happen with current registry, but guard anyway)
     const seen = new Set();
     return matched.filter(s => {
         if (seen.has(s.name)) return false;

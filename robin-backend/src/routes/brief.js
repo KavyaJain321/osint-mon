@@ -17,6 +17,8 @@ import { discoverSourcesForBrief } from '../ai/source-discoverer.js';
 import { runScraperCycle } from '../scrapers/orchestrator.js';
 import { matchCuratedSources } from '../ai/curated-source-matcher.js';
 import { updatePipelineStage, resetPipeline } from '../lib/pipeline-tracker.js';
+import { triggerAndStore } from '../services/newspaper-intel-client.js';
+import { getSourcesForBrief } from '../services/newspaper-sources.js';
 
 // Fresh admin client — avoids session contamination from the shared singleton
 const mkAdmin = () => createClient(config.supabaseUrl, config.supabaseServiceKey, {
@@ -31,7 +33,7 @@ router.use(authenticate);
 // ── POST /api/briefs — submit a new client brief ──────────
 router.post('/', async (req, res) => {
     try {
-        const { title, problem_statement } = req.body;
+        const { title, problem_statement, include_newspapers = false } = req.body;
         if (!title || !problem_statement) {
             return res.status(400).json({ error: 'title and problem_statement are required' });
         }
@@ -162,6 +164,7 @@ router.post('/', async (req, res) => {
                 problem_statement,
                 status: 'processing',
                 created_by: req.user.id,
+                include_newspapers: Boolean(include_newspapers),
             })
             .select()
             .single();
@@ -177,7 +180,7 @@ router.post('/', async (req, res) => {
         });
 
         // Run AI pipeline in background
-        processBriefAsync(brief.id, problem_statement, client).catch(async (err) => {
+        processBriefAsync(brief.id, problem_statement, client, Boolean(include_newspapers)).catch(async (err) => {
             log.ai.error('Brief processing failed', { briefId: brief.id, error: err.message });
             await mkAdmin().from('client_briefs').update({ status: 'failed' }).eq('id', brief.id);
         });
@@ -189,7 +192,7 @@ router.post('/', async (req, res) => {
 });
 
 // ── Background AI processing ───────────────────────────────
-async function processBriefAsync(briefId, problemStatement, client) {
+async function processBriefAsync(briefId, problemStatement, client, includeNewspapers = false) {
     log.ai.info('Brief AI processing started', { briefId });
     const db = mkAdmin(); // fresh admin client per background task
 
@@ -328,6 +331,51 @@ async function processBriefAsync(briefId, problemStatement, client) {
         runScraperCycle().catch(err =>
             log.system.error('Auto-scrape after brief failed', { briefId, error: err.message })
         );
+
+        // ── Queue newspaper extraction jobs (if enabled) ──────────
+        // Only runs when include_newspapers=true AND the service is configured.
+        // Fire-and-forget: each job is tracked in brief_newspaper_jobs.
+        if (includeNewspapers && config.hasNewspaperIntel) {
+            const geographicStates = context.geographic_focus || [];
+            const keywordStrings   = keywords.map(k => k.keyword).filter(Boolean);
+            const relevantSources  = getSourcesForBrief(geographicStates);
+
+            log.system.info('Queueing newspaper extraction jobs', {
+                briefId,
+                geographicStates,
+                sources: relevantSources.length,
+                keywords: keywordStrings.length,
+            });
+
+            // Sequential fire-and-forget — no await, errors are per-source
+            ;(async () => {
+                for (const source of relevantSources) {
+                    try {
+                        await triggerAndStore(
+                            source.base_url || '',           // pdf_url / base URL
+                            keywordStrings,
+                            source.name,
+                            briefId,
+                            clientId,
+                            pushDb,                          // ROBIN's Supabase client
+                            {
+                                source_language: source.language,
+                                is_flipbook: source.scraper_type === 'flipbook_intercept',
+                            },
+                        );
+                    } catch (srcErr) {
+                        // Non-fatal — log and continue with other sources
+                        log.system.error('Failed to queue newspaper job', {
+                            briefId,
+                            source: source.name,
+                            error: srcErr.message,
+                        });
+                    }
+                }
+                log.system.info('All newspaper jobs submitted', { briefId, total: relevantSources.length });
+            })();
+        }
+
     } catch (pushErr) {
         log.system.error('Auto-push/scrape failed', { briefId, error: pushErr.message });
     }

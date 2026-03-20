@@ -69,9 +69,34 @@ app.use(express.json({ limit: '10mb' }));
 app.use(defaultLimiter);
 
 // ── Health Check ─────────────────────────────────────────────
-app.get('/health', (_req, res) =>
-    res.json({ status: 'ok', timestamp: new Date().toISOString(), service: 'robin-backend' })
-);
+app.get('/health', async (_req, res) => {
+    const health = {
+        status:    'ok',
+        timestamp: new Date().toISOString(),
+        service:   'robin-backend',
+        integrations: {},
+    };
+
+    // Probe newspaper-intel-service (non-blocking — won't fail the health check)
+    if (config.hasNewspaperIntel) {
+        try {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 5000);
+            const r = await fetch(`${config.newspaperIntelUrl}/health`, {
+                signal: controller.signal,
+                headers: { 'X-Service-Key': config.newspaperIntelKey },
+            });
+            clearTimeout(timer);
+            health.integrations.newspaper_intel = r.ok ? 'ok' : `degraded (HTTP ${r.status})`;
+        } catch (e) {
+            health.integrations.newspaper_intel = `unreachable (${e.message?.substring(0, 60)})`;
+        }
+    } else {
+        health.integrations.newspaper_intel = 'not configured';
+    }
+
+    res.json(health);
+});
 
 // ── Dev Dashboard (HTML pages only in development) ───────────
 if (!config.isProduction) {
