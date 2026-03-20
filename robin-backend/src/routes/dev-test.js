@@ -566,9 +566,23 @@ const ODISHA_KW = [
 ];
 function isOdisha(a){ const t=`${a.title||''} ${a.summary||''} ${(a.matched_keywords||[]).join(' ')}`.toLowerCase(); return ODISHA_KW.some(k=>t.includes(k)); }
 
-const TV_SRC=['odishatv','ndtv','timesnow','republic','aajtak','abp','zee','india today','wion','dd news','kalinga tv','news18','cnbc','bbc','cnn','al jazeera','youtube','argus','ap news'];
-const NP_SRC=['utkal samachar','dharitri','sambad','pragativadi','samaja','times of india','hindustan times','the hindu','indian express','telegraph','economic times','business standard','livemint','deccan','pioneer','statesman','tribune','orissa post','odisha bhaskar','daily','gazette','guardian'];
-function classifySrc(n,u){ const s=(n||'').toLowerCase(),uu=(u||'').toLowerCase(); for(const t of TV_SRC) if(s.includes(t)||uu.includes(t.replace(/ /g,''))) return 'TV Intelligence'; for(const p of NP_SRC) if(s.includes(p)||uu.includes(p.replace(/ /g,''))) return 'Newspapers'; return 'Online News'; }
+const TV_SRC=['odishatv','ndtv','timesnow','republic','aajtak','abp','zee news','india today','wion','dd news','kalinga tv','kanak news','news18 odia','cnbc','al jazeera','argus news','nandighosha','prameya news'];
+const NP_SRC=['utkal samachar','dharitri','sambad','pragativadi','samaja','times of india','hindustan times','the hindu','indian express','telegraph india','economic times','business standard','livemint','deccan herald','orissa post','odisha bhaskar'];
+function classifySrc(n, u, contentType){
+    // 1. Use DB content_type if available (matches Activity Feed logic)
+    if (contentType) {
+        const ct = contentType.toLowerCase();
+        if (['video','tv_transcript','podcast'].includes(ct)) return 'TV Intelligence';
+    }
+    // 2. YouTube URL → TV
+    const uu = (u||'').toLowerCase();
+    if (uu.includes('youtube.com') || uu.includes('youtu.be')) return 'TV Intelligence';
+    // 3. Check source name
+    const s = (n||'').toLowerCase();
+    for (const t of TV_SRC) if (s.includes(t)) return 'TV Intelligence';
+    for (const p of NP_SRC) if (s.includes(p)) return 'Newspapers';
+    return 'Online News';
+}
 
 async function fetchOgImg(url){ if(!url) return null; try{ const c=new AbortController(); const tId = setTimeout(()=>c.abort(),2500); // reduced to 2.5s
 const r=await fetch(url,{signal:c.signal,headers:{'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'},redirect:'follow'}); 
@@ -602,7 +616,7 @@ router.post('/generate-media-report', async (req, res) => {
                 .order('published_at', { ascending: false })
                 .limit(500),
             db.from('content_items')
-                .select('id, title, url, source_id, published_at, created_at, matched_keywords, type_metadata')
+                .select('id, title, url, source_id, published_at, created_at, matched_keywords, type_metadata, content_type')
                 .eq('client_id', client.id)
                 .order('published_at', { ascending: false })
                 .limit(500)
@@ -640,7 +654,7 @@ router.post('/generate-media-report', async (req, res) => {
             const ana=anaMap[a.id]||null;
             return {...a, source_name:src.name||'Unknown', source_url:src.url||'', analysis:ana,
                 sentiment:ana?.sentiment||'neutral', importance:ana?.importance_score||0,
-                summary:ana?.summary||'', mediaType:classifySrc(src.name||'',a.url)};
+                summary:ana?.summary||'', mediaType:classifySrc(src.name||'',a.url,a.content_type)};
         });
         const enriched = all.filter(a=>isOdisha(a));
 
