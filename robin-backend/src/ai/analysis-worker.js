@@ -147,11 +147,32 @@ function normalizeClaims(claims, summaryFallback) {
  */
 export async function analyzeArticle(article) {
     try {
-        // Mark as processing
+        // [CRITICAL FIX] Verify the article still exists in the master table before wasting Groq limits!
+        // We previously purged bad videos, leaving orphaned content_items that cause foreign key crashes.
+        const { data: existenceCheck } = await supabase
+            .from('articles')
+            .select('id')
+            .eq('id', article.id)
+            .single();
+
+        if (!existenceCheck) {
+            log.ai.warn('Orphaned item detected! Purging from content_items to prevent infinite loop', { articleId: article.id });
+            await supabase.from('content_items').delete().eq('id', article.id);
+            return false;
+        }
+
+        // Mark as processing in BOTH tables
         await supabase
             .from('articles')
             .update({ analysis_status: 'processing' })
             .eq('id', article.id);
+
+        try {
+            await supabase
+                .from('content_items')
+                .update({ analysis_status: 'processing' })
+                .eq('id', article.id);
+        } catch { /* ignore if not present */ }
 
         // Fetch client info and active brief topic
         const { data: client } = await supabase
