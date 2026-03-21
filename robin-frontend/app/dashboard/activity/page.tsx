@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from "react";
 import {
-    Newspaper, Search, Clock, AlertTriangle, ChevronLeft, ChevronRight,
+    Search, Clock, AlertTriangle, ChevronLeft, ChevronRight,
     LayoutGrid, List, ExternalLink, TrendingDown, TrendingUp, Minus, Trash2,
 } from "lucide-react";
 import { formatRelative } from "@/lib/utils";
@@ -22,13 +22,12 @@ function getDomain(url?: string): string {
     }
 }
 
-type ContentType = "all" | "article" | "newspaper" | "youtube" | "pdf" | "govt" | "social";
+type ContentType = "all" | "article" | "youtube" | "pdf" | "govt" | "social";
 type SortOption = "importance" | "recency" | "sentiment";
 type ViewMode = "grid" | "list";
 
 const CONTENT_TABS: { id: ContentType; label: string; emoji: string }[] = [
     { id: "all", label: "All", emoji: "📋" },
-    { id: "newspaper", label: "Newspapers", emoji: "📰" },
     { id: "article", label: "Web Articles", emoji: "🌐" },
     { id: "youtube", label: "TV News", emoji: "📺" },
     { id: "govt", label: "Notifications", emoji: "📢" },
@@ -78,65 +77,12 @@ export default function ContentFeedPage() {
         }
     }, [queryClient]);
 
-    // Add content type to each article and group newspaper clippings by job_id or URL
+    // Add content type to each article
     const articlesWithType = useMemo(() => {
-        const processed: (Article & { _contentType: string })[] = [];
-        const newspaperGroups = new Map<string, Article[]>();
-
-        for (const a of articles) {
-            const cType = detectContentType(a);
-            if (cType === "newspaper") {
-                // Group by job_id, fallback to URL + Date
-                const dateStr = a.published_at ? new Date(a.published_at).toISOString().split('T')[0] : "";
-                const groupKey = a.type_metadata?.job_id 
-                    || `${a.url || 'unknown_url'}_${dateStr}`;
-                
-                if (!newspaperGroups.has(groupKey as string)) {
-                     newspaperGroups.set(groupKey as string, []);
-                }
-                newspaperGroups.get(groupKey as string)!.push(a);
-            } else {
-                processed.push({ ...a, _contentType: cType });
-            }
-        }
-
-        // Convert groups into parent articles representing the entire PDF issue
-        newspaperGroups.forEach((clippings, key) => {
-            const first = clippings[0];
-            const maxImportance = Math.max(...clippings.map(c => c.analysis?.importance_score ?? 0));
-            const allKeywords = Array.from(new Set(clippings.flatMap(c => c.matched_keywords || [])));
-            
-            const sourceName = first.source_name || (first.type_metadata as any)?.newspaper || "Newspaper";
-            const dateStr = first.published_at ? new Date(first.published_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "";
-            const title = `${sourceName} Edition ${dateStr ? `(${dateStr})` : ""}`;
-
-            const groupedArticle = {
-                ...first,
-                id: `grouped_${key}`,
-                title: title,
-                analysis: {
-                    ...(first.analysis || { 
-                        article_id: `grouped_${key}`, summary: "", sentiment: "neutral", 
-                        importance_score: 0, importance_reason: "", narrative_frame: "", entities: [] 
-                    }),
-                    importance_score: maxImportance,
-                    summary: `Found ${clippings.length} relevant clipping${clippings.length > 1 ? 's' : ''} in this edition covering: ${allKeywords.slice(0, 4).join(", ")}.`,
-                    entities: Array.from(new Set(clippings.flatMap(c => c.analysis?.entities || [])))
-                },
-                matched_keywords: allKeywords,
-                type_metadata: {
-                    ...first.type_metadata,
-                    is_grouped: true,
-                    image_url: undefined, // Strip the clipping image so it doesn't show as a giant hero image
-                    image_crop_url: undefined,
-                    clippings: clippings,
-                },
-                _contentType: "newspaper"
-            };
-            processed.push(groupedArticle as any);
-        });
-
-        return processed;
+        return articles.map(a => ({
+            ...a,
+            _contentType: detectContentType(a)
+        }));
     }, [articles]);
 
     // Content type counts
@@ -208,7 +154,7 @@ export default function ContentFeedPage() {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                    <Newspaper size={20} className="text-text-secondary" />
+                    <List size={20} className="text-text-secondary" />
                     <h1 className="text-lg font-semibold text-text-primary">Content Feed</h1>
                     <span className="text-xs text-text-muted">{articles.length} items</span>
                 </div>
@@ -294,7 +240,7 @@ export default function ContentFeedPage() {
                 </div>
             ) : filtered.length === 0 ? (
                 <div className="card p-12 text-center">
-                    <Newspaper size={40} className="text-text-muted mx-auto mb-3 opacity-30" />
+                    <List size={40} className="text-text-muted mx-auto mb-3 opacity-30" />
                     <p className="text-sm text-text-muted">{search ? "No content matches your search" : "No content yet — trigger a scrape to collect data"}</p>
                 </div>
             ) : (
@@ -316,7 +262,7 @@ export default function ContentFeedPage() {
                                         className="absolute inset-0 w-full h-full object-cover"
                                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                     />
-                                ) : ((hero.source_url || hero.url) && (detectContentType(hero) === 'newspaper' || detectContentType(hero) === 'article' || !detectContentType(hero))) ? (
+                                ) : ((hero.source_url || hero.url) && (detectContentType(hero) === 'article' || !detectContentType(hero))) ? (
                                     <div className="absolute inset-0 flex items-center justify-center opacity-80 group-hover:opacity-100 transition-opacity">
                                             <img
                                                 src={`https://www.google.com/s2/favicons?domain=${getDomain(hero.source_url || hero.url)}&sz=128`}
@@ -327,7 +273,7 @@ export default function ContentFeedPage() {
                                     </div>
                                 ) : (
                                     <div className="absolute inset-0 flex items-center justify-center opacity-15">
-                                        <span className="text-7xl">{detectContentType(hero) === "youtube" ? "📺" : detectContentType(hero) === "newspaper" ? "📰" : "🌐"}</span>
+                                        <span className="text-7xl">{detectContentType(hero) === "youtube" ? "📺" : "🌐"}</span>
                                     </div>
                                 )}
                                 {(hero.analysis?.importance_score ?? 0) >= 7 && (
@@ -402,10 +348,10 @@ export default function ContentFeedPage() {
                                                         <span className="text-4xl filter drop-shadow">📄</span>
                                                         <span className="text-xs font-semibold text-white bg-black/50 px-2 py-0.5 rounded backdrop-blur-sm">PDF Edition</span>
                                                     </div>
-                                                ) : (article.source_url && (cType === 'newspaper' || cType === 'article' || !cType)) ? (
+                                                ) : ((article.source_url || article.url) && getDomain(article.source_url || article.url) !== "newspaper-intel" && (cType === 'newspaper' || cType === 'article' || !cType)) ? (
                                                     <div className="flex flex-col items-center justify-center space-y-2 opacity-80 group-hover:opacity-100 transition-opacity">
                                                         <img
-                                                            src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(article.source_url)}&sz=128`}
+                                                            src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(getDomain(article.source_url || article.url))}&sz=128`}
                                                             alt={article.source_name || "Source Logo"}
                                                             className="w-12 h-12 object-contain bg-slate-900/50 rounded-lg shadow-sm p-1 backdrop-blur-sm"
                                                             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
@@ -439,7 +385,11 @@ export default function ContentFeedPage() {
                                             <h3 className="text-sm font-medium text-text-primary group-hover:text-accent-bright transition-colors line-clamp-2 mb-2 leading-snug">
                                                 {article.title}
                                             </h3>
-                                            {article.analysis?.summary && (
+                                            {article.type_metadata?.english_summary ? (
+                                                <p className="text-xs text-indigo-300 italic line-clamp-2 mb-3 bg-indigo-500/10 p-1.5 rounded border-l-2 border-indigo-500">
+                                                    {article.type_metadata.english_summary as string}
+                                                </p>
+                                            ) : article.analysis?.summary && (
                                                 <p className="text-xs text-text-secondary line-clamp-2 mb-3">
                                                     {article.analysis.summary}
                                                 </p>
@@ -481,21 +431,25 @@ export default function ContentFeedPage() {
                                                 className="w-12 h-10 object-cover rounded flex-shrink-0"
                                                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                             />
-                                        ) : ((article.source_url || article.url) && (cType === 'newspaper' || cType === 'article' || !cType)) ? (
+                                        ) : ((article.source_url || article.url) && (cType === 'article' || !cType)) ? (
                                             <img
                                                 src={`https://www.google.com/s2/favicons?domain=${getDomain(article.source_url || article.url)}&sz=128`}
-                                                alt={article.source_name || ""}
-                                                className="w-12 h-10 object-contain rounded flex-shrink-0 bg-slate-800/50 p-1"
+                                                alt={article.source_name || "Source"}
+                                                className="w-5 h-5 rounded bg-white/10 p-0.5 object-contain mr-2"
                                                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                             />
                                         ) : (
-                                            <span className="text-lg flex-shrink-0">{cType === "youtube" ? "📺" : cType === "newspaper" ? "📰" : cType === "pdf" ? "📄" : cType === "govt" ? "📢" : "🌐"}</span>
+                                            <span className="text-lg flex-shrink-0">{cType === "youtube" ? "📺" : cType === "pdf" ? "📄" : cType === "govt" ? "📢" : "🌐"}</span>
                                         )}
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm text-text-primary group-hover:text-accent-bright transition-colors truncate">
                                                 {article.title}
                                             </p>
-                                            {article.analysis?.summary && (
+                                            {article.type_metadata?.english_summary ? (
+                                                <p className="text-xs text-indigo-300 italic truncate mt-0.5 font-medium">
+                                                    {article.type_metadata.english_summary as string}
+                                                </p>
+                                            ) : article.analysis?.summary && (
                                                 <p className="text-xs text-text-secondary truncate mt-0.5">
                                                     {article.analysis.summary}
                                                 </p>

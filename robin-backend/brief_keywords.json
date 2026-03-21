@@ -1,0 +1,442 @@
+[
+  {
+    "keyword": "Odisha Govt",
+    "category": "core_entity",
+    "approved": false
+  },
+  {
+    "keyword": "Odisha CM",
+    "category": "core_entity",
+    "approved": false
+  },
+  {
+    "keyword": "BJD",
+    "category": "core_entity",
+    "approved": false
+  },
+  {
+    "keyword": "Odisha",
+    "category": "core_entity",
+    "approved": false
+  },
+  {
+    "keyword": "Naveen Patnaik",
+    "category": "core_entity",
+    "approved": false
+  },
+  {
+    "keyword": "Odisha Gov",
+    "category": "core_entity",
+    "approved": false
+  },
+  {
+    "keyword": "Odisha State",
+    "category": "core_entity",
+    "approved": false
+  },
+  {
+    "keyword": "Odisha Administration",
+    "category": "core_entity",
+    "approved": false
+  },
+  {
+    "keyword": "Odisha Govt Services",
+    "category": "core_entity",
+    "approved": false
+  },
+  {
+    "keyword": "Odisha Public Services",
+    "category": "core_entity",
+    "approved": false
+  },
+  {
+    "keyword": "Data Integration",
+    "category": "industry_sector",
+    "approved": false
+  },
+  {
+    "keyword": "Real-time Monitoring",
+    "category": "industry_sector",
+    "approved": false
+  },
+  {
+    "keyword": "Predictive Analytics",
+    "category": "industry_sector",
+    "approved": false
+  },
+  {
+    "keyword": "Decision Support",
+    "category": "industry_sector",
+    "approved": false
+  },
+  {
+    "keyword": "Scalable Infrastructure",
+    "category": "industry_sector",
+    "approved": false
+  },
+  {
+    "keyword": "IoT Solutions",
+    "category": "industry_sector",
+    "approved": false
+  },
+  {
+    "keyword": "Citizen Feedback",
+    "category": "industry_sector",
+    "approved": false
+  },
+  {
+    "keyword": "Multilingual Support",
+    "category": "industry_sector",
+    "approved": false
+  },
+  {
+    "keyword": "Public Service Delivery",
+    "category": "industry_sector",
+    "approved": false
+  },
+  {
+    "keyword": "RTI Act",
+    "category": "regulatory_legal",
+    "approved": false
+  },
+  {
+    "keyword": "Odisha State Laws",
+    "category": "regulatory_legal",
+    "approved": false
+  },
+  {
+    "keyword": "Indian Constitution",
+    "category": "regulatory_legal",
+    "approved": false
+  },
+  {
+    "keyword": "Compliance Audit",
+    "category": "regulatory_legal",
+    "approved": false
+  },
+  {
+    "keyword": "Public Accountability",
+    "category": "regulatory_legal",
+    "approved": false
+  },
+  {
+    "keyword": "Transparency Law",
+    "category": "regulatory_legal",
+    "approved": false
+  },
+  {
+    "keyword": "Odisha Regulatory",
+    "category": "regulatory_legal",
+    "approved": false
+  },
+  {
+    "keyword": "Government Regulations",
+    "category": "regulatory_legal",
+    "approved": false
+  },
+  {
+    "keyword": "Bhubaneswar",
+    "category": "geographic",
+    "approved": false
+  },
+  {
+    "keyword": "Odisha Districts",
+    "category": "geographic",
+    "approved": false
+  },
+  {
+    "keyword": "Eastern India",
+    "category": "geographic",
+    "approved": false
+  },
+  {
+    "keyword": "Cuttack",
+    "category": "geographic",
+    "approved": false
+  },
+  {
+    "keyword": "Puri",
+    "category": "geographic",
+    "approved": false
+  },
+  {
+    "keyword": "Odisha Coast",
+    "category": "geographic",
+    "approved": false
+  },
+  {
+    "keyword": "Ganjam",
+    "category": "geographic",
+    "approved": false
+  },
+  {
+    "keyword": "Khordha",
+    "category": "geographic",
+    "approved": false
+  },
+  {
+    "keyword": "Odisha Border",
+    "category": "geographic",
+    "approved": false
+  },
+  {
+    "keyword": "Naveen",
+    "category": "stakeholder",
+    "approved": false
+  },
+  {
+    "keyword": "Suresh Mohapatra",
+    "category": "stakeholder",
+    "approved": false
+  },
+  {
+    "keyword": "Amitabh Thakur",
+    "category": "stakeholder",
+    "approved": false
+  },
+  {
+    "keyword": "Subroto Bagchi",
+    "category": "stakeholder",
+    "approved": false
+  },
+  {
+    "keyword": "Dharmendra Pradhan",
+    "category": "stakeholder",
+    "approved": false
+  },
+  {
+    "keyword": "Pratap Jena",
+    "category": "stakeholder",
+    "approved": false
+  },
+  {
+    "keyword": "Arun Sahoo",
+    "category": "stakeholder",
+    "approved": false
+  },
+  {
+    "keyword": "Tukuni Sahoo",
+    "category": "stakeholder",
+    "approved": false
+  },
+  {
+    "keyword": "scam",
+    "category": "sentiment",
+    "approved": false
+  },
+  {
+    "keyword": "Odisha failure",
+    "category": "sentiment",
+    "approved": false
+  },
+  {
+    "keyword": "BJD crisis",
+    "category": "sentiment",
+    "approved": false
+  },
+  {
+    "keyword": "public unrest",
+    "category": "sentiment",
+    "approved": false
+  },
+  {
+    "keyword": "service disruption",
+    "category": "sentiment",
+    "approved": false
+  },
+  {
+    "keyword": "infrastructure gap",
+    "category": "sentiment",
+    "approved": false
+  },
+  {
+    "keyword": "e-governance",
+    "category": "abstract_lateral",
+    "approved": false
+  },
+  {
+    "keyword": "digital divide",
+    "category": "abstract_lateral",
+    "approved": false
+  },
+  {
+    "keyword": "smart city",
+    "category": "abstract_lateral",
+    "approved": false
+  },
+  {
+    "keyword": "urbanization",
+    "category": "abstract_lateral",
+    "approved": false
+  },
+  {
+    "keyword": "Odisha GDP",
+    "category": "proxy_indicator",
+    "approved": false
+  },
+  {
+    "keyword": "Odisha budget",
+    "category": "proxy_indicator",
+    "approved": false
+  },
+  {
+    "keyword": "#OdishaDevelopment",
+    "category": "proxy_indicator",
+    "approved": false
+  },
+  {
+    "keyword": "Odisha ranking",
+    "category": "proxy_indicator",
+    "approved": false
+  },
+  {
+    "keyword": "whistleblower",
+    "category": "narrative",
+    "approved": false
+  },
+  {
+    "keyword": "Odisha bailout",
+    "category": "narrative",
+    "approved": false
+  },
+  {
+    "keyword": "ଓଡିଶା ସରକାର",
+    "category": "core_entity",
+    "approved": false
+  },
+  {
+    "keyword": "ଡେଟା ଏକୀକରଣ",
+    "category": "industry_sector",
+    "approved": false
+  },
+  {
+    "keyword": "ଭୁବନେଶ୍ୱର",
+    "category": "geographic",
+    "approved": false
+  },
+  {
+    "keyword": "ନବୀନ",
+    "category": "stakeholder",
+    "approved": false
+  },
+  {
+    "keyword": "ଘୁଷ କାଣ୍ଡ",
+    "category": "sentiment",
+    "approved": false
+  },
+  {
+    "keyword": "ଓଡିଶା ଜି.ଡି.ପି.",
+    "category": "proxy_indicator",
+    "approved": false
+  },
+  {
+    "keyword": "ଓଡିଶା ମୁଖ୍ୟମନ୍ତ୍ରୀ",
+    "category": "core_entity",
+    "approved": false
+  },
+  {
+    "keyword": "ବାସ୍ତବ ସମୟ ନିରୀକ୍ଷଣ",
+    "category": "industry_sector",
+    "approved": false
+  },
+  {
+    "keyword": "ସୂଚନା ଅଧିକାର ଆଇନ",
+    "category": "regulatory_legal",
+    "approved": false
+  },
+  {
+    "keyword": "ଓଡିଶା ଜିଲ୍ଲା",
+    "category": "geographic",
+    "approved": false
+  },
+  {
+    "keyword": "ସୁରେଶ ମହାପାତ୍ର",
+    "category": "stakeholder",
+    "approved": false
+  },
+  {
+    "keyword": "ଧର୍ମେନ୍ଦ୍ର ପ୍ରଧାନ",
+    "category": "stakeholder",
+    "approved": false
+  },
+  {
+    "keyword": "ଓଡିଶା ବିଫଳତା",
+    "category": "sentiment",
+    "approved": false
+  },
+  {
+    "keyword": "ବି.ଜେ.ଡି. ସଙ୍କଟ",
+    "category": "sentiment",
+    "approved": false
+  },
+  {
+    "keyword": "ଇ-ଶାସନ",
+    "category": "abstract_lateral",
+    "approved": false
+  },
+  {
+    "keyword": "ଓଡିଶା ବଜେଟ",
+    "category": "proxy_indicator",
+    "approved": false
+  },
+  {
+    "keyword": "ଆବରଣ",
+    "category": "narrative",
+    "approved": false
+  },
+  {
+    "keyword": "ବି.ଜେ.ଡି.",
+    "category": "core_entity",
+    "approved": false
+  },
+  {
+    "keyword": "ପୂର୍ଣାଙ୍ଗ ବିଶ୍ଲେଷଣ",
+    "category": "industry_sector",
+    "approved": false
+  },
+  {
+    "keyword": "ଓଡିଶା ରାଜ୍ୟ ଆଇନ",
+    "category": "regulatory_legal",
+    "approved": false
+  },
+  {
+    "keyword": "ପୂର୍ବ ଭାରତ",
+    "category": "geographic",
+    "approved": false
+  },
+  {
+    "keyword": "ସୁବ୍ରତ ବାଗଚୀ",
+    "category": "stakeholder",
+    "approved": false
+  },
+  {
+    "keyword": "ଜନ ଅସ୍ଥିରତା",
+    "category": "sentiment",
+    "approved": false
+  },
+  {
+    "keyword": "ଡିଜିଟାଲ ବିଭାଜନ",
+    "category": "abstract_lateral",
+    "approved": false
+  },
+  {
+    "keyword": "ସ୍ମାର୍ଟ ସିଟି",
+    "category": "abstract_lateral",
+    "approved": false
+  },
+  {
+    "keyword": "ଘୁଷ ପରଦା ଫାଶ",
+    "category": "narrative",
+    "approved": false
+  },
+  {
+    "keyword": "ଓଡିଶା",
+    "category": "core_entity",
+    "approved": false
+  },
+  {
+    "keyword": "ନିଷ୍ପତ୍ତି ସହାୟତା",
+    "category": "industry_sector",
+    "approved": false
+  }
+]

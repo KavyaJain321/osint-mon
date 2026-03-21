@@ -76,26 +76,8 @@ app.get('/health', async (_req, res) => {
         service:   'robin-backend',
         integrations: {},
     };
-
-    // Probe newspaper-intel-service (non-blocking — won't fail the health check)
-    if (config.hasNewspaperIntel) {
-        try {
-            const controller = new AbortController();
-            const timer = setTimeout(() => controller.abort(), 5000);
-            const r = await fetch(`${config.newspaperIntelUrl}/health`, {
-                signal: controller.signal,
-                headers: { 'X-Service-Key': config.newspaperIntelKey },
-            });
-            clearTimeout(timer);
-            health.integrations.newspaper_intel = r.ok ? 'ok' : `degraded (HTTP ${r.status})`;
-        } catch (e) {
-            health.integrations.newspaper_intel = `unreachable (${e.message?.substring(0, 60)})`;
-        }
-    } else {
-        health.integrations.newspaper_intel = 'not configured';
-    }
-
-    res.json(health);
+    // Return health status
+    res.status(health.status === 'ok' ? 200 : 503).json(health);
 });
 
 // ── Dev Dashboard (HTML pages only in development) ───────────

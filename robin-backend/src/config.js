@@ -35,15 +35,8 @@ export const config = {
   // Scraper
   scraperIntervalHours: parseInt(optionalEnv('SCRAPER_INTERVAL_HOURS', '1'), 10),
 
-  // Newspaper Intelligence Microservice (optional — feature disabled if not set)
-  newspaperIntelUrl: optionalEnv('NEWSPAPER_INTEL_URL', ''),
-  newspaperIntelKey: optionalEnv('NEWSPAPER_INTEL_KEY', ''),
-
   // Computed
   get isProduction() {
     return this.nodeEnv === 'production';
-  },
-  get hasNewspaperIntel() {
-    return !!(this.newspaperIntelUrl && this.newspaperIntelKey);
   },
 };

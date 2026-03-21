@@ -12,7 +12,6 @@ const TYPE_ICONS: Record<string, { icon: React.ReactNode; label: string }> = {
     article: { icon: <FileText size={14} />, label: "Web Article" },
     youtube: { icon: <Video size={14} />, label: "TV News" },
     video: { icon: <Video size={14} />, label: "TV News" },
-    newspaper: { icon: <FileText size={14} />, label: "Newspaper" },
     pdf: { icon: <File size={14} />, label: "PDF" },
     govt: { icon: <Bell size={14} />, label: "Notification" },
     social: { icon: <MessageSquare size={14} />, label: "Social" },
@@ -22,7 +21,6 @@ const TYPE_GRADIENTS: Record<string, string> = {
     article: "from-blue-600/30 to-indigo-700/30",
     youtube: "from-red-600/30 to-rose-700/30",
     video: "from-red-600/30 to-rose-700/30",
-    newspaper: "from-amber-600/30 to-yellow-700/30",
     pdf: "from-amber-600/30 to-orange-700/30",
     govt: "from-slate-500/30 to-gray-700/30",
     social: "from-violet-600/30 to-purple-700/30",
@@ -36,7 +34,6 @@ function detectContentType(article: Article): string {
     // 1. DB content_type is the authoritative source — check it first
     if (article.content_type) {
         const map: Record<string, string> = {
-            newspaper: "newspaper",                                    // newspaper-intel-service
             article: "article",
             video: "youtube", tv_transcript: "youtube", podcast: "youtube",
             pdf: "pdf", govt_release: "govt", press_release: "govt",
@@ -50,16 +47,6 @@ function detectContentType(article: Article): string {
     if (url.endsWith(".pdf")) return "pdf";
     if (url.includes(".gov") || url.includes("pib.gov")) return "govt";
     if (url.includes("twitter.com") || url.includes("x.com") || url.includes("reddit.com")) return "social";
-
-    // 3. Source name pattern matching (fallback for articles without content_type)
-    const newspaperPatterns = [
-        'sambad', 'dharitri', 'samaja', 'pragativadi', 'orissa post', 'odisha bhaskar',
-        'times of india', 'hindustan times', 'the hindu', 'indian express', 'telegraph',
-        'economic times', 'deccan', 'pioneer', 'tribune', 'livemint', 'business standard',
-        'statesman', 'daily', 'gazette', 'ndtv', 'dainik', 'amar ujala', 'bhaskar',
-        'eenadu', 'dinamalar', 'mathrubhumi', 'anandabazar', 'prabhat khabar',
-    ];
-    if (newspaperPatterns.some(p => srcLower.includes(p) || url.includes(p.replace(/ /g, '')))) return "newspaper";
 
     return "article";
 }
@@ -307,7 +294,7 @@ export default function ContentDetail({ article, onClose }: { article: Article; 
                 {/* Header Image Area */}
                 <div className={cn("relative h-40 bg-gradient-to-br", gradient)}>
                     <div className="absolute inset-0 flex items-center justify-center opacity-20">
-                        <span className="text-6xl">{contentType === "youtube" ? "📺" : contentType === "newspaper" ? "📰" : contentType === "pdf" ? "📄" : contentType === "govt" ? "📢" : "🌐"}</span>
+                        <span className="text-6xl">{contentType === "youtube" ? "📺" : contentType === "pdf" ? "📄" : contentType === "govt" ? "📢" : "🌐"}</span>
                     </div>
                     <button onClick={onClose} className="absolute top-3 right-3 bg-base/60 backdrop-blur-sm rounded-full p-1.5 text-text-muted hover:text-text-primary transition-colors">
                         <X size={16} />
@@ -353,83 +340,31 @@ export default function ContentDetail({ article, onClose }: { article: Article; 
                     {/* VIDEO PROCESSING PANEL (TV News only) */}
                     {isVideo && <VideoProcessingPanel article={article} />}
 
-                    {/* NEWSPAPER GROUP PANEL (Multiple Clippings) */}
-                    {Boolean(article.type_metadata?.is_grouped && article.type_metadata.clippings) && (
-                        <div className="space-y-4 mt-2 border-t border-border pt-4">
-                            <div className="flex items-center justify-between mb-2">
-                                <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider">
-                                    Extracted Cuttings ({((article.type_metadata?.clippings || []) as Article[]).length})
-                                </h3>
-                                {article.url && (
-                                    <a href={article.url} target="_blank" rel="noopener noreferrer" className="btn btn-primary text-xs flex items-center gap-1.5 px-3 py-1.5">
-                                        <ExternalLink size={14} /> View Full PDF
-                                    </a>
-                                )}
-                            </div>
-                            <div className="space-y-4">
-                                {((article.type_metadata?.clippings || []) as Article[]).map((clip, i) => {
-                                    const rawKeywords = clip.matched_keywords || [];
-                                    const kwArray = Array.isArray(rawKeywords) ? rawKeywords : typeof rawKeywords === 'string' ? (rawKeywords as string).split(',').map(k => k.trim()) : [];
-                                    
-                                    const imgUrl = (clip.type_metadata?.image_url || clip.type_metadata?.image_crop_url) as string | undefined;
-                                    const clipText = (clip.analysis?.summary || clip.content) as string | undefined;
-                                    
-                                    return (
-                                        <div key={clip.id || i} className="card p-4 space-y-3 bg-raised/30">
-                                            {imgUrl && (
-                                                <a href={imgUrl} target="_blank" rel="noreferrer">
-                                                    <img 
-                                                        src={imgUrl} 
-                                                        alt="Newspaper Clipping" 
-                                                        className="w-full h-auto rounded-md border border-border hover:ring-1 hover:ring-accent transition-all cursor-zoom-in" 
-                                                    />
-                                                </a>
-                                            )}
-                                            <div>
-                                                <h4 className="text-sm font-semibold text-text-primary leading-snug">{clip.title}</h4>
-                                                
-                                                {kwArray.length > 0 && (
-                                                    <div className="flex flex-wrap gap-1.5 mt-2">
-                                                        {kwArray.map(kw => <span key={kw} className="badge badge-muted text-2xs">{kw}</span>)}
-                                                    </div>
-                                                )}
-                                                
-                                                {clipText && (
-                                                    <p className="text-xs text-text-secondary mt-2 leading-relaxed bg-surface p-2.5 rounded border border-border line-clamp-4">
-                                                        {clipText}
-                                                    </p>
-                                                )}
-                                                
-                                                <div className="flex items-center justify-between mt-3 text-2xs text-text-muted">
-                                                    <span>{clip.type_metadata?.page_number ? `Page ${clip.type_metadata.page_number}` : 'Unknown Page'}</span>
-                                                    <span className="font-mono font-medium">{clip.analysis?.importance_score || 0}/10 Importance</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                    {/* Context (non-video content) */}
+                    {!isVideo && Boolean(article.type_metadata?.english_summary) && (
+                        <div className="mb-4 bg-gradient-to-r from-indigo-500/10 to-transparent p-3 rounded-md border-l-2 border-indigo-500">
+                            <h3 className="text-xs font-semibold text-indigo-300 uppercase tracking-wider mb-1">English Context</h3>
+                            <p className="text-sm text-indigo-100 italic leading-relaxed">{article.type_metadata?.english_summary as string}</p>
                         </div>
                     )}
 
-                    {/* Context (non-video, non-grouped content) */}
-                    {!isVideo && !article.type_metadata?.is_grouped && article.analysis?.summary && (
+                    {!isVideo && Boolean(article.analysis?.summary) && (
                         <div>
                             <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">Context</h3>
-                            <p className="text-sm text-text-secondary leading-relaxed">{article.analysis.summary}</p>
+                            <p className="text-sm text-text-secondary leading-relaxed">{article.analysis?.summary}</p>
                         </div>
                     )}
 
-                    {!article.type_metadata?.is_grouped && article.analysis?.entities && article.analysis.entities.length > 0 && (
+                    {article.analysis?.entities && article.analysis.entities.length > 0 && (
                         <div>
                             <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">Entities</h3>
                             <div className="flex flex-wrap gap-1.5">
-                                {article.analysis.entities.map((ent, i) => <span key={i} className="badge badge-sky text-2xs">{ent}</span>)}
+                                {(article.analysis?.entities || []).map((ent, i) => <span key={i} className="badge badge-sky text-2xs">{ent}</span>)}
                             </div>
                         </div>
                     )}
 
-                    {!article.type_metadata?.is_grouped && article.matched_keywords?.length > 0 && (
+                    {article.matched_keywords?.length > 0 && (
                         <div>
                             <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">Keywords</h3>
                             <div className="flex flex-wrap gap-1.5">

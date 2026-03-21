@@ -1,0 +1,44 @@
+[
+  {
+    "id": "610b6bb6-b663-4c87-a5c5-4c9f36a06746",
+    "url": "https://dharitri.com/epaper/2026-03-20/page3/article2",
+    "title": "BJD Crisis Deepens: Internal Dissent After Election Loss — ବିଜେଡ଼ି ଦଳ ଭିତରେ ଅସନ୍ତୋଷ",
+    "type_metadata": {
+      "language": "or",
+      "newspaper": "Dharitri",
+      "fuzzy_score": 87,
+      "page_number": 3,
+      "source_type": "flipbook_intercept",
+      "extracted_by": "newspaper-intel-service"
+    },
+    "published_at": "2026-03-20T16:23:16.868+00:00"
+  },
+  {
+    "id": "e6e554ca-bc01-4a44-916b-626ee79675de",
+    "url": "https://www.thehindu.com/news/national/odisha-budget-2026/article123456.ece",
+    "title": "Odisha Budget 2026: ₹12,000 Cr for Education, ₹8,500 Cr for Health Sector",
+    "type_metadata": {
+      "language": "en",
+      "newspaper": "The Hindu",
+      "fuzzy_score": 95,
+      "page_number": 7,
+      "source_type": "aggregator_pdf",
+      "extracted_by": "newspaper-intel-service"
+    },
+    "published_at": "2026-03-20T16:23:16.868+00:00"
+  },
+  {
+    "id": "afcf79dc-1c43-440e-89f5-1a16db2dd0e9",
+    "url": "https://www.thesamaja.com/epaper/2026-03-20/page1/article1",
+    "title": "ଓଡ଼ିଶା ସରକାର ନୂଆ ଯୋଜନା — Odisha Govt Announces ₹500 Cr Farmer Scheme",
+    "type_metadata": {
+      "language": "or",
+      "newspaper": "Samaja",
+      "fuzzy_score": 92,
+      "page_number": 1,
+      "source_type": "flipbook_intercept",
+      "extracted_by": "newspaper-intel-service"
+    },
+    "published_at": "2026-03-20T16:23:16.867+00:00"
+  }
+]

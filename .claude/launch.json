@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "robin-backend",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--watch", "src/index.js"],
+      "cwd": "robin-backend",
+      "port": 3001
+    },
+    {
+      "name": "robin-frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "robin-frontend",
+      "port": 3000
+    }
+  ]
+}

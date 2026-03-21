@@ -1,0 +1,112 @@
+[
+  {
+    "id": "762bb9cc-c350-4c7f-84ed-bf5c064e157f",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "title": "Real-Time Intelligent State Monitoring System for Odisha",
+    "problem_statement": "The Government of Odisha requires a unified, real-time monitoring system to track the performance of key state programs, infrastructure, and public service delivery.\nCurrent systems are fragmented across departments, leading to data silos, delayed reporting, and limited actionable insights.\nThere is a need for an integrated platform that aggregates multi-source data (IoT, administrative, citizen feedback) into a centralized intelligence layer.\nThe system should enable predictive analytics, anomaly detection, and decision support for faster governance response.\nIt must be scalable, multilingual, and accessible to officials at different administrative levels for efficient and transparent state monitoring.",
+    "industry": "government",
+    "risk_domains": [
+      "operational",
+      "regulatory",
+      "reputational"
+    ],
+    "entities_of_interest": [
+      "Government of Odisha"
+    ],
+    "competitors": [],
+    "geographic_focus": [
+      "Odisha",
+      "India"
+    ],
+    "status": "active",
+    "activated_at": "2026-03-17T13:11:14.837+00:00",
+    "created_by": "ad94c6cf-b62b-4f1f-accd-bb3a9297885f",
+    "created_at": "2026-03-17T13:10:29.798755+00:00",
+    "updated_at": "2026-03-17T13:11:14.912507+00:00",
+    "intake_mode": "describe",
+    "uploaded_document_url": null,
+    "uploaded_document_text": null,
+    "entity_names": [],
+    "follow_up_answers": {},
+    "auto_extracted_sources": [],
+    "include_newspapers": false
+  },
+  {
+    "id": "88a6a746-c3ee-4d26-97a1-cbf3d995c257",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "title": "Chief Minister Mohan Charan Majhi – Public Perception & Governance Monitor",
+    "problem_statement": "Monitor and analyze all media coverage, public sentiment, and political discourse related to Odisha Chief Minister Mohan Charan Majhi. Track his government initiatives, policy announcements, official visits, public appearances, and interactions with central leadership (PM Modi, BJP leadership). Identify emerging narratives around his governance performance, key infrastructure projects (Smart City, industrial corridors, KALIA scheme), opposition criticism from BJD/Congress, and grassroots public reception across Odisha districts. Flag any reputational risks, crisis situations (natural disasters, law & order), or significant shifts in media tone.",
+    "industry": "government",
+    "risk_domains": [
+      "reputational",
+      "geopolitical",
+      "operational"
+    ],
+    "entities_of_interest": [
+      "Odisha Chief Minister Mohan Charan Majhi",
+      "Government of Odisha",
+      "PM Modi",
+      "BJP leadership",
+      "BJD",
+      "Congress"
+    ],
+    "competitors": [
+      "BJD",
+      "Congress"
+    ],
+    "geographic_focus": [
+      "Odisha"
+    ],
+    "status": "replaced",
+    "activated_at": "2026-03-17T10:46:59.999+00:00",
+    "created_by": "ad94c6cf-b62b-4f1f-accd-bb3a9297885f",
+    "created_at": "2026-03-17T10:46:21.517626+00:00",
+    "updated_at": "2026-03-17T13:10:26.169484+00:00",
+    "intake_mode": "describe",
+    "uploaded_document_url": null,
+    "uploaded_document_text": null,
+    "entity_names": [],
+    "follow_up_answers": {},
+    "auto_extracted_sources": [],
+    "include_newspapers": false
+  },
+  {
+    "id": "dd965617-13db-45d6-82d1-cdf9f207ebac",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "title": "Chief Minister Mohan Charan Majhi – Public Perception & Governance Monitor",
+    "problem_statement": "Monitor and analyze all media coverage, public sentiment, and political discourse related to Odisha Chief Minister Mohan Charan Majhi. Track his government initiatives, policy announcements, official visits, public appearances, and interactions with central leadership (PM Modi, BJP leadership). Identify emerging narratives around his governance performance, key infrastructure projects (Smart City, industrial corridors, KALIA scheme), opposition criticism from BJD/Congress, and grassroots public reception across Odisha districts. Flag any reputational risks, crisis situations (natural disasters, law & order), or significant shifts in media tone.",
+    "industry": "government",
+    "risk_domains": [
+      "reputational",
+      "regulatory",
+      "geopolitical"
+    ],
+    "entities_of_interest": [
+      "Odisha Chief Minister Mohan Charan Majhi",
+      "Government of Odisha",
+      "PM Modi",
+      "BJP leadership",
+      "BJD",
+      "Congress"
+    ],
+    "competitors": [
+      "BJD",
+      "Congress"
+    ],
+    "geographic_focus": [
+      "Odisha"
+    ],
+    "status": "replaced",
+    "activated_at": "2026-03-17T09:53:39.402+00:00",
+    "created_by": "ad94c6cf-b62b-4f1f-accd-bb3a9297885f",
+    "created_at": "2026-03-17T09:53:00.391427+00:00",
+    "updated_at": "2026-03-17T10:46:17.199483+00:00",
+    "intake_mode": "describe",
+    "uploaded_document_url": null,
+    "uploaded_document_text": null,
+    "entity_names": [],
+    "follow_up_answers": {},
+    "auto_extracted_sources": [],
+    "include_newspapers": false
+  }
+]
