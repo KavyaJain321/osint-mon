@@ -109,38 +109,66 @@ async function main() {
             // ──────────────────────────────────────────
             
             const thumb = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
-            const randomId = Math.floor(Math.random() * 1000000);
+            console.log(`✅ Passed Filter: "${title}" -> matches [${matchedKws.join(', ')}]`);
+            // ──────────────────────────────────────────
             
-            const saveRes = await saveContent({
-                contentType: 'video',
-                title: `[VIDEO] ${title} [FRESH-${randomId}]`,
-                content: rawDesc || title,
-                url: `https://www.youtube.com/watch?v=${videoId}&fresh=${randomId}`,
-                publishedAt: pubDateStr ? new Date(pubDateStr) : new Date(),
-                sourceId: source.id,
-                clientId: activeBrief.client_id,
-                matchedKeywords: matchedKws, // Only pass the explicitly matched keywords!
-                typeMetadata: {
-                    channel_name: source.name,
-                    image_url: thumb,
-                    processing_status: 'queued',
-                    processing_message: 'Queued for transcription and clip generation',
+            // Check if this video (by URL without fresh param) already exists to avoid duplicates
+            const cleanUrl = `https://www.youtube.com/watch?v=${videoId}`;
+            const { data: existing } = await supabase
+                .from('content_items')
+                .select('id, type_metadata')
+                .eq('url', cleanUrl)
+                .maybeSingle();
+
+            let contentId = existing?.id;
+            let shouldProcess = false;
+
+            if (existing) {
+                const status = existing.type_metadata?.processing_status;
+                if (status !== 'complete') {
+                    console.log(`Video exists but status is "${status}". Re-triggering pipeline...`);
+                    shouldProcess = true;
+                } else {
+                    console.log(`Video already exists and is complete. Skipping.`);
+                    continue;
                 }
-            });
+            } else {
+                // New video - save it
+                const saveRes = await saveContent({
+                    contentType: 'video',
+                    title: `[VIDEO] ${title}`,
+                    content: rawDesc || title,
+                    url: cleanUrl,
+                    publishedAt: pubDateStr ? new Date(pubDateStr) : new Date(),
+                    sourceId: source.id,
+                    clientId: activeBrief.client_id,
+                    matchedKeywords: matchedKws,
+                    typeMetadata: {
+                        channel_name: source.name,
+                        image_url: thumb,
+                        processing_status: 'queued',
+                        processing_message: 'Queued for transcription and clip generation',
+                    }
+                });
+
+                if (saveRes.saved) {
+                    contentId = saveRes.contentId;
+                    shouldProcess = true;
+                    totalSaved++;
+                }
+            }
             
-            if (saveRes.saved) {
-                totalSaved++;
+            if (shouldProcess && contentId) {
                 // Fire pipeline
                 try {
                     const { processVideo } = await import('./src/services/video-processor/pipeline.js');
-                    // Pass ENTIRE kwArray to pipeline so it searches the transcript for ALL tracked keywords
-                    processVideo(videoId, saveRes.contentId, kwArray).catch(e => console.error(e));
+                    processVideo(videoId, contentId, kwArray).catch(e => console.error(`Pipeline error for ${videoId}:`, e.message));
                 } catch(e) {}
             }
         }
     }
     
-    console.log(`\nAd-Hoc Ingest complete. Saved ${totalSaved} highly-relevant videos out of all checked.`);
+    console.log(`\nAd-Hoc Ingest complete. Processed ${totalSaved} new/pending videos.`);
     if (totalSaved > 0) {
         console.log('Video pipeline running in background. Giving it 15 minutes to complete processVideo tasks...');
         setTimeout(() => process.exit(0), 15 * 60 * 1000);
