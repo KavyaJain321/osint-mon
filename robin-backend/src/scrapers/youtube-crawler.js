@@ -7,6 +7,7 @@
 // clip generation → AI summary) automatically for each saved video.
 // ============================================================
 
+import { getYoutubeApiKey, fetchWithYoutubeRotation } from '../lib/youtube.js';
 import { matchArticle } from '../services/keyword-matcher.js';
 import { updateSourceScrapeStatus } from '../services/article-saver.js';
 import { saveContent } from '../services/content-saver.js';
@@ -91,28 +92,24 @@ async function resolveChannelId(url) {
  * Costs 1 quota unit.
  */
 async function fetchChannelVideosAPI(channelId) {
-    const apiKey = process.env.YOUTUBE_API_KEY;
-    if (!apiKey) return null;
+    if (!getYoutubeApiKey()) return null;
 
     // Convert channel ID (UC...) to Uploads playlist ID (UU...)
     const uploadsPlaylistId = channelId.replace(/^UC/, 'UU');
-    const apiUrl = `https://youtube.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${uploadsPlaylistId}&maxResults=${MAX_VIDEOS_API}&key=${apiKey}`;
+    const apiUrl = `https://youtube.googleapis.com/youtube/v3/playlistItems`;
+    const params = {
+        part: 'snippet',
+        playlistId: uploadsPlaylistId,
+        maxResults: String(MAX_VIDEOS_API)
+    };
 
     try {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 15000);
-        const res = await fetch(apiUrl, { signal: controller.signal });
+        const data = await fetchWithYoutubeRotation(apiUrl, params, controller.signal);
         clearTimeout(timeout);
 
-        if (!res.ok) {
-            const errorText = await res.text();
-            log.scraper.warn('YouTube API fetch failed (will fallback)', { channelId, status: res.status, error: errorText });
-            return null; // Signals fallback to RSS
-        }
-
-        const data = await res.json();
         const videos = [];
-
         for (const item of data.items || []) {
             const snippet = item.snippet;
             const videoId = snippet?.resourceId?.videoId;
@@ -241,7 +238,7 @@ async function crawlYoutubeSourceInternal(source, keywords) {
         let sourceMethod = 'rss';
 
         // Attempt API if configured
-        if (process.env.YOUTUBE_API_KEY) {
+        if (getYoutubeApiKey()) {
             const apiVideos = await fetchChannelVideosAPI(channelId);
             if (apiVideos) {
                 videos = apiVideos;

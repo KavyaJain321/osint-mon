@@ -4,6 +4,7 @@
 // Supplements existing channel-based crawler (does NOT replace it)
 // ============================================================
 
+import { getYoutubeApiKey } from '../lib/youtube.js';
 import { matchArticle } from '../services/keyword-matcher.js';
 import { saveContent } from '../services/content-saver.js';
 import { log } from '../lib/logger.js';
@@ -21,8 +22,7 @@ const RECENCY_DAYS = 7;             // only videos from last 7 days
  * @returns {Promise<Object>} { totalFound, totalSaved, errors }
  */
 export async function runYoutubeKeywordSearch(clientKeywordMap) {
-    const apiKey = process.env.YOUTUBE_API_KEY;
-    if (!apiKey) {
+    if (!getYoutubeApiKey()) {
         log.scraper.info('YouTube keyword search skipped — no YOUTUBE_API_KEY');
         return { totalFound: 0, totalSaved: 0, errors: [] };
     }
@@ -36,7 +36,7 @@ export async function runYoutubeKeywordSearch(clientKeywordMap) {
         if (!keywords || keywords.length === 0) continue;
 
         try {
-            const result = await searchForClient(clientId, keywords, apiKey);
+            const result = await searchForClient(clientId, keywords);
             totalFound += result.found;
             totalSaved += result.saved;
             if (result.errors.length > 0) errors.push(...result.errors);
@@ -61,9 +61,8 @@ export async function runYoutubeKeywordSearch(clientKeywordMap) {
  *
  * @param {string} clientId
  * @param {string[]} keywords
- * @param {string} apiKey
  */
-async function searchForClient(clientId, keywords, apiKey) {
+async function searchForClient(clientId, keywords) {
     let found = 0;
     let saved = 0;
     const errors = [];
@@ -84,7 +83,7 @@ async function searchForClient(clientId, keywords, apiKey) {
         if (found >= MAX_VIDEOS_TOTAL) break;
 
         try {
-            const videos = await searchYouTubeAPI(query, apiKey, publishedAfter);
+            const videos = await searchYouTubeAPI(query, publishedAfter);
 
             for (const video of videos) {
                 if (found >= MAX_VIDEOS_TOTAL) break;
@@ -164,36 +163,29 @@ async function searchForClient(clientId, keywords, apiKey) {
  * Call YouTube Data API v3 search endpoint.
  *
  * @param {string} query - Search term
- * @param {string} apiKey
  * @param {string} publishedAfter - ISO date string
  * @returns {Promise<Array>} Videos
  */
-async function searchYouTubeAPI(query, apiKey, publishedAfter) {
-    const params = new URLSearchParams({
+async function searchYouTubeAPI(query, publishedAfter) {
+    const params = {
         part: 'snippet',
         type: 'video',
         maxResults: String(MAX_RESULTS_PER_QUERY),
         order: 'relevance',
         publishedAfter,
-        q: query,
-        key: apiKey,
-    });
+        q: query
+    };
 
-    const url = `https://youtube.googleapis.com/youtube/v3/search?${params}`;
+    const url = `https://youtube.googleapis.com/youtube/v3/search`;
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
 
     try {
-        const res = await fetch(url, { signal: controller.signal });
+        const { fetchWithYoutubeRotation } = await import('../lib/youtube.js');
+        const data = await fetchWithYoutubeRotation(url, params, controller.signal);
         clearTimeout(timeout);
 
-        if (!res.ok) {
-            const errorText = await res.text();
-            throw new Error(`YouTube search API ${res.status}: ${errorText.substring(0, 100)}`);
-        }
-
-        const data = await res.json();
         const videos = [];
 
         for (const item of data.items || []) {
