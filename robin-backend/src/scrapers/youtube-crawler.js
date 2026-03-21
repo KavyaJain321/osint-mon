@@ -328,7 +328,8 @@ async function crawlYoutubeSourceInternal(source, keywords) {
 
                     // Add to sequential queue — videos are processed one at a time
                     // to avoid exhausting Groq API rate limits.
-                    enqueueVideo(video.videoId, saveResult.contentId, matchedKws, video.title);
+                    // Pass ALL brief keywords to maximize clip generation across the full transcript!
+                    enqueueVideo(video.videoId, saveResult.contentId, keywords, video.title);
                 }
             } catch (error) {
                 result.errors.push({ videoId: video.videoId, error: error.message });

@@ -136,7 +136,8 @@ async function searchForClient(clientId, keywords, apiKey) {
                     // Fire-and-forget video processing pipeline
                     try {
                         const { processVideo } = await import('../services/video-processor/pipeline.js');
-                        processVideo(video.videoId, saveResult.contentId, matchedKws)
+                        // Pass ALL tracked keywords to maximize clip generation across the transcript
+                        processVideo(video.videoId, saveResult.contentId, keywords)
                             .catch(err => log.scraper.warn('Video pipeline failed (search)', {
                                 videoId: video.videoId,
                                 error: err.message?.substring(0, 100),
