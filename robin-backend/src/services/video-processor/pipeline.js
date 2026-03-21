@@ -132,17 +132,35 @@ export async function processVideo(videoId, articleId, matchedKeywords) {
         const fullSummary = await summarizeFullVideo(searchText, matchedKeywords);
 
         // Per-clip summaries
-        let clipsWithSummaries = clips;
+        let clipsWithSummaries = [];
         if (clips.length > 0) {
             clipsWithSummaries = await summarizeAllClips(clips, transcript);
+        }
+
+        // AI QUALITY GATE & GENERATION FAILURE CHECK
+        if (clipsWithSummaries.length === 0) {
+            log.ai.info('0 valid clips generated/retained (either generation failed or AI rejected all) — DELETING video', { videoId });
+            await supabase.from('content_items').delete().eq('id', articleId);
+            await supabase.from('articles').delete().eq('id', articleId);
+            return; // Stop processing
         }
 
         await updateProcessingStatus(articleId, 'processing', 'Saving results...');
 
         // ── Step 5: Save to database ────────────────────────
         log.ai.info('💾 [VIDEO PIPELINE] Step 5: Saving results', { videoId });
+        
+        // Strictly filter occurrences to only include those belonging to successfully verified clips
+        let validOccurrences = [];
+        clipsWithSummaries.forEach(clip => {
+            if (clip.occurrences) {
+                clip.occurrences.forEach(occ => validOccurrences.push(occ));
+            }
+        });
+        // Deduplicate in case multiple clips captured the same occurrence (rare but possible)
+        validOccurrences = validOccurrences.filter((v, i, a) => a.findIndex(t => (t.timestamp === v.timestamp && (t.keyword || t.text) === (v.keyword || v.text))) === i);
 
-        await saveTranscript(articleId, transcript, matchedKeywords, keywordOccurrences, fullSummary, {
+        await saveTranscript(articleId, transcript, matchedKeywords, validOccurrences, fullSummary, {
             originalNativeText,
             translatedText: originalNativeText ? searchText : null,
         });

@@ -11,11 +11,12 @@ import { matchArticle } from '../services/keyword-matcher.js';
 import { updateSourceScrapeStatus } from '../services/article-saver.js';
 import { saveContent } from '../services/content-saver.js';
 import { enqueueVideo } from '../services/video-processor/video-queue.js';
+import { translateToEnglish } from '../services/video-processor/translation-service.js';
 import { log } from '../lib/logger.js';
 
-const MAX_VIDEOS_API = 20;        // Fetch pool to search through
-const MAX_VIDEOS_RSS = 15;        // RSS hard limit (YouTube)
-const MAX_VIDEOS_PER_SOURCE = 5;  // Max new videos saved per source per scrape cycle
+const MAX_VIDEOS_API = 25;        // Fetch pool to search through
+const MAX_VIDEOS_RSS = 25;        // RSS hard limit (YouTube)
+const MAX_VIDEOS_PER_SOURCE = 25; // Max new videos saved per source per scrape cycle
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 /**
@@ -280,10 +281,18 @@ async function crawlYoutubeSourceInternal(source, keywords) {
                     continue;
                 }
 
-                // Pre-filter: keyword match on title + description.
-                // The real transcript-based filter runs in the pipeline (which deletes
-                // videos where the keyword doesn't appear in the Whisper transcript).
-                const match = matchArticle({ title: video.title, content: video.description }, keywords);
+                // Pre-filter: Keyword match on title + description
+                // Translate title/desc rapidly so English keywords hit Odia titles!
+                const titleAndDesc = `${video.title} - ${video.description.substring(0, 100)}`;
+                let englishTitleDesc = titleAndDesc;
+                try {
+                    englishTitleDesc = await translateToEnglish(titleAndDesc, 'or');
+                } catch (e) {
+                    // fall back to original
+                }
+                
+                const combinedSearchText = `${titleAndDesc} ${englishTitleDesc}`;
+                const match = matchArticle({ title: video.title, content: combinedSearchText }, keywords);
 
                 if (!match.matched) continue;
 

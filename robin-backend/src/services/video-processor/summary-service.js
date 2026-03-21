@@ -92,7 +92,9 @@ Provide a concise 2-3 sentence summary that explains:
 1. What is being discussed when "${keyword}" is mentioned
 2. The main point or context of this segment
 
-Be factual and concise.`,
+IMPORTANT: If the transcript segment appears to be a jumbled, hallucinated mix of words without making sense, OR if it is impossible to determine any coherent context, OR if the keyword is not actually discussed in a meaningful way, you MUST reply with EXACTLY this string: "IRRELEVANT_GARBAGE". Do not explain why, just output "IRRELEVANT_GARBAGE".
+
+Otherwise, be factual and concise.`,
         },
     ];
 
@@ -132,6 +134,11 @@ export async function summarizeAllClips(clips, transcript) {
         );
 
         const summary = await summarizeClip(segmentText, keyword, clip.start);
+
+        if (summary === 'IRRELEVANT_GARBAGE' || summary.includes('IRRELEVANT_GARBAGE')) {
+            log.ai.info('AI Quality Gate rejected clip', { keyword, start: clip.start });
+            continue; // Skip adding this clip
+        }
 
         results.push({
             ...clip,
