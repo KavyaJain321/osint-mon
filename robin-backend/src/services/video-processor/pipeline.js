@@ -229,15 +229,25 @@ async function saveClips(articleId, clips, keywords) {
     if (!clips || clips.length === 0) return;
 
     try {
-        const rows = clips.map(clip => ({
-            article_id: articleId,
-            keyword: clip.keywords?.[0] || keywords[0] || '',
-            start_time: clip.start,
-            end_time: clip.end,
-            clip_url: clip.clipUrl || '',
-            transcript_segment: clip.transcriptSegment || '',
-            ai_summary: clip.aiSummary || '',
-        }));
+        // Expand merged clips into one DB row per keyword occurrence
+        // This ensures the frontend shows a card for every timestamp hit
+        const rows = [];
+        clips.forEach(clip => {
+            const occurrences = clip.occurrences || [];
+            occurrences.forEach(occ => {
+                rows.push({
+                    article_id: articleId,
+                    keyword: occ.keyword || occ.text || clip.keywords?.[0] || keywords[0] || '',
+                    start_time: clip.start,
+                    end_time: clip.end,
+                    clip_url: clip.clipUrl || '',
+                    transcript_segment: clip.transcriptSegment || '',
+                    ai_summary: clip.aiSummary || '',
+                });
+            });
+        });
+
+        if (rows.length === 0) return;
 
         // Delete existing clips for this article (in case of re-processing)
         await supabase.from('video_clips').delete().eq('article_id', articleId);
