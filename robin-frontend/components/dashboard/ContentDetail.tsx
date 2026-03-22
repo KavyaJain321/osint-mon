@@ -172,7 +172,7 @@ function VideoProcessingPanel({ article }: { article: Article }) {
                     <div className="flex items-center gap-2 mb-2">
                         <div className="relative flex-1">
                             <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
-                            <input className="input pl-8 text-xs w-full" placeholder="Search within this video..."
+                            <input className="input !pl-8 text-xs w-full" placeholder="Search within this video..."
                                 value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                                 onKeyDown={e => e.key === 'Enter' && handleSearch()} />
                         </div>

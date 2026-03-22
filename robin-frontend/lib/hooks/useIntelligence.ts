@@ -39,7 +39,7 @@ export function useArticles(limit = 50) {
 }
 
 /** Unified content feed (articles + videos + PDFs + etc.) */
-export function useContent(limit = 200, type?: string) {
+export function useContent(limit = 1500, type?: string) {
     return useQuery({
         queryKey: ["content", limit, type],
         queryFn: () => contentApi.list(limit, type),

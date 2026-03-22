@@ -122,7 +122,7 @@ export default function EntitiesPage() {
                 <div className="relative flex-1 max-w-xs">
                     <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
                     <input
-                        className="input pl-8"
+                        className="input !pl-8"
                         placeholder="Search entities…"
                         value={search}
                         onChange={e => setSearch(e.target.value)}

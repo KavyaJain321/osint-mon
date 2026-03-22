@@ -161,7 +161,7 @@ export default function ContentFeedPage() {
                 <div className="relative max-w-xs w-48">
                     <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
                     <input
-                        className="input pl-8 text-xs"
+                        className="input !pl-8 text-xs"
                         placeholder="Search content…"
                         value={search}
                         onChange={e => { setSearch(e.target.value); setPage(1); }}
@@ -198,20 +198,17 @@ export default function ContentFeedPage() {
 
             {/* Sort + View Controls */}
             <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-xs">
-                    <span className="text-text-muted mr-1">Sort:</span>
-                    {(["importance", "recency", "sentiment"] as SortOption[]).map(s => (
-                        <button
-                            key={s}
-                            onClick={() => setSortBy(s)}
-                            className={cn(
-                                "px-2 py-0.5 rounded transition-colors capitalize",
-                                sortBy === s ? "bg-overlay text-text-primary font-medium" : "text-text-muted hover:text-text-secondary"
-                            )}
-                        >
-                            {s === "importance" ? "Most Important" : s === "recency" ? "Most Recent" : "Most Negative"}
-                        </button>
-                    ))}
+                <div className="flex items-center gap-2 text-xs">
+                    <span className="text-text-muted font-medium">Sort by:</span>
+                    <select
+                        className="input !py-1 !pl-2 !pr-8 text-xs bg-surface border border-border rounded-md text-text-primary focus:ring-1 focus:ring-accent outline-none cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2210%22%20height%3D%226%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M0%200l5%206%205-6z%22%20fill%3D%22%23888%22%2F%3E%3C%2Fsvg%3E')] bg-[length:10px_6px] bg-[position:right_8px_center] bg-no-repeat"
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value as SortOption)}
+                    >
+                        <option value="recency">Latest First</option>
+                        <option value="importance">Most Important</option>
+                        <option value="sentiment">Most Negative</option>
+                    </select>
                 </div>
                 <div className="flex items-center gap-1 bg-overlay rounded-md p-0.5">
                     <button

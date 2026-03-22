@@ -189,8 +189,8 @@ router.get('/content', async (req, res) => {
         const client = await getTestClient(req);
         if (!client) return res.status(404).json({ error: 'No client found' });
 
-        const { type, limit: rawLimit = '50' } = req.query;
-        const limit = Math.min(parseInt(rawLimit) || 50, 200);
+        const { type, limit: rawLimit = '1000' } = req.query;
+        const limit = Math.min(parseInt(rawLimit) || 1000, 2500);
 
         // CONCURRENT FETCH: Merge both legacy 'articles' and new 'content_items'
         // This ensures the frontend feed doesn't drop legacy items before the DB migration is complete.
