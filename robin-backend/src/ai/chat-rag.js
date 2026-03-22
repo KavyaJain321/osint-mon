@@ -26,7 +26,7 @@ export async function retrieveRelevantArticles(question, clientId) {
             const { data: vectorResults } = await supabase.rpc('match_articles', {
                 query_embedding: JSON.stringify(embedding),
                 p_client_id: clientId,
-                match_threshold: 0.10,
+                match_threshold: 0.35, // BUG FIX #27: 0.10 pulled in irrelevant articles; 0.35 is the practical minimum for meaningful cosine similarity
                 match_count: 20,
             });
 
@@ -234,7 +234,9 @@ async function attemptChat(messages) {
  *   2. If refused: retry with reframed query + analyst framing
  *   3. If still refused: return article summary fallback
  */
-export async function* generateChatResponseStream(question, clientId, clientName) {
+// BUG FIX #4: Added `userId` parameter so chat history is attributed to the
+// actual requesting user instead of the first user found for the client.
+export async function* generateChatResponseStream(question, clientId, clientName, userId = null) {
     // 1. Retrieve relevant articles
     const articles = await retrieveRelevantArticles(question, clientId);
     const clientContext = await getClientContext(clientId);
@@ -245,6 +247,15 @@ export async function* generateChatResponseStream(question, clientId, clientName
     try {
         const messages = buildChatPrompt(question, articles, clientContext, clientName, false);
         const client = getStreamClient();
+
+        // BUG FIX #1: getStreamClient() returns null when all keys are in cooldown.
+        // Calling .chat on null causes an unhandled TypeError crashing the SSE stream.
+        // Fall through to attempt 2 (non-streaming) instead of crashing.
+        if (!client) {
+            log.chat.warn('[CHAT] No Groq client available for streaming (all keys in cooldown), skipping to attempt 2');
+            throw new Error('No Groq client available for streaming');
+        }
+
         const stream = await client.chat.completions.create({
             model: MODELS[0],
             messages,
@@ -266,7 +277,7 @@ export async function* generateChatResponseStream(question, clientId, clientName
         // Check if the streamed response was a refusal
         if (!isGroqRefusal(streamedText)) {
             // Success! Save and return
-            await saveChatHistory(question, fullAnswer, articles, clientId);
+            await saveChatHistory(question, fullAnswer, articles, clientId, userId);
             return;
         }
 
@@ -290,7 +301,7 @@ export async function* generateChatResponseStream(question, clientId, clientName
             fullAnswer = result.text;
             yield fullAnswer;
             log.chat.info('[CHAT] Attempt 2 succeeded with reframed query');
-            await saveChatHistory(question, fullAnswer, articles, clientId);
+            await saveChatHistory(question, fullAnswer, articles, clientId, userId);
             return;
         }
 
@@ -303,36 +314,31 @@ export async function* generateChatResponseStream(question, clientId, clientName
     fullAnswer = buildArticleSummaryFallback(articles, question);
     yield fullAnswer;
     log.chat.info('[CHAT] Using article summary fallback (all LLM attempts refused)');
-    await saveChatHistory(question, fullAnswer, articles, clientId);
+    await saveChatHistory(question, fullAnswer, articles, clientId, userId);
 }
 
 /**
  * Save chat to history (fire-and-forget).
+ * BUG FIX #4: Accept `userId` directly instead of querying for the first user
+ * in the client — previously all chat history was attributed to one arbitrary user.
  */
-async function saveChatHistory(question, answer, articles, clientId) {
+async function saveChatHistory(question, answer, articles, clientId, userId = null) {
     try {
-        const { data: userRow } = await supabase
-            .from('users')
-            .select('id')
-            .eq('client_id', clientId)
-            .limit(1)
-            .single();
-
-        if (userRow) {
-            const { error: saveErr } = await supabase.from('chat_history').insert({
-                user_id: userRow.id,
-                client_id: clientId,
-                question,
-                answer,
-                articles_referenced: articles.map((a) => a.id).filter(Boolean),
-            });
-            if (saveErr) {
-                log.chat.warn('[CHAT] Failed to save history', { error: saveErr.message });
-            } else {
-                log.chat.info('[CHAT] History saved', { question: question.substring(0, 50), answerLen: answer.length });
-            }
+        if (!userId) {
+            log.chat.warn('[CHAT] No userId provided, skipping history save', { clientId });
+            return;
+        }
+        const { error: saveErr } = await supabase.from('chat_history').insert({
+            user_id: userId,
+            client_id: clientId,
+            question,
+            answer,
+            articles_referenced: articles.map((a) => a.id).filter(Boolean),
+        });
+        if (saveErr) {
+            log.chat.warn('[CHAT] Failed to save history', { error: saveErr.message });
         } else {
-            log.chat.warn('[CHAT] No user found for client, skipping history save', { clientId });
+            log.chat.info('[CHAT] History saved', { question: question.substring(0, 50), answerLen: answer.length });
         }
     } catch (error) {
         log.chat.warn('[CHAT] History save error', { error: error.message });

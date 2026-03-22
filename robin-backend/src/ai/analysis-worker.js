@@ -12,7 +12,10 @@ import { log } from '../lib/logger.js';
 const POLL_INTERVAL_MS = 60000;
 const BATCH_SIZE = 2;
 const DELAY_BETWEEN_MS = 2000;
-let analysisCount = 0;
+// BUG FIX #31: Renamed to clarify this is a lifetime (since-startup) counter, not
+// a per-batch counter. The misleading name caused confusion in log output — e.g.
+// "Analyzed [5]" looks like article ID 5. Log now says "total since startup".
+let analysisTotalSinceStartup = 0;
 
 /**
  * Content-type-specific prompt instructions
@@ -102,6 +105,7 @@ async function getAnalysis(article, briefTopic, briefContext, keywords) {
         const rawText = response.choices[0]?.message?.content || '';
         const analysis = parseAnalysisResponse(rawText);
         analysis._method = 'groq';
+        analysis._model = response.model || 'llama-3.3-70b-versatile';
 
         // Enforce non-empty claims
         analysis.claims = normalizeClaims(analysis.claims, analysis.summary);
@@ -202,14 +206,16 @@ export async function analyzeArticle(article) {
 
         // Determine tracking fields
         const analyzerUsed = analysis._method === 'groq' ? 'groq_llm' : 'local_fallback';
-        const modelUsed = analysis._method === 'groq' ? 'llama-3.3-70b-versatile' : 'rule_based_v1';
+        const modelUsed = analysis._method === 'groq' ? (analysis._model || 'llama-3.3-70b-versatile') : 'rule_based_v1';
 
         // Detect if this is a content_item (YouTube, Reddit, etc.) vs a real article
         const isContentItem = article.content_type && article.content_type !== 'article';
 
         // Save to article_analysis (upsert to handle re-runs)
-        // ALWAYS run for all content types since content-saver writes everything to articles.
-        if (true) {
+        // BUG FIX #2: Removed the dead `if (true) { ... } else { ... }` block.
+        // The else branch was unreachable. We always write article_analysis because
+        // content-saver writes all content types (videos, Reddit, PDFs) to `articles`.
+        {
             const baseData = {
                 article_id: article.id,
                 summary: analysis.summary,
@@ -239,11 +245,6 @@ export async function analyzeArticle(article) {
             }
 
             if (analysisError) throw analysisError;
-        } else {
-            log.ai.debug('[ANALYSIS] Skipping article_analysis for content_item', {
-                id: article.id,
-                type: article.content_type,
-            });
         }
 
         // Save entities to entity_mentions (filter out the client org name to avoid contamination)
@@ -307,8 +308,8 @@ export async function analyzeArticle(article) {
                 .eq('id', article.id);
         } catch { /* content_items may not exist */ }
 
-        analysisCount++;
-        log.ai.info(`✅ Analyzed [${analysisCount}] via ${analyzerUsed} (${modelUsed})`, {
+        analysisTotalSinceStartup++;
+        log.ai.info(`Analysis complete (total since startup: ${analysisTotalSinceStartup}) via ${analyzerUsed} (${modelUsed})`, {
             title: (article.title || '').substring(0, 50),
             sentiment: analysis.sentiment,
             score: analysis.importance_score,
@@ -340,7 +341,7 @@ export async function analyzeArticle(article) {
  * Start the continuous analysis worker loop.
  */
 export function startAnalysisWorker() {
-    log.ai.info('Analysis worker started (polling every 30s)');
+    log.ai.info(`Analysis worker started (polling every ${POLL_INTERVAL_MS / 1000}s)`);
 
     async function poll() {
         try {

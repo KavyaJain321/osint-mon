@@ -13,9 +13,12 @@ import { log } from '../lib/logger.js';
 const router = Router();
 router.use(authenticate);
 
+// BUG FIX #7: Changed 'ANALYST' → 'USER' to match the roles used by roleCheck.js
+// and the rest of the system. 'ANALYST' was not a valid role anywhere else, so
+// users invited with that role would fail role checks and be essentially locked out.
 const InviteSchema = z.object({
     email: z.string().email(),
-    role: z.enum(['ADMIN', 'ANALYST']).default('ANALYST'),
+    role: z.enum(['ADMIN', 'USER']).default('USER'),
 });
 
 // GET /me — Current user profile
@@ -69,8 +72,9 @@ router.patch('/:id/role', requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) 
         }
 
         const { role } = req.body;
-        if (!['ADMIN', 'ANALYST'].includes(role)) {
-            return res.status(400).json({ error: 'Invalid role. Must be ADMIN or ANALYST.' });
+        // BUG FIX #7: Align role validation with the system's actual role set.
+        if (!['ADMIN', 'USER'].includes(role)) {
+            return res.status(400).json({ error: 'Invalid role. Must be ADMIN or USER.' });
         }
 
         const { data, error } = await supabase
@@ -96,7 +100,13 @@ router.delete('/:id', requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
             return res.status(400).json({ error: 'Cannot delete yourself' });
         }
 
-        const { error } = await supabase.from('users').delete().eq('id', req.params.id).eq('client_id', req.user.clientId);
+        // BUG FIX #29: SUPER_ADMIN has no clientId (null), so filtering by client_id
+        // silently matched 0 rows and returned success without deleting anything.
+        let query = supabase.from('users').delete().eq('id', req.params.id);
+        if (req.user.role !== 'SUPER_ADMIN') {
+            query = query.eq('client_id', req.user.clientId);
+        }
+        const { error } = await query;
         if (error) throw error;
         res.json({ message: 'User removed' });
     } catch (error) {

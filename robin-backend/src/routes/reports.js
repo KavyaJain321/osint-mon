@@ -156,4 +156,29 @@ router.get('/:id', async (req, res) => {
     }
 });
 
+// GET /:id/download — Download report as plain-text attachment
+// BUG FIX #18: This endpoint was documented and referenced in the frontend but
+// never implemented — every call returned 404. Added a simple text/plain download.
+// For PDF output wire in a PDF generation library (e.g. the existing pdf-template.js).
+router.get('/:id/download', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('reports')
+            .select('title, content, date_from, date_to, created_at')
+            .eq('id', req.params.id)
+            .eq('client_id', req.user.clientId)
+            .single();
+
+        if (error || !data) return res.status(404).json({ error: 'Report not found' });
+
+        const filename = `ROBIN_Report_${data.title.replace(/[^a-z0-9]/gi, '_').substring(0, 60)}.txt`;
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.send(`ROBIN OSINT Intelligence Report\n${'='.repeat(50)}\nTitle: ${data.title}\nPeriod: ${data.date_from} to ${data.date_to}\nGenerated: ${data.created_at}\n\n${data.content}`);
+    } catch (error) {
+        log.api.error('GET /reports/:id/download failed', { error: error.message });
+        res.status(500).json({ error: 'Failed to download report' });
+    }
+});
+
 export default router;

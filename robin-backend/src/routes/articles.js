@@ -14,6 +14,11 @@ const router = Router();
 router.use(authenticate);
 
 // GET / — Paginated article feed with filters
+// BUG FIX #8: sentiment and min_score filters were previously applied in JavaScript
+// AFTER fetching a page from the DB. This made the pagination `total` and
+// `total_pages` values reflect the UNFILTERED DB count, not the filtered count.
+// Fix: when sentiment/min_score are requested, join article_analysis in the DB
+// query so the count and pagination are always accurate.
 router.get('/', async (req, res) => {
     try {
         const clientId = req.user.role === 'SUPER_ADMIN' ? req.query.clientId || null : req.user.clientId;
@@ -21,50 +26,75 @@ router.get('/', async (req, res) => {
         const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
         const offset = (page - 1) * limit;
 
-        let query = supabase
-            .from('articles')
-            .select('id, title, url, published_at, matched_keywords, is_tagged, analysis_status, source_id, client_id, created_at', { count: 'exact' });
+        const hasSentimentFilter = !!req.query.sentiment;
+        const hasScoreFilter = !!req.query.min_score;
 
-        if (clientId) query = query.eq('client_id', clientId);
-        if (req.query.source_id) query = query.eq('source_id', req.query.source_id);
-        if (req.query.from_date) query = query.gte('published_at', req.query.from_date);
-        if (req.query.to_date) query = query.lte('published_at', req.query.to_date);
-        if (req.query.tagged_only === 'true') query = query.eq('is_tagged', true);
-        if (req.query.keyword) query = query.contains('matched_keywords', [req.query.keyword]);
+        let articles, count;
 
-        query = query.order('published_at', { ascending: false }).range(offset, offset + limit - 1);
+        if (hasSentimentFilter || hasScoreFilter) {
+            // Join with article_analysis so filters hit the DB and count is correct
+            let query = supabase
+                .from('articles')
+                .select(
+                    'id, title, url, published_at, matched_keywords, is_tagged, analysis_status, source_id, client_id, created_at, article_analysis!inner(article_id, summary, sentiment, importance_score, importance_reason, narrative_frame, entities)',
+                    { count: 'exact' }
+                );
 
-        const { data: articles, error, count } = await query;
-        if (error) throw error;
+            if (clientId) query = query.eq('client_id', clientId);
+            if (req.query.source_id) query = query.eq('source_id', req.query.source_id);
+            if (req.query.from_date) query = query.gte('published_at', req.query.from_date);
+            if (req.query.to_date) query = query.lte('published_at', req.query.to_date);
+            if (req.query.tagged_only === 'true') query = query.eq('is_tagged', true);
+            if (req.query.keyword) query = query.contains('matched_keywords', [req.query.keyword]);
+            if (hasSentimentFilter) query = query.eq('article_analysis.sentiment', req.query.sentiment);
+            if (hasScoreFilter) query = query.gte('article_analysis.importance_score', parseInt(req.query.min_score));
 
-        // Fetch analysis for each article
-        const articleIds = articles.map((a) => a.id);
-        const { data: analyses } = await supabase
-            .from('article_analysis')
-            .select('article_id, summary, sentiment, importance_score, importance_reason, narrative_frame, entities')
-            .in('article_id', articleIds);
+            query = query.order('published_at', { ascending: false }).range(offset, offset + limit - 1);
 
-        const analysisMap = {};
-        for (const a of (analyses || [])) {
-            analysisMap[a.article_id] = a;
-        }
+            const { data, error, count: c } = await query;
+            if (error) throw error;
 
-        // Filter by sentiment or min_score if needed
-        let enriched = articles.map((article) => ({
-            ...article,
-            analysis: analysisMap[article.id] || null,
-        }));
+            // Flatten the joined analysis back into the article object
+            articles = (data || []).map(a => {
+                const { article_analysis, ...rest } = a;
+                return { ...rest, analysis: Array.isArray(article_analysis) ? article_analysis[0] : article_analysis };
+            });
+            count = c;
+        } else {
+            // No analysis filters — standard query, then attach analysis separately
+            let query = supabase
+                .from('articles')
+                .select('id, title, url, published_at, matched_keywords, is_tagged, analysis_status, source_id, client_id, created_at', { count: 'exact' });
 
-        if (req.query.sentiment) {
-            enriched = enriched.filter((a) => a.analysis?.sentiment === req.query.sentiment);
-        }
-        if (req.query.min_score) {
-            const minScore = parseInt(req.query.min_score);
-            enriched = enriched.filter((a) => (a.analysis?.importance_score || 0) >= minScore);
+            if (clientId) query = query.eq('client_id', clientId);
+            if (req.query.source_id) query = query.eq('source_id', req.query.source_id);
+            if (req.query.from_date) query = query.gte('published_at', req.query.from_date);
+            if (req.query.to_date) query = query.lte('published_at', req.query.to_date);
+            if (req.query.tagged_only === 'true') query = query.eq('is_tagged', true);
+            if (req.query.keyword) query = query.contains('matched_keywords', [req.query.keyword]);
+
+            query = query.order('published_at', { ascending: false }).range(offset, offset + limit - 1);
+
+            const { data, error, count: c } = await query;
+            if (error) throw error;
+
+            const articleIds = (data || []).map(a => a.id);
+            const { data: analyses } = articleIds.length > 0
+                ? await supabase
+                    .from('article_analysis')
+                    .select('article_id, summary, sentiment, importance_score, importance_reason, narrative_frame, entities')
+                    .in('article_id', articleIds)
+                : { data: [] };
+
+            const analysisMap = {};
+            for (const a of (analyses || [])) analysisMap[a.article_id] = a;
+
+            articles = (data || []).map(article => ({ ...article, analysis: analysisMap[article.id] || null }));
+            count = c;
         }
 
         res.json({
-            data: enriched,
+            data: articles,
             pagination: { total: count, page, limit, total_pages: Math.ceil((count || 0) / limit) },
         });
     } catch (error) {
@@ -101,6 +131,9 @@ router.get('/:id', async (req, res) => {
 });
 
 // PATCH /:id/tag — Toggle tagged status
+// BUG FIX #13: SUPER_ADMIN has no clientId (or a different one), so filtering
+// .eq('client_id', req.user.clientId) silently matched 0 rows for them.
+// Now SUPER_ADMIN can tag any article; regular users are scoped to their client.
 router.patch('/:id/tag', async (req, res) => {
     try {
         const { is_tagged } = req.body;
@@ -108,15 +141,19 @@ router.patch('/:id/tag', async (req, res) => {
             return res.status(400).json({ error: 'is_tagged must be a boolean' });
         }
 
-        const { data, error } = await supabase
+        let query = supabase
             .from('articles')
             .update({ is_tagged })
-            .eq('id', req.params.id)
-            .eq('client_id', req.user.clientId)
-            .select('id, is_tagged')
-            .single();
+            .eq('id', req.params.id);
 
+        // Scope to user's client unless SUPER_ADMIN
+        if (req.user.role !== 'SUPER_ADMIN') {
+            query = query.eq('client_id', req.user.clientId);
+        }
+
+        const { data, error } = await query.select('id, is_tagged').single();
         if (error) throw error;
+        if (!data) return res.status(404).json({ error: 'Article not found or access denied' });
         res.json(data);
     } catch (error) {
         log.api.error('PATCH /articles/:id/tag failed', { error: error.message });

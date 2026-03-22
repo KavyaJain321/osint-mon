@@ -43,8 +43,9 @@ router.post('/', async (req, res) => {
         let aborted = false;
         req.on('close', () => { aborted = true; });
 
-        // Stream response
-        const stream = generateChatResponseStream(parsed.data.question, req.user.clientId, clientName);
+        // Stream response — BUG FIX #4: pass req.user.id so chat history is stored
+        // against the actual requesting user, not the first user found for the client.
+        const stream = generateChatResponseStream(parsed.data.question, req.user.clientId, clientName, req.user.id);
 
         for await (const token of stream) {
             if (aborted) break;

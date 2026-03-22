@@ -135,6 +135,23 @@ async function pickAndProcess() {
                 videoId,
                 error: err.message?.substring(0, 200),
             });
+
+            // BUG FIX #6: On pipeline failure the status previously remained
+            // 'processing' forever — the poller only picks up 'queued' items,
+            // so the video was silently stuck and never retried or surfaced.
+            // Explicitly mark it 'failed' so operators can see and retry it.
+            try {
+                await supabase.from('content_items').update({
+                    type_metadata: {
+                        ...video.type_metadata,
+                        processing_status: 'failed',
+                        processing_message: err.message?.substring(0, 300) || 'Unknown pipeline error',
+                        processing_updated_at: new Date().toISOString(),
+                    },
+                }).eq('id', video.id);
+            } catch (updateErr) {
+                log.ai.error('DB queue: could not mark video as failed', { videoId, error: updateErr.message });
+            }
         }
 
         // Brief cooldown so Groq rate-limit window can recover

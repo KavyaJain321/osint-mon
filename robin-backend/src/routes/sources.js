@@ -12,10 +12,13 @@ import { log } from '../lib/logger.js';
 const router = Router();
 router.use(authenticate);
 
+// BUG FIX #17: Added missing source types. The old schema only allowed 'rss', 'html',
+// 'browser' — rejecting 'pdf', 'youtube', 'google_news', 'reddit', 'newspaper' with
+// a 400 error even though the scraper supports all of them.
 const SourceSchema = z.object({
     name: z.string().min(1).max(200),
     url: z.string().url(),
-    source_type: z.enum(['rss', 'html', 'browser']).default('rss'),
+    source_type: z.enum(['rss', 'html', 'browser', 'pdf', 'youtube', 'google_news', 'reddit', 'newspaper']).default('rss'),
 });
 
 // GET / — List sources for this client

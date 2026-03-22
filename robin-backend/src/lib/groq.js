@@ -40,10 +40,13 @@ function getClientIndex(model) {
     return -1;
 }
 
+// BUG FIX #36: Return { client, idx } so callers can log the ACTUAL failing key index.
+// Previously returned only the client; the error log used the module-level currentKeyIndex
+// which could be stale in concurrent async calls, showing the wrong key.
 function getClient(model) {
     const idx = getClientIndex(model);
-    if (idx === -1) return null;
-    return clients[idx];
+    if (idx === -1) return { client: null, idx: -1 };
+    return { client: clients[idx], idx };
 }
 
 function rotateKey(model, reason, isRateLimited = false) {
@@ -77,7 +80,7 @@ export async function groqChat(messages, options = {}) {
     for (const model of MODELS) {
         // Try each key for this model
         for (let attempt = 0; attempt < clients.length; attempt++) {
-            const client = getClient(model);
+            const { client, idx: usedIdx } = getClient(model);
             if (!client) {
                 // All keys are currently in cooldown FOR THIS MODEL
                 errors.push(`[all_keys_cooldown] Skipping model ${model} temporarily`);
@@ -96,7 +99,8 @@ export async function groqChat(messages, options = {}) {
             } catch (error) {
                 const status = error.status || error.statusCode || 0;
                 const msg = error.message || '';
-                errors.push(`[key${currentKeyIndex}/${model}] ${status}: ${msg.substring(0, 80)}`);
+                // BUG FIX #36: Log usedIdx (captured before rotation) not currentKeyIndex
+                errors.push(`[key${usedIdx}/${model}] ${status}: ${msg.substring(0, 80)}`);
 
                 // Rotate key on rate limit (429), auth (401), or payload size (413) 
                 if (status === 429 || status === 401 || status === 413 || status >= 500) {
@@ -149,7 +153,7 @@ export async function groqEmbed(text) {
  * Get the current Groq client for streaming (with rotation support).
  */
 export function getStreamClient(model = ANALYSIS_MODEL) {
-    return getClient(model);
+    return getClient(model).client;
 }
 
 export { MODELS };

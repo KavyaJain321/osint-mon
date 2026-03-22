@@ -10,10 +10,72 @@ import { authenticate } from '../middleware/auth.js';
 import { requireRole } from '../middleware/roleCheck.js';
 import { runScraperCycle } from '../scrapers/orchestrator.js';
 
+// ── System Health ───────────────────────────────────────────
+
+// GET /api/admin/system-health — overall platform health
+// BUG FIX #19: Moved here from index.js so it lives inside the admin router
+// and only runs authenticate + requireRole once (the router-level middleware).
+async function systemHealthHandler(req, res) {
+    try {
+        const oneHourAgo = new Date(Date.now() - 3600000).toISOString();
+        const dayAgo = new Date(Date.now() - 86400000).toISOString();
+
+        const [lockRes, srcRes, a24hRes, totalRes, pendingRes, failRes, completeRes, clientsRes] = await Promise.all([
+            supabase.from('system_state').select('value, updated_at').eq('key', 'scraper_running').single(),
+            supabase.from('sources').select('id', { count: 'exact', head: true }).eq('is_active', true),
+            supabase.from('articles').select('id', { count: 'exact', head: true }).gte('created_at', dayAgo),
+            supabase.from('articles').select('id', { count: 'exact', head: true }),
+            supabase.from('articles').select('id', { count: 'exact', head: true }).eq('analysis_status', 'pending').lt('created_at', oneHourAgo),
+            supabase.from('articles').select('id', { count: 'exact', head: true }).eq('analysis_status', 'failed').gte('created_at', dayAgo),
+            supabase.from('articles').select('id', { count: 'exact', head: true }).eq('analysis_status', 'complete').gte('created_at', dayAgo),
+            supabase.from('clients').select('id', { count: 'exact', head: true }),
+        ]);
+
+        const complete = completeRes.count || 0;
+        const failed = failRes.count || 0;
+        const completion = (complete + failed) > 0 ? Math.round(complete / (complete + failed) * 100) : 100;
+        const pending = pendingRes.count || 0;
+        const articles24h = a24hRes.count || 0;
+        const sources = srcRes.count || 0;
+
+        const status = (pending > 100 || (sources > 0 && articles24h === 0))
+            ? 'critical'
+            : (pending > 20 || completion < 90)
+                ? 'degraded'
+                : 'healthy';
+
+        res.json({
+            status,
+            checked_at: new Date().toISOString(),
+            scraper: {
+                last_run: lockRes.data?.updated_at || null,
+                is_locked: lockRes.data?.value === 'true',
+                sources_total: sources,
+                articles_last_24h: articles24h,
+            },
+            ai_pipeline: {
+                pending_articles: pending,
+                failed_articles_24h: failed,
+                completion_rate_pct: completion,
+            },
+            database: {
+                total_articles: totalRes.count || 0,
+                total_clients: clientsRes.count || 0,
+            },
+        });
+    } catch (err) {
+        log.system.error('System health check failed', { error: err.message });
+        res.status(500).json({ error: 'Health check failed' });
+    }
+}
+
 const router = Router();
 
 // All admin routes require SUPER_ADMIN
 router.use(authenticate, requireRole('SUPER_ADMIN'));
+
+// Register the system-health handler (defined above)
+router.get('/system-health', systemHealthHandler);
 
 // ── Clients ────────────────────────────────────────────────
 
@@ -204,15 +266,27 @@ router.post('/briefs/:id/activate', async (req, res) => {
 // ── Source Quality ─────────────────────────────────────────
 
 // GET /api/admin/source-quality — ranked source reliability scores
+// BUG FIX #5: The `source_reliability` table does not exist in the schema.
+// Replaced with a query against the actual `sources` table, computing a
+// simple reliability ratio from existing scrape_success_count / scrape_fail_count.
 router.get('/source-quality', async (req, res) => {
     try {
         const { data, error } = await supabase
-            .from('source_reliability')
-            .select('*, sources!inner(name, url, source_type, client_id, is_active)')
-            .order('reliability_score', { ascending: false });
+            .from('sources')
+            .select('id, name, url, source_type, client_id, is_active, last_scraped_at, scrape_success_count, scrape_fail_count, last_scrape_error')
+            .order('scrape_success_count', { ascending: false });
 
         if (error) throw error;
-        res.json({ data: data || [] });
+
+        const enriched = (data || []).map(s => {
+            const total = (s.scrape_success_count || 0) + (s.scrape_fail_count || 0);
+            const reliability_score = total > 0
+                ? Math.round((s.scrape_success_count / total) * 100)
+                : null;
+            return { ...s, reliability_score, total_scrapes: total };
+        });
+
+        res.json({ data: enriched });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -221,10 +295,14 @@ router.get('/source-quality', async (req, res) => {
 // ── Manual Scraper Trigger ─────────────────────────────────
 
 // POST /api/admin/scrape/:clientId — manual trigger for specific client
+// BUG FIX #11: Previously the clientId URL param was echoed back but completely
+// ignored — runScraperCycle() ran for ALL clients. Now it is forwarded so the
+// orchestrator can filter sources to only the requested client.
 router.post('/scrape/:clientId', async (req, res) => {
     try {
-        res.json({ message: 'Scraper triggered', client_id: req.params.clientId });
-        runScraperCycle().catch(e => log.scraper.error('Admin-triggered scrape failed', { error: e.message }));
+        const { clientId } = req.params;
+        res.json({ message: 'Scraper triggered', client_id: clientId });
+        runScraperCycle(clientId).catch(e => log.scraper.error('Admin-triggered scrape failed', { clientId, error: e.message }));
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

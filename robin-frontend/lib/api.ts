@@ -143,26 +143,45 @@ export const analyticsApi = {
     /** Returns { client, sentiment: { positive, negative, neutral, total, *_pct }, avg_importance } */
     sentiment: () => testApi.analytics(),
 
-    /** Returns velocity array from scraper status */
+    /** Returns velocity array from scraper status
+     * BUG FIX #15: `data` was always returned as a hardcoded empty array `[]`,
+     * so no velocity chart ever had data. Now builds a real single-point array
+     * from the scraper-status response so components have something to render.
+     * For true historical velocity, wire this to /api/analytics/volume.
+     */
     velocity: (_days = 14) => testApi.scraperStatus().then(d => {
-        // Map scraper-status into a velocity-compatible format
-        const data = d as Record<string, unknown>;
+        const scraperData = d as Record<string, unknown>;
+        const today = new Date().toISOString().split('T')[0];
+        const point = {
+            date: today,
+            article_count: (scraperData.articles_last_24h as number) || 0,
+        };
         return {
-            data: [] as Array<{ date: string; article_count: number }>,
-            articles_last_24h: data.articles_last_24h,
-            total: data.total_articles,
+            data: [point] as Array<{ date: string; article_count: number }>,
+            articles_last_24h: scraperData.articles_last_24h,
+            total: scraperData.total_articles,
         };
     }),
 };
 
 // Shared cache — deduplicates parallel calls within 30s window
+// BUG FIX #35: Previously used .finally() which cached rejected promises too.
+// A failed request would block retries for 30s. Now only successful responses
+// are cached; rejections clear the cache immediately so the next call retries.
 let _intellCache: Promise<unknown> | null = null;
 
 function getCachedIntelligence(): Promise<unknown> {
     if (!_intellCache) {
-        _intellCache = testApi.intelligence().finally(() => {
-            setTimeout(() => { _intellCache = null; }, 30000);
-        });
+        _intellCache = testApi.intelligence().then(
+            (result) => {
+                setTimeout(() => { _intellCache = null; }, 30000);
+                return result;
+            },
+            (err) => {
+                _intellCache = null;
+                throw err;
+            }
+        );
     }
     return _intellCache;
 }
@@ -228,10 +247,13 @@ export const adminApi = {
         apiFetch(`/api/admin/scrape/${clientId}`, { method: "POST" }),
 };
 
-/** Chat */
+/** Chat
+ * BUG FIX #14: Was calling /api/test/chat (no authentication required).
+ * Now correctly calls /api/chat which enforces Bearer token auth.
+ */
 export const chatApi = {
     send: (body: { message: string }) =>
-        apiFetch(`/api/test/chat`, {
+        apiFetch(`/api/chat`, {
             method: "POST",
             body: JSON.stringify({ question: body.message }),
         }),

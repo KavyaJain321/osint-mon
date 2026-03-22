@@ -7,6 +7,7 @@
 import express from 'express';
 import { supabase } from '../lib/supabase.js';
 import { log } from '../lib/logger.js';
+import { config } from '../config.js';
 
 const router = express.Router();
 
@@ -79,8 +80,10 @@ router.post('/reset-password', async (req, res) => {
 
     try {
         // Supabase sends the reset email automatically
+        // BUG FIX #28: Use config.frontendUrl (validated at startup) instead of
+        // process.env.FRONTEND_URL directly, which bypasses startup validation.
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/update-password`,
+            redirectTo: `${config.frontendUrl}/auth/update-password`,
         });
 
         if (error) {

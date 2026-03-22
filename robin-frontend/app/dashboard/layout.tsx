@@ -14,12 +14,28 @@ export default function DashboardLayout({
     const [checked, setChecked] = useState(false);
 
     useEffect(() => {
+        // BUG FIX #33: Previously only checked token presence, not validity.
+        // An expired token would let the user into the dashboard then fail all API calls.
+        // Now we decode the JWT exp claim locally (no network call) and redirect if expired.
         const token = localStorage.getItem("robin_token");
         if (!token) {
             router.replace("/auth/login");
-        } else {
-            setChecked(true);
+            return;
         }
+        try {
+            const payload = JSON.parse(atob(token.split(".")[1]));
+            if (payload.exp && payload.exp * 1000 < Date.now()) {
+                localStorage.removeItem("robin_token");
+                router.replace("/auth/login");
+                return;
+            }
+        } catch {
+            // Malformed token — treat as unauthenticated
+            localStorage.removeItem("robin_token");
+            router.replace("/auth/login");
+            return;
+        }
+        setChecked(true);
     }, [router]);
 
     // Don't render dashboard until auth is verified

@@ -86,13 +86,20 @@ if (!config.isProduction) {
     app.get('/test-dashboard.html', (_req, res) => res.sendFile(path.join(__dirname, '..', 'test-dashboard.html')));
 }
 
-// ── Dev-test API routes (serve frontend data — always mounted) ──
+// ── Dev-test API routes ──────────────────────────────────────
+// BUG FIX #16: These routes were always mounted without authentication, even in
+// production, exposing articles, intelligence signals, and chat to anyone.
+// In production, gate them behind the standard JWT auth middleware.
 {
     const { default: devTestRouter } = await import('./routes/dev-test.js');
-    app.use('/api/test', devTestRouter);
-    log.system.info('Dev-test routes mounted at /api/test');
     if (config.isProduction) {
-        log.system.warn('WARNING: Dev-test routes mounted in production — migrate to authenticated routes');
+        log.system.warn('Dev-test routes are production-gated behind JWT authentication.');
+        // Apply auth to the entire /api/test prefix in production
+        app.use('/api/test', authenticate, devTestRouter);
+    } else {
+        // In development: mount without auth for convenience
+        app.use('/api/test', devTestRouter);
+        log.system.info('Dev-test routes mounted at /api/test (no auth — dev mode)');
     }
 }
 
@@ -118,59 +125,16 @@ app.use('/api/reports', reportsRouter);
 app.use('/api/briefs', briefRouter);   // Phase 1: problem intake pipeline
 app.use('/api/admin', adminRouter);   // Phase 1: SUPER_ADMIN console
 
-// ── System Health (SUPER_ADMIN) ──────────────────────────────
-app.get('/api/admin/system-health', authenticate, requireRole('SUPER_ADMIN'), async (req, res) => {
-    try {
-        const oneHourAgo = new Date(Date.now() - 3600000).toISOString();
-        const dayAgo = new Date(Date.now() - 86400000).toISOString();
+// BUG FIX #19: Removed the duplicate /api/admin/system-health definition that
+// lived here in index.js. It was applying authenticate + requireRole a SECOND
+// time after the admin router had already run them. The endpoint now lives
+// exclusively in src/routes/admin.js where it belongs.
 
-        const [lockRes, srcRes, a24hRes, totalRes, pendingRes, failRes, completeRes, clientsRes] = await Promise.all([
-            supabase.from('system_state').select('value, updated_at').eq('key', 'scraper_running').single(),
-            supabase.from('sources').select('id', { count: 'exact', head: true }).eq('is_active', true),
-            supabase.from('articles').select('id', { count: 'exact', head: true }).gte('created_at', dayAgo),
-            supabase.from('articles').select('id', { count: 'exact', head: true }),
-            supabase.from('articles').select('id', { count: 'exact', head: true }).eq('analysis_status', 'pending').lt('created_at', oneHourAgo),
-            supabase.from('articles').select('id', { count: 'exact', head: true }).eq('analysis_status', 'failed').gte('created_at', dayAgo),
-            supabase.from('articles').select('id', { count: 'exact', head: true }).eq('analysis_status', 'complete').gte('created_at', dayAgo),
-            supabase.from('clients').select('id', { count: 'exact', head: true }),
-        ]);
-
-        const complete = completeRes.count || 0;
-        const failed = failRes.count || 0;
-        const completion = (complete + failed) > 0 ? Math.round(complete / (complete + failed) * 100) : 100;
-        const pending = pendingRes.count || 0;
-        const articles24h = a24hRes.count || 0;
-        const sources = srcRes.count || 0;
-
-        const status = (pending > 100 || (sources > 0 && articles24h === 0))
-            ? 'critical'
-            : (pending > 20 || completion < 90)
-                ? 'degraded'
-                : 'healthy';
-
-        res.json({
-            status,
-            checked_at: new Date().toISOString(),
-            scraper: {
-                last_run: lockRes.data?.updated_at || null,
-                is_locked: lockRes.data?.value === 'true',
-                sources_total: sources,
-                articles_last_24h: articles24h,
-            },
-            ai_pipeline: {
-                pending_articles: pending,
-                failed_articles_24h: failed,
-                completion_rate_pct: completion,
-            },
-            database: {
-                total_articles: totalRes.count || 0,
-                total_clients: clientsRes.count || 0,
-            },
-        });
-    } catch (err) {
-        log.system.error('System health check failed', { error: err.message });
-        res.status(500).json({ error: 'Health check failed' });
-    }
+// ── 404 Handler ──────────────────────────────────────────────
+// BUG FIX #37: No 404 handler existed — unmatched routes fell through to the
+// error handler and returned a generic 500. Now returns a proper 404 JSON response.
+app.use((_req, res) => {
+    res.status(404).json({ error: 'Not found' });
 });
 
 // ── Global Error Handler ─────────────────────────────────────

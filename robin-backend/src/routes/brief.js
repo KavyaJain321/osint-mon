@@ -128,7 +128,10 @@ router.post('/', async (req, res) => {
         log.system.info('Preserved pre-seeded sources for re-insertion', { clientId, count: savedSources.length });
 
         // Step 2: Delete remaining data in parallel (no FK conflicts)
-        await Promise.all([
+        // BUG FIX #34: These deletes are not wrapped in a DB transaction (Supabase JS client
+        // doesn't expose transactions directly). Check each result and abort on failure to
+        // avoid leaving the client in a partially-wiped state.
+        const deleteResults = await Promise.all([
             admin.from('articles').delete().eq('client_id', clientId),
             admin.from('intelligence_signals').delete().eq('client_id', clientId),
             admin.from('entity_profiles').delete().eq('client_id', clientId),
@@ -138,6 +141,11 @@ router.post('/', async (req, res) => {
             admin.from('sources').delete().eq('client_id', clientId),
             admin.from('watch_expressions').delete().eq('client_id', clientId),
         ]);
+        const deleteError = deleteResults.find(r => r.error)?.error;
+        if (deleteError) {
+            log.system.error('Stale data cleanup partially failed — client data may be inconsistent', { clientId, error: deleteError.message });
+            throw deleteError;
+        }
 
         // ── Re-insert pre-seeded sources ──────────────────────────
         if (savedSources.length > 0) {
@@ -190,7 +198,9 @@ router.post('/', async (req, res) => {
 });
 
 // ── Background AI processing ───────────────────────────────
-async function processBriefAsync(briefId, problemStatement, client) {
+// BUG FIX #3: Added the missing `includeNewspapers` parameter that was being
+// passed by the caller (line 181) but silently dropped by the 3-param signature.
+async function processBriefAsync(briefId, problemStatement, client, includeNewspapers = false) {
     log.ai.info('Brief AI processing started', { briefId });
     const db = mkAdmin(); // fresh admin client per background task
 
@@ -203,7 +213,7 @@ async function processBriefAsync(briefId, problemStatement, client) {
 
     // Discover sources using AI + curated database
     await updatePipelineStage('sources', `Generated ${keywords.length} keywords. Discovering sources...`, { keywords: keywords.length });
-    const aiSources = await discoverSourcesForBrief(context);
+    const aiSources = await discoverSourcesForBrief(context, { includeNewspapers });
 
     // Match curated sources from the media_outlets database
     let curatedSources = [];
@@ -400,7 +410,9 @@ router.get('/:id', async (req, res) => {
 // ── POST /api/briefs/:id/push — activate/push brief sources ──
 // Marks the brief as active, copies recommended sources into the sources table,
 // and copies keywords into watch_expressions so the scraper picks them up.
-router.post('/:id/push', async (req, res) => {
+// BUG FIX #26: Added requireRole — any authenticated user could previously activate
+// a brief, pushing sources/keywords into production without admin approval.
+router.post('/:id/push', requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
     try {
         const { id } = req.params;
         const clientId = req.user?.client_id;

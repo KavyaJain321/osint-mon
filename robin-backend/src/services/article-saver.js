@@ -6,6 +6,12 @@
 import { z } from 'zod';
 import { supabase } from '../lib/supabase.js';
 import { log } from '../lib/logger.js';
+
+// BUG FIX #25: Per-source serialization queue to prevent scrape-count race conditions.
+// When two concurrent scrapes finish for the same source, the read-then-write pattern
+// causes both to read the same count and each write +1, losing one increment.
+// Serializing updates per sourceId ensures counts are always accurate.
+const _sourceUpdateQueues = new Map();
 import { normalizeUrl, isDuplicate, generateContentHash, generateTitleHash, findCrossSourceDuplicate } from './dedup-checker.js';
 
 // ── Government / institutional domain detection ──────────────
@@ -196,26 +202,29 @@ export async function saveArticle(rawArticle) {
  * @param {string} [errorMessage] - Error message if failed
  */
 export async function updateSourceScrapeStatus(sourceId, success, errorMessage = null) {
+    // Serialize updates for the same sourceId to prevent read-then-write race conditions
+    const prev = _sourceUpdateQueues.get(sourceId) || Promise.resolve();
+    const next = prev.then(() => _doUpdateSourceScrapeStatus(sourceId, success, errorMessage));
+    _sourceUpdateQueues.set(sourceId, next.catch(() => {}));
+    return next;
+}
+
+async function _doUpdateSourceScrapeStatus(sourceId, success, errorMessage = null) {
     try {
+        const countColumn = success ? 'scrape_success_count' : 'scrape_fail_count';
+        const { data } = await supabase
+            .from('sources')
+            .select(countColumn)
+            .eq('id', sourceId)
+            .single();
+
         const updates = {
             last_scraped_at: new Date().toISOString(),
+            [countColumn]: (data?.[countColumn] || 0) + 1,
         };
-
         if (success) {
-            const { data } = await supabase
-                .from('sources')
-                .select('scrape_success_count')
-                .eq('id', sourceId)
-                .single();
-            updates.scrape_success_count = (data?.scrape_success_count || 0) + 1;
             updates.last_scrape_error = null;
         } else {
-            const { data } = await supabase
-                .from('sources')
-                .select('scrape_fail_count')
-                .eq('id', sourceId)
-                .single();
-            updates.scrape_fail_count = (data?.scrape_fail_count || 0) + 1;
             updates.last_scrape_error = errorMessage;
         }
 

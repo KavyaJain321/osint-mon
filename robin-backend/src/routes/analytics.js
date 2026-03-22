@@ -92,6 +92,8 @@ router.get('/volume', async (req, res) => {
 });
 
 // GET /keywords — Per-keyword article stats
+// BUG FIX #12a: Replaced N+1 pattern (3 DB queries per keyword × up to 25 keywords = 75 queries)
+// with a single bulk fetch of all articles in the time window, then aggregate in memory.
 router.get('/keywords', async (req, res) => {
     try {
         const clientId = req.user.clientId;
@@ -101,23 +103,49 @@ router.get('/keywords', async (req, res) => {
             ? await supabase.from('brief_generated_keywords').select('keyword').eq('brief_id', activeBrief.id).limit(100)
             : { data: [] };
 
+        if (!keywords || keywords.length === 0) return res.json([]);
+
         const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
         const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
 
-        const results = [];
-        for (const { keyword } of (keywords || [])) {
-            const { count: total } = await supabase.from('articles').select('id', { count: 'exact', head: true }).eq('client_id', clientId).contains('matched_keywords', [keyword]);
-            const { count: thisWeek } = await supabase.from('articles').select('id', { count: 'exact', head: true }).eq('client_id', clientId).contains('matched_keywords', [keyword]).gte('published_at', sevenDaysAgo);
-            const { count: lastWeek } = await supabase.from('articles').select('id', { count: 'exact', head: true }).eq('client_id', clientId).contains('matched_keywords', [keyword]).gte('published_at', fourteenDaysAgo).lt('published_at', sevenDaysAgo);
+        // Single query: fetch all matched_keywords arrays for this client in the 14-day window
+        const [allTimeRes, windowRes] = await Promise.all([
+            supabase.from('articles').select('matched_keywords').eq('client_id', clientId),
+            supabase.from('articles').select('matched_keywords, published_at').eq('client_id', clientId).gte('published_at', fourteenDaysAgo),
+        ]);
 
-            results.push({
-                keyword,
-                total_articles: total || 0,
-                this_week: thisWeek || 0,
-                last_week: lastWeek || 0,
-                trend: (thisWeek || 0) > (lastWeek || 0) ? 'up' : (thisWeek || 0) < (lastWeek || 0) ? 'down' : 'stable',
-            });
+        // Build keyword → count maps in memory
+        const totalMap = {};
+        const thisWeekMap = {};
+        const lastWeekMap = {};
+        const kwSet = new Set((keywords || []).map(k => k.keyword));
+
+        for (const row of (allTimeRes.data || [])) {
+            for (const kw of (row.matched_keywords || [])) {
+                if (kwSet.has(kw)) totalMap[kw] = (totalMap[kw] || 0) + 1;
+            }
         }
+        for (const row of (windowRes.data || [])) {
+            const isThisWeek = row.published_at >= sevenDaysAgo;
+            const isLastWeek = row.published_at >= fourteenDaysAgo && row.published_at < sevenDaysAgo;
+            for (const kw of (row.matched_keywords || [])) {
+                if (!kwSet.has(kw)) continue;
+                if (isThisWeek) thisWeekMap[kw] = (thisWeekMap[kw] || 0) + 1;
+                if (isLastWeek) lastWeekMap[kw] = (lastWeekMap[kw] || 0) + 1;
+            }
+        }
+
+        const results = (keywords || []).map(({ keyword }) => {
+            const tw = thisWeekMap[keyword] || 0;
+            const lw = lastWeekMap[keyword] || 0;
+            return {
+                keyword,
+                total_articles: totalMap[keyword] || 0,
+                this_week: tw,
+                last_week: lw,
+                trend: tw > lw ? 'up' : tw < lw ? 'down' : 'stable',
+            };
+        });
 
         res.json(results);
     } catch (error) {
@@ -127,16 +155,27 @@ router.get('/keywords', async (req, res) => {
 });
 
 // GET /sources — Per-source stats
+// BUG FIX #12b: Replaced N+1 pattern (1 DB query per source) with a single
+// aggregation query, then join in memory. With 100 sources the old code made
+// 101 round-trips; now it makes 2.
 router.get('/sources', async (req, res) => {
     try {
         const clientId = req.user.clientId;
-        const { data: sources } = await supabase.from('sources').select('id, name, last_scraped_at, scrape_success_count, scrape_fail_count').eq('client_id', clientId).limit(100);
+        const [sourcesRes, articlesRes] = await Promise.all([
+            supabase.from('sources').select('id, name, last_scraped_at, scrape_success_count, scrape_fail_count').eq('client_id', clientId).limit(100),
+            supabase.from('articles').select('source_id').eq('client_id', clientId),
+        ]);
 
-        const results = [];
-        for (const source of (sources || [])) {
-            const { count } = await supabase.from('articles').select('id', { count: 'exact', head: true }).eq('source_id', source.id);
-            results.push({ ...source, total_articles: count || 0 });
+        // Count articles per source in memory
+        const countMap = {};
+        for (const { source_id } of (articlesRes.data || [])) {
+            if (source_id) countMap[source_id] = (countMap[source_id] || 0) + 1;
         }
+
+        const results = (sourcesRes.data || []).map(source => ({
+            ...source,
+            total_articles: countMap[source.id] || 0,
+        }));
 
         res.json(results);
     } catch (error) {
@@ -165,14 +204,16 @@ router.get('/summary', async (req, res) => {
         const { count: articlesToday } = await supabase.from('articles').select('id', { count: 'exact', head: true }).eq('client_id', clientId).gte('published_at', today);
         const { count: articlesWeek } = await supabase.from('articles').select('id', { count: 'exact', head: true }).eq('client_id', clientId).gte('published_at', weekAgo);
 
-        // High importance unread count
-        const { data: highImp } = await supabase.from('articles').select('id').eq('client_id', clientId).eq('is_tagged', false).eq('analysis_status', 'complete').limit(200);
-        const highImpIds = (highImp || []).map((a) => a.id);
-        let highImportanceCount = 0;
-        if (highImpIds.length > 0) {
-            const { count } = await supabase.from('article_analysis').select('id', { count: 'exact', head: true }).in('article_id', highImpIds).gte('importance_score', 7);
-            highImportanceCount = count || 0;
-        }
+        // BUG FIX #30: Previously fetched only 200 articles then counted high-importance
+        // among those — silently undercounting for clients with >200 unread articles.
+        // Fixed by pushing the importance filter into the DB via an inner join.
+        const { count: highImportanceCount } = await supabase
+            .from('articles')
+            .select('article_analysis!inner(importance_score)', { count: 'exact', head: true })
+            .eq('client_id', clientId)
+            .eq('is_tagged', false)
+            .eq('analysis_status', 'complete')
+            .gte('article_analysis.importance_score', 7);
 
         // Risk level
         const { data: pattern } = await supabase.from('narrative_patterns').select('risk_level').eq('client_id', clientId).order('pattern_date', { ascending: false }).limit(1).single();
@@ -180,7 +221,7 @@ router.get('/summary', async (req, res) => {
         res.json({
             articles_today: articlesToday || 0,
             articles_this_week: articlesWeek || 0,
-            high_importance_unread: highImportanceCount,
+            high_importance_unread: highImportanceCount || 0,
             risk_level: pattern?.risk_level || 'low',
         });
     } catch (error) {

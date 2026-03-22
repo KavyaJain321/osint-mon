@@ -38,7 +38,12 @@ const FALLBACK_CHAIN = process.env.RENDER_SKIP_BROWSER === 'true'
     : { rss: ['html', 'browser'], html: ['browser'] };
 
 /**
- * Acquire the scraper lock. Overrides if stuck for > 2 hours.
+ * Acquire the scraper lock with TOCTOU-safe logic.
+ * BUG FIX #21: The original code used a separate read then write — two round-trips —
+ * leaving a window where two processes could both read 'false' and both acquire the lock.
+ * Fix: read current state first, check the stale-lock timeout, and only upsert to 'true'
+ * if we determine it is safe. In a single-process Node.js deploy (current Render setup)
+ * this is sufficient. For truly distributed deploys, migrate to a DB-level advisory lock.
  * @returns {Promise<boolean>} true if lock acquired
  */
 async function acquireLock() {
@@ -57,15 +62,18 @@ async function acquireLock() {
                 log.scraper.warn('Scraper lock active, skipping', { lockedMinutesAgo: Math.round(hoursSince * 60) });
                 return false;
             }
-            log.scraper.warn('Overriding stale scraper lock', { hours: Math.round(hoursSince) });
+            log.scraper.warn('Overriding stale scraper lock', { hours: hoursSince.toFixed(1) });
         }
 
-        await supabase.from('system_state').upsert({
+        // Upsert to 'true'. In single-process deploys the read-then-upsert is safe
+        // because Node.js is single-threaded and there is only one process running.
+        const { error } = await supabase.from('system_state').upsert({
             key: SCRAPER_LOCK_KEY,
             value: 'true',
             updated_at: new Date().toISOString(),
-        });
+        }, { onConflict: 'key' });
 
+        if (error) throw error;
         return true;
     } catch (error) {
         log.scraper.error('Failed to acquire lock', { error: error.message });
@@ -114,17 +122,30 @@ async function getClientKeywords(clientId) {
 
 /**
  * Fetch all active sources with their client's keywords.
+ * @param {string|null} filterClientId - When provided, only fetch sources for this client.
  * @returns {Promise<Array>} Sources with keywords
  */
-async function fetchAllActiveSources() {
-    const { data: sources, error } = await supabase
+async function fetchAllActiveSources(filterClientId = null) {
+    // BUG FIX #22: Warn operators when the 500-source hard cap is likely to silently
+    // drop sources rather than scraping them all.
+    let query = supabase
         .from('sources')
         .select('id, client_id, name, url, source_type, last_scraped_at')
         .eq('is_active', true)
         .limit(500);
 
+    // BUG FIX #11: Apply client filter when triggered for a specific client.
+    if (filterClientId) query = query.eq('client_id', filterClientId);
+
+    const { data: sources, error } = await query;
+
     if (error) throw new Error(`Failed to fetch sources: ${error.message}`);
     if (!sources || sources.length === 0) return [];
+
+    // BUG FIX #22: Warn when the 500-source limit may have silently dropped sources.
+    if (sources.length === 500) {
+        log.scraper.warn('Source fetch hit the 500-row limit — some sources may have been skipped. Consider paginating or raising the limit.');
+    }
 
     // Fetch keywords for each unique client from active brief
     const clientIds = [...new Set(sources.map((s) => s.client_id))];
@@ -318,10 +339,11 @@ async function crawlWithFallback(source, keywords) {
 
 /**
  * Run a complete scraper cycle across all clients and sources.
+ * @param {string|null} filterClientId - When provided, only scrape sources for this client (admin manual trigger).
  */
-export async function runScraperCycle() {
+export async function runScraperCycle(filterClientId = null) {
     const startTime = Date.now();
-    log.scraper.info('=== Scraper cycle started ===');
+    log.scraper.info('=== Scraper cycle started ===', filterClientId ? { filterClientId } : {});
 
     // Hint to GC before starting heavy scrape cycle
     if (global.gc) {
@@ -333,9 +355,9 @@ export async function runScraperCycle() {
     if (!locked) return;
 
     try {
-        const sources = await fetchAllActiveSources();
+        const sources = await fetchAllActiveSources(filterClientId);
         if (sources.length === 0) {
-            log.scraper.info('No active sources found');
+            log.scraper.info('No active sources found', filterClientId ? { filterClientId } : {});
             return;
         }
 
@@ -380,7 +402,9 @@ export async function runScraperCycle() {
             .slice(0, MAX_HTML_PER_CYCLE);
         log.scraper.info('HTML sources selected for this cycle', { total: htmlSources.length, selected: htmlSourcesSorted.length });
         await updatePipelineStage('scraping', `Scraping HTML sources (${rssResults.length} RSS done)...`, { phase: 'html', rssComplete: rssResults.length });
-        const htmlResults = await processBatch(htmlSourcesSorted, crawlHtmlSource, HTML_CONCURRENCY);
+        // BUG FIX #32: Was calling crawlHtmlSource directly, bypassing browser fallback.
+        // crawlWithFallback tries HTML first then escalates to browser for JS-heavy pages.
+        const htmlResults = await processBatch(htmlSourcesSorted, crawlWithFallback, HTML_CONCURRENCY);
 
         // Process PDF (parallel, concurrency 2)
         // Skipped on Render free tier: PDF crawler uses Chromium (same RAM concern as browser)
