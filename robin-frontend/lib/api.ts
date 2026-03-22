@@ -267,4 +267,27 @@ export const briefApi = {
     list: () => apiFetch(`/api/briefs`),
 };
 
+/** Daily Intel — aggregated daily situation report data */
+export const dailyIntelApi = {
+    /** Top articles for the day filtered by importance and date */
+    criticalArticles: (date: string, limit = 10) =>
+        apiFetch(`/api/articles?min_score=7&limit=${limit}&date=${date}`),
+
+    /** All articles for a date (for sector analysis) */
+    articles: (date: string, limit = 100) =>
+        apiFetch(`/api/articles?limit=${limit}&date=${date}`),
+
+    /** Intelligence brief: situation summary, entity watch, signals */
+    intel: () => getCachedIntelligence(),
+
+    /** Analytics: sentiment + volume */
+    analytics: () => testApi.analytics(),
+
+    /** Scraper status: articles_last_24h, total */
+    scraperStatus: () => testApi.scraperStatus(),
+
+    /** Watch keywords for topic pre-selection */
+    keywords: () => testApi.keywords(),
+};
+
 export default apiFetch;

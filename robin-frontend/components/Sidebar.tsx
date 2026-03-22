@@ -22,6 +22,7 @@ import {
     Crosshair,
     Newspaper,
     ChevronDown,
+    ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -48,6 +49,7 @@ const sections: NavSection[] = [
         label: "Command Center",
         items: [
             { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
+            { href: "/dashboard/daily-intel", label: "Daily Intel", icon: ClipboardList },
         ],
     },
     {
