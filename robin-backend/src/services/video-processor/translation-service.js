@@ -4,29 +4,9 @@
 // Handles: Odia, Hindi, Telugu, Bengali, Marathi, and more
 // ============================================================
 
-import Groq from 'groq-sdk';
+import { groqChat } from '../../lib/groq.js';
 import { log } from '../../lib/logger.js';
 
-// ── Key management (same 401-blacklist pattern as transcription-service) ──────
-const invalidKeyIndices = new Set();
-
-function getAllKeys() {
-    const keys = [];
-    for (let i = 1; i <= 20; i++) {
-        if (!invalidKeyIndices.has(i)) {
-            const key = process.env[`GROQ_API_KEY_${i}`];
-            if (key) keys.push({ key, index: i });
-        }
-    }
-    return keys;
-}
-
-function getGroqClient() {
-    const keys = getAllKeys();
-    if (keys.length === 0) throw new Error('No valid GROQ_API_KEY found for translation');
-    const idx = Math.floor(Date.now() / 1000) % keys.length;
-    return { client: new Groq({ apiKey: keys[idx].key }), keyIndex: keys[idx].index };
-}
 
 // ── Language detection ────────────────────────────────────────
 const ENGLISH_CODES = new Set(['en', 'eng', 'english']);
@@ -71,60 +51,37 @@ const CHUNK_SIZE = 5000;
 // ── Translation core ──────────────────────────────────────────
 
 /**
- * Translate text from any language to English using Groq Llama.
- * Retries with key rotation; blacklists keys that return 401.
+ * Translate text from any language to English using Groq Llama with automatic model fallback.
  */
 async function translateChunk(text, languageName) {
-    const maxAttempts = Math.max(3, getAllKeys().length);
-    let lastError;
+    try {
+        const response = await groqChat([
+            {
+                role: 'system',
+                content:
+                    `You are a professional ${languageName}-to-English translator specializing in news content from India. ` +
+                    'Translate the provided text to clear, accurate English. ' +
+                    'Preserve all proper nouns exactly: person names, place names (Odisha, Puri, Cuttack, etc.), ' +
+                    'party names (BJD, BJP, Congress, AAP), government terms, and numbers. ' +
+                    'If a word or phrase is already in English, keep it as-is. ' +
+                    'CRITICAL INSTRUCTION: Output ONLY the English translation. Do not add explanations, conversational filler, or notes. ' +
+                    'If the source text is short, repetitive, or unintelligible, translate what you can and STOP. Do NOT repeat phrases to fill space.',
+            },
+            { role: 'user', content: text },
+        ], {
+            temperature: 0.1,
+            max_tokens: 4000
+        });
 
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        const { client, keyIndex } = getGroqClient();
-        try {
-            const response = await client.chat.completions.create({
-                model: 'llama-3.3-70b-versatile',
-                messages: [
-                    {
-                        role: 'system',
-                        content:
-                            `You are a professional ${languageName}-to-English translator specializing in news content from India. ` +
-                            'Translate the provided text to clear, accurate English. ' +
-                            'Preserve all proper nouns exactly: person names, place names (Odisha, Puri, Cuttack, etc.), ' +
-                            'party names (BJD, BJP, Congress, AAP), government terms, and numbers. ' +
-                            'If a word or phrase is already in English, keep it as-is. ' +
-                            'CRITICAL INSTRUCTION: Output ONLY the English translation. Do not add explanations, conversational filler, or notes. ' +
-                            'If the source text is short, repetitive, or unintelligible, translate what you can and STOP. Do NOT repeat phrases to fill space.',
-                    },
-                    { role: 'user', content: text },
-                ],
-                temperature: 0.1,
-                max_tokens: 4000,
-            });
-
-            return response.choices[0]?.message?.content?.trim() || '';
-        } catch (error) {
-            lastError = error;
-            const status = error.status || 0;
-
-            if (status === 401) {
-                invalidKeyIndices.add(keyIndex);
-                log.ai.warn(`Translation key ${keyIndex} invalid (401) — blacklisted`, {
-                    remainingKeys: getAllKeys().length,
-                });
-                if (getAllKeys().length === 0) break;
-                continue;
-            }
-
-            log.ai.warn(`Translation attempt ${attempt + 1} failed`, {
-                keyIndex, status, error: error.message?.substring(0, 80),
-            });
-            if (attempt < maxAttempts - 1) {
-                await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
-            }
-        }
+        return response.choices[0]?.message?.content?.trim() || '';
+    } catch (error) {
+        log.ai.error('Translation chunk failed after all retries/fallbacks', { 
+            error: error.message,
+            lang: languageName
+        });
+        // Return original text if translation fails completely to avoid breaking the pipeline
+        return text;
     }
-
-    throw new Error(`Translation failed after ${maxAttempts} attempts: ${lastError?.message}`);
 }
 
 /**

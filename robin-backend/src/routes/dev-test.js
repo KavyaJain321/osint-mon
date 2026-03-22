@@ -267,13 +267,21 @@ router.get('/content', async (req, res) => {
             return ps === 'complete'; // only show fully processed videos
         });
 
-        // Fetch analysis for all items
+        // Fetch analysis for all items (Batched to prevent URL-too-long errors with 1500 limit)
         const ids = (data || []).map(d => d.id);
-        const { data: analyses } = ids.length > 0
-            ? await supabase.from('article_analysis')
-                .select('article_id, summary, sentiment, importance_score, narrative_frame')
-                .in('article_id', ids)
-            : { data: [] };
+        let analyses = [];
+        if (ids.length > 0) {
+            const batchSize = 150;
+            for (let i = 0; i < ids.length; i += batchSize) {
+                const batch = ids.slice(i, i + batchSize);
+                const { data: batchAnalyses, error: batchErr } = await supabase.from('article_analysis')
+                    .select('article_id, summary, sentiment, importance_score, narrative_frame')
+                    .in('article_id', batch);
+                if (batchAnalyses) {
+                    analyses = analyses.concat(batchAnalyses);
+                }
+            }
+        }
 
         const analysisMap = new Map((analyses || []).map(a => [a.article_id, a]));
         const enriched = (data || []).map(item => ({

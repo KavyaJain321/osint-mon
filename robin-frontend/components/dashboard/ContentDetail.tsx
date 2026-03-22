@@ -342,14 +342,14 @@ export default function ContentDetail({ article, onClose }: { article: Article; 
                     {/* Context (non-video content) */}
                     {!isVideo && Boolean(article.type_metadata?.english_summary) && (
                         <div className="mb-4 bg-gradient-to-r from-indigo-500/10 to-transparent p-3 rounded-md border-l-2 border-indigo-500">
-                            <h3 className="text-xs font-semibold text-indigo-300 uppercase tracking-wider mb-1">English Context</h3>
-                            <p className="text-sm text-indigo-100 italic leading-relaxed">{article.type_metadata?.english_summary as string}</p>
+                            <h3 className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider mb-1">English Context</h3>
+                            <p className="text-sm text-indigo-900 dark:text-indigo-100 italic leading-relaxed">{article.type_metadata?.english_summary as string}</p>
                         </div>
                     )}
                     {!isVideo && Boolean(article.analysis?.summary) && (
-                        <div className="mb-6 p-4 rounded-xl border border-slate-800/40 bg-[#0A0D14]/80 shadow-md">
-                            <h3 className="text-[12px] font-mono font-medium text-slate-300 tracking-wider mb-2">INTELLIGENCE SUMMARY</h3>
-                            <p className="text-sm text-text-secondary leading-relaxed">{cleanSnippet(article.analysis?.summary, 1000)}</p>
+                        <div className="mb-6 p-4 rounded-xl border border-border bg-surface shadow-sm">
+                            <h3 className="text-[12px] font-mono font-medium text-text-muted tracking-wider mb-2">INTELLIGENCE SUMMARY</h3>
+                            <p className="text-sm text-text-primary leading-relaxed">{cleanSnippet(article.analysis?.summary, 1000)}</p>
                         </div>
                     )}
 

@@ -56,6 +56,7 @@ export async function downloadAudio(videoId) {
             '--audio-format', 'wav',       // Convert to WAV
             '--postprocessor-args', `ffmpeg:-ar ${VIDEO_CONFIG.audioSampleRate} -ac ${VIDEO_CONFIG.audioChannels}`,
             '--ffmpeg-location', VIDEO_CONFIG.ffmpegPath,
+            '--extractor-args', 'youtube:player-client=android', // Bypass "Sign in to confirm you're not a bot"
             '-o', outputTemplate,
             '--no-playlist',
             '--no-warnings',
