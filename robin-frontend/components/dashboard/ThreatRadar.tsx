@@ -79,7 +79,7 @@ export default function ThreatRadar() {
 
             {/* Radar Chart */}
             <div className="h-[240px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                     <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="75%">
                         <PolarGrid
                             stroke="var(--color-border)"

@@ -83,7 +83,7 @@ export default function Benchmarks() {
                 <div className="card p-4">
                     <h4 className="text-xs font-medium text-text-secondary mb-3">Share of Voice</h4>
                     <div className="h-[200px]">
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                             <PieChart>
                                 <Pie
                                     data={sovData}
@@ -128,7 +128,7 @@ export default function Benchmarks() {
                 <div className="card p-4">
                     <h4 className="text-xs font-medium text-text-secondary mb-3">Sentiment By Entity</h4>
                     <div className="h-[240px]">
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                             <BarChart data={sentimentComparison} layout="vertical">
                                 <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10, fill: "var(--color-text-muted)" }} axisLine={false} tickLine={false} />
                                 <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }} axisLine={false} tickLine={false} />
