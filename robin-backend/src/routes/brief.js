@@ -31,7 +31,7 @@ router.use(authenticate);
 // ── POST /api/briefs — submit a new client brief ──────────
 router.post('/', async (req, res) => {
     try {
-        const { title, problem_statement } = req.body;
+        const { title, problem_statement, include_newspapers } = req.body;
         if (!title || !problem_statement) {
             return res.status(400).json({ error: 'title and problem_statement are required' });
         }
