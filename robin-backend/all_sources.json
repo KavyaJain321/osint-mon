@@ -1,8 +1,85 @@
 [
   {
+    "name": "OTV (Odisha TV)",
+    "url": "https://www.youtube.com/@otvodisha/videos",
+    "source_type": "youtube",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "Kanak News",
+    "url": "https://www.youtube.com/@KanakNewsOdisha/videos",
+    "source_type": "youtube",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "News18 Odia",
+    "url": "https://www.youtube.com/@News18Odia/videos",
+    "source_type": "youtube",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "Kalinga TV",
+    "url": "https://www.youtube.com/@KalingaTV/videos",
+    "source_type": "youtube",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "Nandighosha TV",
+    "url": "https://www.youtube.com/@nandighoshatv/videos",
+    "source_type": "youtube",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "Argus News",
+    "url": "https://www.youtube.com/@ArgusNews_in/videos",
+    "source_type": "youtube",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "Odisha Bhaskar",
+    "url": "https://www.youtube.com/@OdishaBhaskar1/videos",
+    "source_type": "youtube",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "The Politics Odia",
+    "url": "https://www.youtube.com/@thepoliticsodia/videos",
+    "source_type": "youtube",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "Odisha Connect",
+    "url": "https://www.youtube.com/channel/UCA8C5ZWOrPq5iD0g-F_i0wQ/videos",
+    "source_type": "youtube",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "OTV News English",
+    "url": "https://www.youtube.com/@OTVNewsEnglish/videos",
+    "source_type": "youtube",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
     "name": "Bhubaneswar Municipal Corporation Dashboard",
     "url": "https://www.bmc.gov.in/dashboard/",
     "source_type": "browser",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "NDTV",
+    "url": "https://www.youtube.com/@ndtv/videos",
+    "source_type": "youtube",
     "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
     "is_active": true
   },
@@ -63,6 +140,34 @@
     "is_active": true
   },
   {
+    "name": "Daily Graphic",
+    "url": "https://graphic.com.gh",
+    "source_type": "rss",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "Daily Nation / NTV",
+    "url": "https://nation.africa",
+    "source_type": "rss",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "New Indian Express Odisha",
+    "url": "https://www.newindianexpress.com/rss/states/odisha",
+    "source_type": "rss",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "Sambad",
+    "url": "https://www.sambad.in/feed/",
+    "source_type": "rss",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
     "name": "The Edge Malaysia",
     "url": "https://theedgemalaysia.com",
     "source_type": "rss",
@@ -91,15 +196,15 @@
     "is_active": true
   },
   {
-    "name": "The Indian Express",
-    "url": "https://indianexpress.com",
+    "name": "Sambad",
+    "url": "https://sambad.in/feed/",
     "source_type": "rss",
     "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
     "is_active": true
   },
   {
-    "name": "Sambad",
-    "url": "https://sambad.in/feed/",
+    "name": "The Indian Express",
+    "url": "https://indianexpress.com",
     "source_type": "rss",
     "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
     "is_active": true
@@ -114,27 +219,6 @@
   {
     "name": "Citizen TV / Radio Citizen",
     "url": "https://citizentv.co.ke",
-    "source_type": "rss",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "New Indian Express Odisha",
-    "url": "https://www.newindianexpress.com/rss/states/odisha",
-    "source_type": "rss",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "Daily Graphic",
-    "url": "https://graphic.com.gh",
-    "source_type": "rss",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "The Wire",
-    "url": "https://thewire.in",
     "source_type": "rss",
     "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
     "is_active": true
@@ -161,15 +245,57 @@
     "is_active": true
   },
   {
-    "name": "Indian Express National News",
-    "url": "https://www.newindianexpress.com/nation",
+    "name": "New Indian Express Odisha",
+    "url": "https://www.newindianexpress.com/rss/states/odisha",
     "source_type": "rss",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "AP News",
+    "url": "https://apnews.com/",
+    "source_type": "html",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "r/Odisha",
+    "url": "https://www.reddit.com/r/Odisha/",
+    "source_type": "html",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "The Wire",
+    "url": "https://thewire.in",
+    "source_type": "rss",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "Times of India",
+    "url": "https://timesofindia.indiatimes.com/india",
+    "source_type": "html",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "Odisha Budget PDF",
+    "url": "https://finance.odisha.gov.in/budget",
+    "source_type": "pdf",
     "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
     "is_active": true
   },
   {
     "name": "Hindustan Times",
     "url": "https://hindustantimes.com",
+    "source_type": "rss",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "Indian Express National News",
+    "url": "https://www.newindianexpress.com/nation",
     "source_type": "rss",
     "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
     "is_active": true
@@ -196,34 +322,6 @@
     "is_active": true
   },
   {
-    "name": "AP News",
-    "url": "https://apnews.com/",
-    "source_type": "html",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "r/Odisha",
-    "url": "https://www.reddit.com/r/Odisha/",
-    "source_type": "html",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "Times of India",
-    "url": "https://timesofindia.indiatimes.com/india",
-    "source_type": "html",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "Odisha Budget PDF",
-    "url": "https://finance.odisha.gov.in/budget",
-    "source_type": "pdf",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
     "name": "The Chronicle",
     "url": "https://thechronicle.com.gh",
     "source_type": "rss",
@@ -233,27 +331,6 @@
   {
     "name": "Reuters Top News",
     "url": "https://feeds.reuters.com/reuters/topNews",
-    "source_type": "rss",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "Daily Nation / NTV",
-    "url": "https://nation.africa",
-    "source_type": "rss",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "New Indian Express Odisha",
-    "url": "https://www.newindianexpress.com/rss/states/odisha",
-    "source_type": "rss",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "Sambad",
-    "url": "https://www.sambad.in/feed/",
     "source_type": "rss",
     "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
     "is_active": true
@@ -301,16 +378,9 @@
     "is_active": false
   },
   {
-    "name": "Times of India",
-    "url": "https://timesofindia.indiatimes.com/india",
-    "source_type": "html",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "r/india",
-    "url": "https://www.reddit.com/r/india/",
-    "source_type": "html",
+    "name": "NDTV YouTube",
+    "url": "https://www.youtube.com/@ndtv",
+    "source_type": "youtube",
     "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
     "is_active": true
   },
@@ -322,9 +392,16 @@
     "is_active": true
   },
   {
-    "name": "NDTV YouTube",
-    "url": "https://www.youtube.com/@ndtv",
-    "source_type": "youtube",
+    "name": "Times of India",
+    "url": "https://timesofindia.indiatimes.com/india",
+    "source_type": "html",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "r/india",
+    "url": "https://www.reddit.com/r/india/",
+    "source_type": "html",
     "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
     "is_active": true
   },
@@ -378,6 +455,13 @@
     "is_active": false
   },
   {
+    "name": "Nandighosh TV",
+    "url": "https://nandighoshtv.com/",
+    "source_type": "html",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
     "name": "The New Indian Express Odisha",
     "url": "https://www.newindianexpress.com/rss/states/odisha",
     "source_type": "rss",
@@ -388,13 +472,6 @@
     "name": "Odisha Government News",
     "url": "https://www.odisha.gov.in/rss",
     "source_type": "rss",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "Nandighosh TV",
-    "url": "https://nandighoshtv.com/",
-    "source_type": "html",
     "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
     "is_active": true
   },
@@ -532,11 +609,46 @@
     "is_active": false
   },
   {
+    "name": "r/india",
+    "url": "https://www.reddit.com/r/india/",
+    "source_type": "html",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "The Star Online",
+    "url": "https://thestar.com.my",
+    "source_type": "rss",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": false
+  },
+  {
+    "name": "NDTV YouTube",
+    "url": "https://www.youtube.com/@ndtv",
+    "source_type": "youtube",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
     "name": "The Samaja",
     "url": "https://thesamaja.in/feed/",
     "source_type": "rss",
     "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
     "is_active": true
+  },
+  {
+    "name": "Odisha TV News",
+    "url": "https://odishatv.in/rss",
+    "source_type": "rss",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": false
+  },
+  {
+    "name": "BBC Urdu",
+    "url": "https://bbc.com/urdu",
+    "source_type": "html",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": false
   },
   {
     "name": "OTV (Odisha TV)",
@@ -551,6 +663,13 @@
     "source_type": "rss",
     "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
     "is_active": true
+  },
+  {
+    "name": "Radio-Canada (CBC French)",
+    "url": "https://ici.radio-canada.ca",
+    "source_type": "html",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": false
   },
   {
     "name": "Pragativadi",
@@ -600,48 +719,6 @@
     "source_type": "rss",
     "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
     "is_active": true
-  },
-  {
-    "name": "NDTV YouTube",
-    "url": "https://www.youtube.com/@ndtv",
-    "source_type": "youtube",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "r/india",
-    "url": "https://www.reddit.com/r/india/",
-    "source_type": "html",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "The Star Online",
-    "url": "https://thestar.com.my",
-    "source_type": "rss",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": false
-  },
-  {
-    "name": "Odisha TV News",
-    "url": "https://odishatv.in/rss",
-    "source_type": "rss",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": false
-  },
-  {
-    "name": "BBC Urdu",
-    "url": "https://bbc.com/urdu",
-    "source_type": "html",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": false
-  },
-  {
-    "name": "Radio-Canada (CBC French)",
-    "url": "https://ici.radio-canada.ca",
-    "source_type": "html",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": false
   },
   {
     "name": "South China Morning Post (MY coverage)",
@@ -896,55 +973,6 @@
     "is_active": false
   },
   {
-    "name": "Dharitri",
-    "url": "https://www.dharitri.com/",
-    "source_type": "html",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "The Samaja",
-    "url": "https://thesamaja.in/",
-    "source_type": "html",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "The Standard / KTN News",
-    "url": "https://standardmedia.co.ke",
-    "source_type": "rss",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "Sambad English RSS",
-    "url": "https://sambadenglish.com/rss",
-    "source_type": "rss",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "The Hindu",
-    "url": "https://thehindu.com",
-    "source_type": "rss",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "Google News: reputational",
-    "url": "https://news.google.com/rss/search?q=reputational&hl=en",
-    "source_type": "rss",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "Mail & Guardian",
-    "url": "https://mg.co.za",
-    "source_type": "rss",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
     "name": "Dawn",
     "url": "https://dawn.com",
     "source_type": "rss",
@@ -1057,6 +1085,20 @@
     "is_active": false
   },
   {
+    "name": "Dharitri",
+    "url": "https://www.dharitri.com/",
+    "source_type": "html",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "The Samaja",
+    "url": "https://thesamaja.in/",
+    "source_type": "html",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
     "name": "OTV (Odisha TV)",
     "url": "https://www.youtube.com/@otvodisha",
     "source_type": "youtube",
@@ -1064,16 +1106,37 @@
     "is_active": true
   },
   {
-    "name": "Odisha Bhaskar",
-    "url": "https://odishabhaskar.in/",
-    "source_type": "html",
+    "name": "The Standard / KTN News",
+    "url": "https://standardmedia.co.ke",
+    "source_type": "rss",
     "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
     "is_active": true
   },
   {
-    "name": "The Samaja",
-    "url": "https://www.thesamaja.com/",
-    "source_type": "html",
+    "name": "Sambad English RSS",
+    "url": "https://sambadenglish.com/rss",
+    "source_type": "rss",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "The Hindu",
+    "url": "https://thehindu.com",
+    "source_type": "rss",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "Google News: reputational",
+    "url": "https://news.google.com/rss/search?q=reputational&hl=en",
+    "source_type": "rss",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "Mail & Guardian",
+    "url": "https://mg.co.za",
+    "source_type": "rss",
     "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
     "is_active": true
   },
@@ -1087,6 +1150,20 @@
   {
     "name": "The New Indian Express Odisha",
     "url": "https://www.newindianexpress.com/states/odisha",
+    "source_type": "html",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "Odisha Bhaskar",
+    "url": "https://odishabhaskar.in/",
+    "source_type": "html",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "The Samaja",
+    "url": "https://www.thesamaja.com/",
     "source_type": "html",
     "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
     "is_active": true
@@ -1113,6 +1190,20 @@
     "is_active": true
   },
   {
+    "name": "Odisha News Portal",
+    "url": "https://odishanewsportal.com/",
+    "source_type": "browser",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "Google News Odisha",
+    "url": "https://news.google.com/topics/CAAqBwgKMOfHlgswtJqyAw?hl=en-IN&gl=IN&ceid=IN%3Aen",
+    "source_type": "browser",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
     "name": "The Indian Express",
     "url": "https://indianexpress.com",
     "source_type": "rss",
@@ -1130,20 +1221,6 @@
     "name": "CNN-News18 India News",
     "url": "https://www.news18.com/news/india/",
     "source_type": "rss",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "Odisha News Portal",
-    "url": "https://odishanewsportal.com/",
-    "source_type": "browser",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "Google News Odisha",
-    "url": "https://news.google.com/topics/CAAqBwgKMOfHlgswtJqyAw?hl=en-IN&gl=IN&ceid=IN%3Aen",
-    "source_type": "browser",
     "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
     "is_active": true
   },
@@ -1169,6 +1246,13 @@
     "is_active": true
   },
   {
+    "name": "The New Indian Express RSS",
+    "url": "https://www.newindianexpress.com/rss/states/odisha",
+    "source_type": "rss",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
     "name": "The Hindu",
     "url": "https://thehindu.com",
     "source_type": "rss",
@@ -1176,8 +1260,99 @@
     "is_active": true
   },
   {
+    "name": "Odisha Government RSS",
+    "url": "https://odisha.gov.in/rss",
+    "source_type": "rss",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "Eastern India Herald",
+    "url": "https://easternindiaherald.com/feed/",
+    "source_type": "rss",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "Odisha Government RSS",
+    "url": "https://odishagov.in/rss",
+    "source_type": "rss",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "Sambad News",
+    "url": "https://www.sambad.in/feed/",
+    "source_type": "rss",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "Swarajya",
+    "url": "https://swarajyamag.com",
+    "source_type": "rss",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "Scroll.in",
+    "url": "https://scroll.in/feed",
+    "source_type": "rss",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "Business Standard RSS",
+    "url": "https://www.business-standard.com/rss/feeds/1040011.cms",
+    "source_type": "rss",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "The Samaja",
+    "url": "https://thesamaja.in/feed/",
+    "source_type": "rss",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "Google News: regulatory",
+    "url": "https://news.google.com/rss/search?q=regulatory&hl=en",
+    "source_type": "rss",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "India Today - Odisha",
+    "url": "https://www.indiatoday.in/rss/1206578",
+    "source_type": "rss",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "New Indian Express Odisha RSS",
+    "url": "https://www.newindianexpress.com/states/odisha/rss",
+    "source_type": "rss",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "OdishaTV RSS",
+    "url": "https://odishatv.in/feed",
+    "source_type": "rss",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
     "name": "The New Indian Express RSS",
     "url": "https://www.newindianexpress.com/rss/states/odisha",
+    "source_type": "rss",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "Hindustan Times",
+    "url": "https://hindustantimes.com",
     "source_type": "rss",
     "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
     "is_active": true
@@ -1239,22 +1414,22 @@
     "is_active": true
   },
   {
-    "name": "The New Indian Express Odisha",
-    "url": "https://www.newindianexpress.com/rss/states/odisha",
-    "source_type": "rss",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "Eastern India Herald",
-    "url": "https://easternindiaherald.com/feed/",
-    "source_type": "rss",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
     "name": "The Telegraph Odisha",
     "url": "https://www.telegraphindia.com/states/odisha/rss",
+    "source_type": "rss",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "Odisha Public Service Commission",
+    "url": "https://www.opsc.gov.in/",
+    "source_type": "browser",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "The New Indian Express Odisha",
+    "url": "https://www.newindianexpress.com/rss/states/odisha",
     "source_type": "rss",
     "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
     "is_active": true
@@ -1270,6 +1445,13 @@
     "name": "Odisha Government RSS",
     "url": "https://odishagov.in/rss",
     "source_type": "rss",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "BBC News India",
+    "url": "https://www.bbc.com/news/world/asia/india",
+    "source_type": "html",
     "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
     "is_active": true
   },
@@ -1302,114 +1484,9 @@
     "is_active": true
   },
   {
-    "name": "Odisha Government RSS",
-    "url": "https://odisha.gov.in/rss",
-    "source_type": "rss",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "Odisha Government RSS",
-    "url": "https://odishagov.in/rss",
-    "source_type": "rss",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "Sambad News",
-    "url": "https://www.sambad.in/feed/",
-    "source_type": "rss",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "Swarajya",
-    "url": "https://swarajyamag.com",
-    "source_type": "rss",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "Scroll.in",
-    "url": "https://scroll.in/feed",
-    "source_type": "rss",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "Odisha Public Service Commission",
-    "url": "https://www.opsc.gov.in/",
-    "source_type": "browser",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "Business Standard RSS",
-    "url": "https://www.business-standard.com/rss/feeds/1040011.cms",
-    "source_type": "rss",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "The Samaja",
-    "url": "https://thesamaja.in/feed/",
-    "source_type": "rss",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "Google News: regulatory",
-    "url": "https://news.google.com/rss/search?q=regulatory&hl=en",
-    "source_type": "rss",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "India Today - Odisha",
-    "url": "https://www.indiatoday.in/rss/1206578",
-    "source_type": "rss",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "BBC News India",
-    "url": "https://www.bbc.com/news/world/asia/india",
-    "source_type": "html",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
     "name": "The Odisha Post",
     "url": "https://theodishapost.com",
     "source_type": "html",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "New Indian Express Odisha RSS",
-    "url": "https://www.newindianexpress.com/states/odisha/rss",
-    "source_type": "rss",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "OdishaTV RSS",
-    "url": "https://odishatv.in/feed",
-    "source_type": "rss",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "The New Indian Express RSS",
-    "url": "https://www.newindianexpress.com/rss/states/odisha",
-    "source_type": "rss",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "Hindustan Times",
-    "url": "https://hindustantimes.com",
-    "source_type": "rss",
     "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
     "is_active": true
   },
@@ -1428,20 +1505,6 @@
     "is_active": true
   },
   {
-    "name": "NDTV Odisha RSS",
-    "url": "https://www.ndtv.com/odisha?service=rss",
-    "source_type": "rss",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
-    "name": "Economic Times India",
-    "url": "https://economictimes.indiatimes.com/rssfeedstopstories.cms",
-    "source_type": "rss",
-    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
-    "is_active": true
-  },
-  {
     "name": "Odisha Live News",
     "url": "https://odishalivenews.com",
     "source_type": "browser",
@@ -1452,6 +1515,20 @@
     "name": "Google News Odisha",
     "url": "https://news.google.com/topics/CAAqHAgKIhxDQkFTRUdvSkwyMHZNREp4ZERXdUwyMHZNRGRTUkFBUAE",
     "source_type": "browser",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "NDTV Odisha RSS",
+    "url": "https://www.ndtv.com/odisha?service=rss",
+    "source_type": "rss",
+    "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
+    "is_active": true
+  },
+  {
+    "name": "Economic Times India",
+    "url": "https://economictimes.indiatimes.com/rssfeedstopstories.cms",
+    "source_type": "rss",
     "client_id": "7b5390a0-0d5b-419e-84b4-533fd9c44d36",
     "is_active": true
   }

@@ -2,6 +2,8 @@
 
 import { useMemo } from "react";
 import { useIntelligenceData } from "@/lib/hooks/useIntelligence";
+import { AlertTriangle, Clock, GitCommit, Target, Minus, ArrowUpRight, ArrowDownRight, Zap, Activity } from "lucide-react";
+import { cleanSnippet } from "@/lib/utils";
 
 interface NarrativePattern {
     pattern_type?: string;
@@ -81,7 +83,7 @@ export default function StoryTimeline() {
                         </div>
 
                         {pattern.summary && (
-                            <p className="text-2xs text-text-muted mt-1.5 ml-5 truncate-2">{pattern.summary}</p>
+                            <p className="text-2xs text-text-muted mt-1.5 ml-5 truncate-2">{cleanSnippet(pattern.summary, 150)}</p>
                         )}
                     </div>
                 );

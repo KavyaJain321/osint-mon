@@ -21,7 +21,7 @@ export const VIDEO_CONFIG = {
     // Docker (Render): installed system-wide via apt-get (ffmpeg) + pip (yt-dlp)
     // Local dev: install ffmpeg + yt-dlp on your PATH, or override via env vars
     ytDlpPath:  process.env.YTDLP_PATH  || (process.env.RENDER ? join(process.cwd(), 'yt-dlp') : (process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp')),
-    ffmpegPath: process.env.FFMPEG_PATH || (process.env.RENDER ? join(process.cwd(), 'ffmpeg') : (process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg')),
+    ffmpegPath: process.env.FFMPEG_PATH || (process.env.RENDER ? join(process.cwd(), 'ffmpeg') : (process.platform === 'win32' ? join(process.cwd(), 'vendor', 'ffmpeg', 'ffmpeg.exe') : 'ffmpeg')),
 
     // ── Groq Whisper Transcription ──────────────────────────
     whisperModel: 'whisper-large-v3-turbo',

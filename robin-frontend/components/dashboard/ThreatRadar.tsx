@@ -2,10 +2,11 @@
 
 import { useMemo } from "react";
 import {
-    RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer, Tooltip,
+    RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, Tooltip,
 } from "recharts";
-import { Shield, ChevronRight } from "lucide-react";
+import { Shield, AlertTriangle, Activity, AlertCircle, Minus, Target } from "lucide-react";
 import { useIntelligenceData } from "@/lib/hooks/useIntelligence";
+import { cleanSnippet } from "@/lib/utils";
 
 const DIMENSIONS = ["Financial", "Regulatory", "Reputational", "Operational", "Geopolitical"];
 const DIM_KEYS = ["financial_risk", "regulatory_risk", "reputational_risk", "operational_risk", "geopolitical_risk"];
@@ -133,8 +134,8 @@ export default function ThreatRadar() {
 
             {/* Summary */}
             {threat?.summary && (
-                <p className="text-xs text-text-secondary mt-3 leading-relaxed line-clamp-2">
-                    {threat.summary}
+                <p className="text-[10px] text-slate-400 mt-2 line-clamp-2 leading-relaxed">
+                    {cleanSnippet(threat.summary, 180)}
                 </p>
             )}
         </div>

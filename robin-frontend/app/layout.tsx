@@ -22,8 +22,19 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <meta name="theme-color" content="#030303" />
+        <script
+          dangerouslySetInnerHTML={{
+             __html: `
+              try {
+                if (localStorage.getItem('theme-preference') === 'light' || (!('theme-preference' in localStorage) && window.matchMedia('(prefers-color-scheme: light)').matches)) {
+                  document.documentElement.classList.add('light');
+                }
+              } catch (_) {}
+            `,
+          }}
+        />
       </head>
-      <body className="bg-base text-text-primary antialiased">
+      <body className="bg-base text-text-primary antialiased" suppressHydrationWarning>
         <Providers>{children}</Providers>
       </body>
     </html>

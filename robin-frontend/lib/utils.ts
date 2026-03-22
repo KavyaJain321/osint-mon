@@ -84,3 +84,36 @@ export function truncate(str?: string, n = 80): string {
     if (!str) return "";
     return str.length > n ? str.slice(0, n) + "…" : str;
 }
+
+export function cleanSnippet(str?: string, length = 100): string {
+    if (!str) return "";
+    let cleanText = str;
+    
+    // 1. Try proper JSON parsing
+    try {
+        const parsed = JSON.parse(str);
+        if (Array.isArray(parsed)) {
+            cleanText = parsed.join(" ");
+        } else if (typeof parsed === "string") {
+            cleanText = parsed;
+        }
+    } catch (e) {
+        // 2. Fallback: manual regex stripping for malformed AI JSON arrays
+        // Matches `["Text", "More text"]` and strips brackets and joining quotes
+        if (cleanText.startsWith('[') && cleanText.endsWith(']')) {
+            cleanText = cleanText
+                .replace(/^\[\s*"?|"?\s*\]$/g, '') // remove outer brackets and edge quotes
+                .replace(/"\s*,\s*"/g, ' ')        // replace `","` with space
+                .replace(/\\"/g, '"');             // unescape internal quotes
+        }
+    }
+    
+    // Fallback trim any outer quotes that might remain
+    cleanText = cleanText.replace(/^"|"$/g, '').trim();
+
+    // 3. Truncate
+    if (cleanText.length > length) {
+        return cleanText.slice(0, length).trimEnd() + "...";
+    }
+    return cleanText;
+}

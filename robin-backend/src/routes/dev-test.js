@@ -2499,10 +2499,10 @@ router.get('/overview', async (req, res) => {
             .map(([hour, d]) => ({ hour, count: d.count, avgImportance: d.count > 0 ? Math.round(d.importanceSum / d.count * 10) / 10 : 0 }))
             .sort((a, b) => a.hour.localeCompare(b.hour));
 
-        // Situation feed — important recent articles
+        // Situation feed — recent articles sorted chronologically
         const situationFeed = enriched
             .filter(a => a.analysis)
-            .sort((a, b) => (b.analysis?.importance_score || 0) - (a.analysis?.importance_score || 0))
+            .sort((a, b) => new Date(b.published_at) - new Date(a.published_at))
             .slice(0, 50)
             .map(a => ({
                 id: a.id,
@@ -2618,7 +2618,7 @@ router.get('/overview', async (req, res) => {
             'chennai': { lat: 13.08, lng: 80.27 }, 'hyderabad': { lat: 17.39, lng: 78.49 },
             'bengaluru': { lat: 12.97, lng: 77.59 }, 'bangalore': { lat: 12.97, lng: 77.59 },
             'patna': { lat: 25.59, lng: 85.14 }, 'lucknow': { lat: 26.85, lng: 80.95 },
-            'india': { lat: 22.35, lng: 78.66 }, 'jaipur': { lat: 26.91, lng: 75.79 },
+            'india': { lat: 20.5937, lng: 78.9629 }, 'jaipur': { lat: 26.91, lng: 75.79 },
             'ahmedabad': { lat: 23.03, lng: 72.58 }, 'surat': { lat: 21.17, lng: 72.83 },
             'pune': { lat: 18.52, lng: 73.86 }, 'chandigarh': { lat: 30.73, lng: 76.78 },
             'kashmir': { lat: 34.08, lng: 74.79 }, 'jammu': { lat: 32.73, lng: 74.87 },

@@ -3,8 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { X, ExternalLink, MessageSquare, ArrowUpRight, Clock, Shield, FileText, Video, Bell, File, Search, Play, Scissors, Bot, ChevronDown, ChevronUp, Loader2, AlertCircle } from "lucide-react";
 // Note: AlertCircle kept for ClipPlayer error state; Play kept for YouTube timestamp fallback display
-import { formatRelative } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import { formatRelative, cn, formatDate, formatTime, sentimentColor, cleanSnippet } from "@/lib/utils";
 import type { Article, VideoTranscript, VideoClip } from "@/lib/types";
 import { videoApi } from "@/lib/api";
 
@@ -347,11 +346,10 @@ export default function ContentDetail({ article, onClose }: { article: Article; 
                             <p className="text-sm text-indigo-100 italic leading-relaxed">{article.type_metadata?.english_summary as string}</p>
                         </div>
                     )}
-
                     {!isVideo && Boolean(article.analysis?.summary) && (
-                        <div>
-                            <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">Context</h3>
-                            <p className="text-sm text-text-secondary leading-relaxed">{article.analysis?.summary}</p>
+                        <div className="mb-6 p-4 rounded-xl border border-slate-800/40 bg-[#0A0D14]/80 shadow-md">
+                            <h3 className="text-[12px] font-mono font-medium text-slate-300 tracking-wider mb-2">INTELLIGENCE SUMMARY</h3>
+                            <p className="text-sm text-text-secondary leading-relaxed">{cleanSnippet(article.analysis?.summary, 1000)}</p>
                         </div>
                     )}
 

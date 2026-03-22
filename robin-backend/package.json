@@ -25,6 +25,7 @@
     "express": "^4.18.0",
     "express-rate-limit": "^7.2.0",
     "ffmpeg-static": "^5.3.0",
+    "ffprobe-static": "^3.1.0",
     "groq-sdk": "^0.5.0",
     "helmet": "^7.1.0",
     "jsdom": "^24.0.0",

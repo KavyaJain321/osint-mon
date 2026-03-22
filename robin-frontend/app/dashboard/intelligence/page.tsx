@@ -1,5 +1,6 @@
 "use client";
 
+import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { useState } from "react";
 import {
     Shield, AlertTriangle, TrendingUp, TrendingDown, Eye, Radio,
@@ -8,6 +9,7 @@ import {
     GitBranch, AlertCircle, CheckCircle2, XCircle, Search,
 } from "lucide-react";
 import { useIntelligenceBrief } from "@/lib/hooks/useIntelligence";
+import { cleanSnippet } from "@/lib/utils";
 
 /* ── Types ─────────────────────────────────────────────── */
 interface PostureData {
@@ -187,7 +189,7 @@ export default function IntelligenceBriefPage() {
                             </div>
                             {brief.mission && (
                                 <div className="flex items-center gap-2 pl-4 border-l border-slate-700/50">
-                                    <span className="text-[10px] font-mono text-slate-500 tracking-wider">MISSION</span>
+                                    <span className="text-[10px] font-mono text-slate-500 tracking-wider">MONITORING BRIEF</span>
                                     <span className="text-sm font-medium text-slate-200 truncate max-w-[400px]">
                                         {brief.mission.title}
                                     </span>
@@ -333,7 +335,7 @@ export default function IntelligenceBriefPage() {
                                                     </span>
                                                 </div>
                                                 <p className="text-[13px] text-slate-200 font-medium leading-snug">{dev.headline}</p>
-                                                <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">{dev.summary}</p>
+                                                <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">{cleanSnippet(dev.summary, 150)}</p>
                                                 <div className="flex items-center gap-3 mt-2">
                                                     <span className={`text-[10px] font-mono ${sentColor}`}>
                                                         {dev.dominant_sentiment}
@@ -477,7 +479,7 @@ export default function IntelligenceBriefPage() {
                                                     <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${sev.pill}`}>
                                                         {signal.severity.toUpperCase()}
                                                     </span>
-                                                    <span className="text-[9px] font-mono text-slate-600">CONF: {confPct}%</span>
+                                                    <span className="text-[9px] font-mono text-slate-600">Confidence: {confPct}%</span>
                                                     <span className="text-[9px] font-mono text-slate-600">{signal.type.replace(/_/g, " ")}</span>
                                                 </div>
                                                 <p className="text-[12px] text-slate-200 font-medium">{signal.title}</p>
@@ -703,7 +705,7 @@ export default function IntelligenceBriefPage() {
                                                     <div className="flex-1 min-w-0">
                                                         <p className="text-[11px] text-slate-200 font-medium truncate">{chain.title}</p>
                                                         <div className="flex items-center gap-2 mt-0.5">
-                                                            <span className="text-[9px] font-mono text-slate-600">CONF: {confPct}%</span>
+                                                            <span className="text-[9px] font-mono text-slate-600">Confidence: {confPct}%</span>
                                                             <span className={`text-[9px] font-mono ${sevStyle.pill.split(" ")[1]}`}>{chain.severity}</span>
                                                             {chain.priority_action && (
                                                                 <span className={`text-[9px] font-mono ${chain.priority_action.urgency === 'immediate' ? 'text-red-400' : chain.priority_action.urgency === 'soon' ? 'text-amber-400' : 'text-slate-400'}`}>

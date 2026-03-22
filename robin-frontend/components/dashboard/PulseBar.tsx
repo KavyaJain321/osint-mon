@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Activity, Radio, TrendingDown, TrendingUp, Minus, AlertTriangle, Clock, Zap } from "lucide-react";
 import { useScraperStatus, useIntelligenceData, useAnalytics } from "@/lib/hooks/useIntelligence";
 import NotificationBell from "@/components/dashboard/NotificationBell";
+import ThemeToggle from "@/components/dashboard/ThemeToggle";
 
 function formatTimeAgo(dateStr: string | undefined) {
     if (!dateStr) return "Never";
@@ -113,7 +114,10 @@ export default function PulseBar() {
                     <Clock size={11} />
                     <span className="text-2xs">Last scan: {formatTimeAgo(lastRun)}</span>
                 </div>
-                <NotificationBell />
+                <div className="flex items-center gap-1 border-l border-border pl-3 ml-1">
+                    <ThemeToggle />
+                    <NotificationBell />
+                </div>
             </div>
         </div>
     );

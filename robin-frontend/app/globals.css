@@ -54,6 +54,57 @@
   --animate-pulse-slow: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+/* ── Light Mode Override ─────────────────────────────────── */
+:root.light {
+  color-scheme: light;
+  
+  /* Core Surfaces */
+  --color-base: #F5F7FA;
+  --color-surface: #FFFFFF;
+  --color-raised: #FFFFFF;
+  --color-overlay: #F8FAFC;
+
+  /* Borders */
+  --color-border: #E2E8F0;
+  --color-border-active: #CBD5E1;
+  --color-border-focus: #94A3B8;
+
+  /* Text */
+  --color-text-primary: #1A1A2E;
+  --color-text-secondary: #475569;
+  --color-text-muted: #64748B;
+  --color-text-disabled: #94A3B8;
+
+  /* Accent overrides to cleanly match Teal/Green */
+  --color-accent: #00C9A7;
+  --color-emerald: #00C9A7;
+  --color-emerald-subtle: rgba(0, 201, 167, 0.15);
+
+  /* Destructive/Critical */
+  --color-rose: #DC2626;
+  --color-rose-subtle: rgba(220, 38, 38, 0.15);
+
+  /* Force UI to obey literal Tailwind class overrides */
+  --color-slate-950: #FFFFFF;
+  --color-slate-900: #F5F7FA;
+  --color-slate-800: #FFFFFF;
+  --color-slate-700: #E2E8F0;
+  --color-slate-600: #94A3B8;
+  --color-slate-500: #64748B;
+  --color-slate-400: #475569;
+  --color-slate-300: #334155;
+  --color-slate-200: #0B0E14;
+  --color-slate-100: #080A0E;
+  --color-slate-50:  #030303;
+  --color-slate-800\/60: #E2E8F0;
+  --color-slate-800\/40: #E2E8F0;
+  --color-slate-800\/50: #E2E8F0;
+  --color-slate-800\/30: rgba(226, 232, 240, 0.5);
+  --color-slate-800\/20: rgba(226, 232, 240, 0.3);
+  --color-slate-700\/40: #E2E8F0;
+  --color-slate-700\/50: #CBD5E1;
+}
+
 /* ── Base ────────────────────────────────────────────────── */
 *,
 *::before,

@@ -5,13 +5,13 @@ import {
     Search, Clock, AlertTriangle, ChevronLeft, ChevronRight,
     LayoutGrid, List, ExternalLink, TrendingDown, TrendingUp, Minus, Trash2,
 } from "lucide-react";
-import { formatRelative } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import { formatRelative, cn, cleanSnippet } from "@/lib/utils";
 import type { Article } from "@/lib/types";
 import { useContent } from "@/lib/hooks/useIntelligence";
 import { contentApi } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 import ContentDetail, { detectContentType, TYPE_ICONS, TYPE_GRADIENTS } from "@/components/dashboard/ContentDetail";
+import { InfoTooltip, PriorityTooltip } from "@/components/dashboard/InfoTooltip";
 
 function getDomain(url?: string): string {
     if (!url) return "";
@@ -277,12 +277,22 @@ export default function ContentFeedPage() {
                                     </div>
                                 )}
                                 {(hero.analysis?.importance_score ?? 0) >= 7 && (
-                                    <div className={cn(
-                                        "absolute top-3 left-3 px-2.5 py-1 rounded-full text-xs font-bold",
-                                        (hero.analysis?.importance_score ?? 0) >= 9 ? "bg-rose text-white" : "bg-amber text-black"
-                                    )}>
-                                        ⚡ {hero.analysis?.importance_score}/10
-                                    </div>
+                                    <span
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="absolute top-3 left-3"
+                                    >
+                                        <InfoTooltip
+                                            content={<PriorityTooltip score={hero.analysis?.importance_score ?? 0} method={(hero as any).analysis?.analyzer_used} />}
+                                            side="bottom"
+                                        >
+                                            <span className={cn(
+                                                "inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold cursor-pointer",
+                                                (hero.analysis?.importance_score ?? 0) >= 9 ? "bg-rose text-white" : "bg-amber text-black"
+                                            )}>
+                                                ⚡ {hero.analysis?.importance_score}/10
+                                            </span>
+                                        </InfoTooltip>
+                                    </span>
                                 )}
                                 <button
                                     onClick={(e) => handleDelete(e, hero)}
@@ -300,7 +310,7 @@ export default function ContentFeedPage() {
                                     {hero.title}
                                 </h2>
                                 {hero.analysis?.summary && (
-                                    <p className="text-xs text-text-secondary line-clamp-2 mb-3">{hero.analysis.summary}</p>
+                                    <p className="text-xs text-text-secondary line-clamp-2 mb-3">{cleanSnippet(hero.analysis.summary, 200)}</p>
                                 )}
                                 <div className="flex items-center gap-3 text-2xs text-text-muted">
                                     <span className="flex items-center gap-1"><Clock size={10} /> {formatRelative(hero.published_at)}</span>
@@ -362,11 +372,21 @@ export default function ContentFeedPage() {
                                                 )}
                                             </div>
                                             {imp >= 7 && (
-                                                <span className={cn(
-                                                    "absolute top-2 left-2 px-2 py-0.5 rounded-full text-2xs font-bold",
-                                                    imp >= 9 ? "bg-rose text-white" : "bg-amber text-black"
-                                                )}>
-                                                    {imp}/10
+                                                <span
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="absolute top-2 left-2"
+                                                >
+                                                    <InfoTooltip
+                                                        content={<PriorityTooltip score={imp} method={(article as any).analysis?.analyzer_used} />}
+                                                        side="top"
+                                                    >
+                                                        <span className={cn(
+                                                            "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-bold cursor-pointer",
+                                                            imp >= 9 ? "bg-rose text-white" : "bg-amber text-black"
+                                                        )}>
+                                                            {imp}/10
+                                                        </span>
+                                                    </InfoTooltip>
                                                 </span>
                                             )}
                                             <button
@@ -391,7 +411,7 @@ export default function ContentFeedPage() {
                                                 </p>
                                             ) : article.analysis?.summary && (
                                                 <p className="text-xs text-text-secondary line-clamp-2 mb-3">
-                                                    {article.analysis.summary}
+                                                    {cleanSnippet(article.analysis.summary, 150)}
                                                 </p>
                                             )}
                                             <div className="flex items-center gap-2 text-2xs text-text-muted">
@@ -451,7 +471,7 @@ export default function ContentFeedPage() {
                                                 </p>
                                             ) : article.analysis?.summary && (
                                                 <p className="text-xs text-text-secondary truncate mt-0.5">
-                                                    {article.analysis.summary}
+                                                    {cleanSnippet(article.analysis.summary, 150)}
                                                 </p>
                                             )}
                                             <div className="flex items-center gap-2 text-2xs text-text-muted mt-0.5">
@@ -462,11 +482,18 @@ export default function ContentFeedPage() {
                                             </div>
                                         </div>
                                         {imp >= 5 && (
-                                            <span className={cn(
-                                                "text-xs font-mono font-bold flex-shrink-0",
-                                                imp >= 9 ? "text-rose" : imp >= 7 ? "text-amber" : "text-text-muted"
-                                            )}>
-                                                {imp}
+                                            <span onClick={(e) => e.stopPropagation()}>
+                                                <InfoTooltip
+                                                    content={<PriorityTooltip score={imp} method={(article as any).analysis?.analyzer_used} />}
+                                                    side="left"
+                                                >
+                                                    <span className={cn(
+                                                        "text-xs font-mono font-bold flex-shrink-0 cursor-pointer",
+                                                        imp >= 9 ? "text-rose" : imp >= 7 ? "text-amber" : "text-text-muted"
+                                                    )}>
+                                                        {imp}
+                                                    </span>
+                                                </InfoTooltip>
                                             </span>
                                         )}
                                         <button
