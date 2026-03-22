@@ -42,8 +42,8 @@ router.get('/', async (req, res) => {
 
 
         // Support ?date=YYYY-MM-DD shorthand (used by Daily Intel)
-        let fromDate = fromDate || null;
-        let toDate = toDate || null;
+        let fromDate = req.query.from_date || null;
+        let toDate = req.query.to_date || null;
         if (req.query.date && !fromDate && !toDate) {
             fromDate = `${req.query.date}T00:00:00.000Z`;
             toDate = `${req.query.date}T23:59:59.999Z`;
