@@ -308,7 +308,7 @@ export default function ContentDetail({ article, onClose }: { article: Article; 
                 </div>
 
                 <div className="p-5 space-y-4">
-                    <h2 className="text-base font-semibold text-text-primary leading-snug">{article.title}</h2>
+                    <h2 className="text-base font-semibold text-text-primary leading-snug">{article.title_en || article.title}</h2>
 
                     <div className="flex items-center gap-3 flex-wrap text-xs text-text-muted">
                         <span className="flex items-center gap-1.5 badge badge-muted">{typeInfo.icon} {typeInfo.label}</span>

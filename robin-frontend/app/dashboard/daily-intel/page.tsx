@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 interface Article {
     id: string;
     title: string;
+    title_en?: string;
     url: string;
     published_at: string;
     source_name?: string;
@@ -160,7 +161,7 @@ function buildSummaryFromArticles(articles: Article[], sectorMap: Record<string,
     // Executive Summary
     const execLines = top5
         .filter(a => a.summary)
-        .map((a, i) => `${i + 1}. ${a.title}: ${(a.summary || "").slice(0, 160).trim()}${(a.summary || "").length > 160 ? "..." : ""}`);
+        .map((a, i) => `${i + 1}. ${a.title_en || a.title}: ${(a.summary || "").slice(0, 160).trim()}${(a.summary || "").length > 160 ? "..." : ""}`);
     const executive_summary = execLines.length > 0
         ? `Intelligence summary for ${dateLabel}. ${articles.length} articles monitored across ${Object.values(sectorMap).filter(v => v.length > 0).length} active governance domains.\n\n${execLines.join("\n\n")}`
         : `${articles.length} articles collected for ${dateLabel}. No high-importance developments detected.`;
@@ -481,7 +482,7 @@ function TopNewsSection({ articles, reviewedIds, onReview }: {
                                     <div className="flex items-start justify-between gap-3 mb-1.5">
                                         <h3 className={cn("text-sm font-medium leading-snug", reviewed ? "text-slate-500 line-through" : "text-slate-100")}>
                                             {isHot && <span className="inline-flex items-center mr-1.5 text-2xs font-bold text-red-400 bg-red-500/10 border border-red-500/20 px-1 py-0 rounded">🔥 HOT</span>}
-                                            {article.title}
+                                            {article.title_en || article.title}
                                         </h3>
                                         <div className="flex items-center gap-1.5 flex-shrink-0 mt-0.5">
                                             <span className={cn("text-2xs font-mono px-1.5 py-0.5 rounded", s.pill)}>{s.label}</span>
@@ -635,7 +636,7 @@ function SectorPulseSection({ sectorMap }: { sectorMap: Record<string, Article[]
                                         (a.importance_score || 0) >= 6 ? "bg-amber-400" : "bg-slate-600"
                                     )} />
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-xs text-slate-200 leading-snug group-hover:text-teal-300 transition-colors line-clamp-2">{a.title}</p>
+                                        <p className="text-xs text-slate-200 leading-snug group-hover:text-teal-300 transition-colors line-clamp-2">{a.title_en || a.title}</p>
                                         {a.summary && <p className="text-2xs text-slate-500 mt-1 line-clamp-1">{a.summary}</p>}
                                         <div className="flex items-center gap-2 mt-1.5 text-2xs">
                                             {a.source_name && <span className="bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">{a.source_name}</span>}
@@ -747,7 +748,7 @@ function WatchTopicsSection({ keywords, selectedTopics, onToggle }: {
                             <div className="border-t border-slate-700/30 divide-y divide-slate-700/20 bg-slate-900/40">
                                 {(kw.articles || []).slice(0, 3).map(a => (
                                     <div key={a.id} className="px-5 py-2.5">
-                                        <p className="text-xs text-slate-300 line-clamp-2">{a.title}</p>
+                                        <p className="text-xs text-slate-300 line-clamp-2">{a.title_en || a.title}</p>
                                         <div className="flex gap-2 mt-1 text-2xs text-slate-500">
                                             <span className={sentimentColor(a.sentiment)}>{a.sentiment}</span>
                                             <span>· {a.importance}/10</span>
@@ -996,7 +997,7 @@ function EntityIntelSection({ articles, externalEntities }: { articles: Article[
                                                         a.sentiment?.toUpperCase() === "NEGATIVE" ? "bg-red-400" :
                                                         a.sentiment?.toUpperCase() === "POSITIVE" ? "bg-emerald-400" : "bg-slate-600"
                                                     )} />
-                                                    <span className="text-2xs text-slate-400 group-hover:text-teal-300 transition-colors line-clamp-2">{a.title}</span>
+                                                    <span className="text-2xs text-slate-400 group-hover:text-teal-300 transition-colors line-clamp-2">{a.title_en || a.title}</span>
                                                     <ExternalLink size={8} className="text-slate-600 group-hover:text-teal-400 flex-shrink-0 mt-1" />
                                                 </a>
                                             ))}

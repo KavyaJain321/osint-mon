@@ -61,6 +61,7 @@ Published: ${article.published_at} | Source: ${article.source_name || 'Unknown'}
 
 Return ONLY a JSON object IN ENGLISH (translate any non-English content to English) with:
 {
+  "title_en": "English translation of the title (if already English, copy it as-is)",
   "summary": "3 specific factual sentences in English",
   "sentiment": "positive|negative|neutral",
   "importance_score": 1-10,
@@ -294,10 +295,14 @@ export async function analyzeArticle(article) {
             log.ai.debug('Watch expression matching skipped', { reason: weErr.message?.substring(0, 50) });
         }
 
-        // Mark as complete in articles table
+        // Mark as complete + save English title if translated
+        const articleUpdate = { analysis_status: 'complete' };
+        if (analysis.title_en && analysis.title_en !== article.title) {
+            articleUpdate.title_en = analysis.title_en;
+        }
         await supabase
             .from('articles')
-            .update({ analysis_status: 'complete' })
+            .update(articleUpdate)
             .eq('id', article.id);
 
         // Also sync status to content_items (graceful)

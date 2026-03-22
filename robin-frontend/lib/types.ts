@@ -36,6 +36,7 @@ export interface ArticleAnalysis {
 export interface Article {
     id: string;
     title: string;
+    title_en?: string;
     url: string;
     published_at: string;
     source_id: string;

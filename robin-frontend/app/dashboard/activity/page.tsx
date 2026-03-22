@@ -68,7 +68,7 @@ export default function ContentFeedPage() {
 
     const handleDelete = useCallback(async (e: React.MouseEvent, article: Article) => {
         e.stopPropagation(); // Prevent opening the detail panel
-        if (!confirm(`Delete "${article.title?.substring(0, 80)}..."?\n\nThis will permanently remove this article.`)) return;
+        if (!confirm(`Delete "${(article.title_en || article.title)?.substring(0, 80)}..."?\n\nThis will permanently remove this article.`)) return;
         try {
             await contentApi.delete(article.id);
             queryClient.invalidateQueries({ queryKey: ["content"] });
@@ -304,7 +304,7 @@ export default function ContentFeedPage() {
                             </div>
                             <div className="p-4">
                                 <h2 className="text-base font-semibold text-text-primary group-hover:text-accent-bright transition-colors mb-2 leading-snug">
-                                    {hero.title}
+                                    {hero.title_en || hero.title}
                                 </h2>
                                 {hero.analysis?.summary && (
                                     <p className="text-xs text-text-secondary line-clamp-2 mb-3">{cleanSnippet(hero.analysis.summary, 200)}</p>
@@ -400,7 +400,7 @@ export default function ContentFeedPage() {
 
                                         <div className="p-3">
                                             <h3 className="text-sm font-medium text-text-primary group-hover:text-accent-bright transition-colors line-clamp-2 mb-2 leading-snug">
-                                                {article.title}
+                                                {article.title_en || article.title}
                                             </h3>
                                             {article.type_metadata?.english_summary ? (
                                                 <p className="text-xs text-indigo-300 italic line-clamp-2 mb-3 bg-indigo-500/10 p-1.5 rounded border-l-2 border-indigo-500">
@@ -460,7 +460,7 @@ export default function ContentFeedPage() {
                                         )}
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm text-text-primary group-hover:text-accent-bright transition-colors truncate">
-                                                {article.title}
+                                                {article.title_en || article.title}
                                             </p>
                                             {article.type_metadata?.english_summary ? (
                                                 <p className="text-xs text-indigo-300 italic truncate mt-0.5 font-medium">

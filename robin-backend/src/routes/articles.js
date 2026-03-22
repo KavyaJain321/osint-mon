@@ -59,7 +59,7 @@ router.get('/', async (req, res) => {
             let query = supabase
                 .from('articles')
                 .select(
-                    'id, title, title_en, url, published_at, matched_keywords, is_tagged, analysis_status, source_id, client_id, created_at, article_analysis!inner(article_id, summary, sentiment, importance_score, importance_reason, narrative_frame, entities)',
+                    'id, title, url, published_at, matched_keywords, is_tagged, analysis_status, source_id, client_id, created_at, article_analysis!inner(article_id, summary, sentiment, importance_score, importance_reason, narrative_frame, entities)',
                     { count: 'exact' }
                 );
 
@@ -87,7 +87,7 @@ router.get('/', async (req, res) => {
             // No analysis filters — standard query, then attach analysis separately
             let query = supabase
                 .from('articles')
-                .select('id, title, title_en, url, published_at, matched_keywords, is_tagged, analysis_status, source_id, client_id, created_at', { count: 'exact' });
+                .select('id, title, url, published_at, matched_keywords, is_tagged, analysis_status, source_id, client_id, created_at', { count: 'exact' });
 
             if (clientId) query = query.eq('client_id', clientId);
             if (req.query.source_id) query = query.eq('source_id', req.query.source_id);
