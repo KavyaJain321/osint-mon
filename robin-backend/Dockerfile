@@ -5,7 +5,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     python3 \
     python3-pip \
-    && pip3 install --break-system-packages yt-dlp \
+    && pip3 install --break-system-packages yt-dlp==2026.03.17 \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 WORKDIR /app
