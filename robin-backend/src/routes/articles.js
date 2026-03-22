@@ -21,10 +21,33 @@ router.use(authenticate);
 // query so the count and pagination are always accurate.
 router.get('/', async (req, res) => {
     try {
-        const clientId = req.user.role === 'SUPER_ADMIN' ? req.query.clientId || null : req.user.clientId;
+        let clientId;
+        if (req.user.role === 'SUPER_ADMIN') {
+            // Explicit override via query param, or fall back to admin's own client_id
+            clientId = req.query.clientId || null;
+            if (!clientId) {
+                const { data: profile } = await supabase
+                    .from('users')
+                    .select('client_id')
+                    .eq('id', req.user.id)
+                    .single();
+                clientId = profile?.client_id || null;
+            }
+        } else {
+            clientId = req.user.clientId;
+        }
         const page = Math.max(1, parseInt(req.query.page) || 1);
         const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
         const offset = (page - 1) * limit;
+
+
+        // Support ?date=YYYY-MM-DD shorthand (used by Daily Intel)
+        let fromDate = fromDate || null;
+        let toDate = toDate || null;
+        if (req.query.date && !fromDate && !toDate) {
+            fromDate = `${req.query.date}T00:00:00.000Z`;
+            toDate = `${req.query.date}T23:59:59.999Z`;
+        }
 
         const hasSentimentFilter = !!req.query.sentiment;
         const hasScoreFilter = !!req.query.min_score;
@@ -36,14 +59,14 @@ router.get('/', async (req, res) => {
             let query = supabase
                 .from('articles')
                 .select(
-                    'id, title, url, published_at, matched_keywords, is_tagged, analysis_status, source_id, client_id, created_at, article_analysis!inner(article_id, summary, sentiment, importance_score, importance_reason, narrative_frame, entities)',
+                    'id, title, title_en, url, published_at, matched_keywords, is_tagged, analysis_status, source_id, client_id, created_at, article_analysis!inner(article_id, summary, sentiment, importance_score, importance_reason, narrative_frame, entities)',
                     { count: 'exact' }
                 );
 
             if (clientId) query = query.eq('client_id', clientId);
             if (req.query.source_id) query = query.eq('source_id', req.query.source_id);
-            if (req.query.from_date) query = query.gte('published_at', req.query.from_date);
-            if (req.query.to_date) query = query.lte('published_at', req.query.to_date);
+            if (fromDate) query = query.gte('published_at', fromDate);
+            if (toDate) query = query.lte('published_at', toDate);
             if (req.query.tagged_only === 'true') query = query.eq('is_tagged', true);
             if (req.query.keyword) query = query.contains('matched_keywords', [req.query.keyword]);
             if (hasSentimentFilter) query = query.eq('article_analysis.sentiment', req.query.sentiment);
@@ -64,12 +87,12 @@ router.get('/', async (req, res) => {
             // No analysis filters — standard query, then attach analysis separately
             let query = supabase
                 .from('articles')
-                .select('id, title, url, published_at, matched_keywords, is_tagged, analysis_status, source_id, client_id, created_at', { count: 'exact' });
+                .select('id, title, title_en, url, published_at, matched_keywords, is_tagged, analysis_status, source_id, client_id, created_at', { count: 'exact' });
 
             if (clientId) query = query.eq('client_id', clientId);
             if (req.query.source_id) query = query.eq('source_id', req.query.source_id);
-            if (req.query.from_date) query = query.gte('published_at', req.query.from_date);
-            if (req.query.to_date) query = query.lte('published_at', req.query.to_date);
+            if (fromDate) query = query.gte('published_at', fromDate);
+            if (toDate) query = query.lte('published_at', toDate);
             if (req.query.tagged_only === 'true') query = query.eq('is_tagged', true);
             if (req.query.keyword) query = query.contains('matched_keywords', [req.query.keyword]);
 
