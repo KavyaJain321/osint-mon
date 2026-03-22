@@ -82,17 +82,18 @@ async function translateChunk(text, languageName) {
         const { client, keyIndex } = getGroqClient();
         try {
             const response = await client.chat.completions.create({
-                model: 'llama-3.1-8b-instant',
+                model: 'llama-3.3-70b-versatile',
                 messages: [
                     {
                         role: 'system',
                         content:
-                            `You are a professional ${languageName}-to-English translator specializing in news content from Odisha, India. ` +
+                            `You are a professional ${languageName}-to-English translator specializing in news content from India. ` +
                             'Translate the provided text to clear, accurate English. ' +
-                            'Preserve all proper nouns exactly: person names, place names (Odisha, Bhubaneswar, Puri, Cuttack, etc.), ' +
+                            'Preserve all proper nouns exactly: person names, place names (Odisha, Puri, Cuttack, etc.), ' +
                             'party names (BJD, BJP, Congress, AAP), government terms, and numbers. ' +
                             'If a word or phrase is already in English, keep it as-is. ' +
-                            'Output ONLY the English translation — no explanations, no notes, no language labels.',
+                            'CRITICAL INSTRUCTION: Output ONLY the English translation. Do not add explanations, conversational filler, or notes. ' +
+                            'If the source text is short, repetitive, or unintelligible, translate what you can and STOP. Do NOT repeat phrases to fill space.',
                     },
                     { role: 'user', content: text },
                 ],

@@ -102,6 +102,20 @@ export async function processVideo(videoId, articleId, matchedKeywords) {
 
         await updateProcessingStatus(articleId, 'processing', `Found ${keywordOccurrences.length} keyword hits. Generating clips...`);
 
+        // ── Fallback Clip Injection ─────────────────────────
+        if (keywordOccurrences.length === 0) {
+            log.ai.info('0 literal keyword hits found (fuzzy or translation dropped match). Forcing a 0s-30s fallback clip.', { videoId });
+            keywordOccurrences.push({
+                timestamp: 15, // center of the 0s-30s window
+                endTime: 30,
+                word: matchedKeywords[0] || 'Unknown',
+                text: matchedKeywords[0] || 'Unknown',
+                context: 'Keyword matched via Title/Description search. Fallback highlight clip extracted.',
+                level: 'title-fallback',
+                keyword: matchedKeywords[0] || 'Unknown'
+            });
+        }
+
         // ── Step 3: Generate clips ──────────────────────────
         let clips = [];
         if (keywordOccurrences.length > 0) {
@@ -113,14 +127,8 @@ export async function processVideo(videoId, articleId, matchedKeywords) {
             clips = await generateClips(videoId, clipWindows);
             log.ai.info(`${clips.length} clips generated`, { videoId });
         } else {
-            log.ai.info('No keyword occurrences found — DELETING irrelevant video', { videoId });
-            
-            // Delete from database completely so it drops from the frontend
-            await supabase.from('content_items').delete().eq('id', articleId);
-            await supabase.from('articles').delete().eq('id', articleId);
-            
-            log.ai.info('Irrelevant video purged from database.', { videoId });
-            return; // Stop processing entirely
+            log.ai.info('No keyword occurrences found in transcript audio — skipping clip generation. Retaining full video.', { videoId });
+            // Do NOT delete the video. It matched keywords in title/description.
         }
 
         await updateProcessingStatus(articleId, 'processing', 'Generating AI summaries...');
@@ -138,11 +146,10 @@ export async function processVideo(videoId, articleId, matchedKeywords) {
         }
 
         // AI QUALITY GATE & GENERATION FAILURE CHECK
-        if (clipsWithSummaries.length === 0) {
-            log.ai.info('0 valid clips generated/retained (either generation failed or AI rejected all) — DELETING video', { videoId });
-            await supabase.from('content_items').delete().eq('id', articleId);
-            await supabase.from('articles').delete().eq('id', articleId);
-            return; // Stop processing
+        // We removed the deletion gate here as well, because we want to keep the video
+        // even if no clips were successfully generated.
+        if (clipsWithSummaries.length === 0 && keywordOccurrences.length > 0) {
+            log.ai.info('Clips were attempted but failed AI generation check. Preserving full video anyway.', { videoId });
         }
 
         await updateProcessingStatus(articleId, 'processing', 'Saving results...');
