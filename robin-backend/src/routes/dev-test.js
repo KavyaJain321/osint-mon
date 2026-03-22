@@ -2405,7 +2405,7 @@ router.get('/overview', async (req, res) => {
                 limit: 500,
             }),
             fetchSupa('content_items', {
-                select: 'id,title,url,published_at,matched_keywords,source_id',
+                select: 'id,title,url,published_at,matched_keywords,source_id,type_metadata',
                 client_id: `eq.${client.id}`,
                 published_at: `gte.${thirtyDaysAgo}`,
                 order: 'published_at.desc',
@@ -2415,11 +2415,21 @@ router.get('/overview', async (req, res) => {
 
         const mergedMap = new Map();
         (legacyArticles || []).forEach(a => mergedMap.set(a.id, a));
-        (newContentItems || []).forEach(c => mergedMap.set(c.id, c));
+        // Only include videos that have finished processing — failed/queued videos have very
+        // recent published_at and would otherwise float to the top of the feed, hiding articles.
+        (newContentItems || [])
+            .filter(c => {
+                const ps = c.type_metadata?.processing_status;
+                // If it has a processing_status field it's a video — require 'complete'
+                // If no processing_status, it's a non-video content item — always include
+                return !ps || ps === 'complete';
+            })
+            .forEach(c => mergedMap.set(c.id, c));
 
         const articles = Array.from(mergedMap.values())
             .sort((a, b) => new Date(b.published_at) - new Date(a.published_at))
             .slice(0, 500);
+
 
         const articleIds = articles.map(a => a.id);
 
