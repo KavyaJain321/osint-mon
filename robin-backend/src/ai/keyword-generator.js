@@ -216,39 +216,8 @@ function filterKeywords(keywords) {
     });
 }
 
-// ── Call 4: Translate Keywords to Odia ─────────────────────
+// ── (Odia translation removed per user request) ─────────────
 
-async function translateKeywordsToOdia(keywords) {
-    // Only translate the top 30 keywords to save tokens and time
-    const topKeywords = [...keywords].sort((a, b) => b.priority - a.priority).slice(0, 30);
-    const kwsList = topKeywords.map(k => k.keyword).join(', ');
-    
-    const prompt = `You are a professional Odia translator. Translate the following English media monitoring keywords strictly into the Odia language (ଓଡ଼ିଆ). These will be used to search for news articles in Odia newspapers like Sambad and Dharitri.
-Return ONLY valid JSON with this exact structure:
-{
-  "translations": [
-    {
-      "english": "original english keyword",
-      "odia": "odia translation"
-    }
-  ]
-}
-
-Keywords to translate:
-[${kwsList}]`;
-
-    try {
-        const resp = await groqChat(
-            [{ role: 'user', content: prompt }],
-            { temperature: 0.1, max_tokens: 3000, response_format: { type: 'json_object' } }
-        );
-        const parsed = JSON.parse(resp.choices[0].message.content);
-        return parsed.translations || [];
-    } catch (e) {
-        log.ai.error('Odia translation failed', { error: e.message });
-        return [];
-    }
-}
 
 // ── Public API ─────────────────────────────────────────────
 
@@ -284,29 +253,7 @@ export async function generateKeywordsFromBrief(problemStatement, clientName) {
         const allKws = [...primaryKws, ...advancedKws];
         const keywords = filterKeywords(allKws).slice(0, MAX_KW);
 
-        // Call 4: Translate top keywords to Odia
-        log.ai.info('Translating top keywords to Odia...', { count: keywords.length });
-        const translations = await translateKeywordsToOdia(keywords);
-        
-        const kwMap = new Map();
-        keywords.forEach(kw => kwMap.set(kw.keyword.toLowerCase(), kw));
-
-        const odiaKeywords = [];
-        for (const trans of translations) {
-            if (trans.odia && trans.odia !== trans.english) {
-                 const orig = kwMap.get((trans.english || '').toLowerCase());
-                 if (orig) {
-                     odiaKeywords.push({
-                         keyword: trans.odia,
-                         category: orig.category,
-                         priority: orig.priority,
-                         rationale: orig.rationale + ' (Odia Translation)'
-                     });
-                 }
-            }
-        }
-        
-        const finalKeywords = [...keywords, ...odiaKeywords];
+        const finalKeywords = keywords;
 
         // Log category breakdown
         const catCounts = {};
@@ -315,10 +262,8 @@ export async function generateKeywordsFromBrief(problemStatement, clientName) {
         }
 
         const elapsed = Date.now() - startTime;
-        log.ai.info('Keyword generation complete (enhanced + Odia)', {
+        log.ai.info('Keyword generation complete (enhanced English only)', {
             total: finalKeywords.length,
-            englishCount: keywords.length,
-            odiaCount: odiaKeywords.length,
             categories: catCounts,
             ms: elapsed,
         });

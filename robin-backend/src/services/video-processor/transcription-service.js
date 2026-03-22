@@ -50,35 +50,67 @@ export async function downloadAudio(videoId) {
     const outputTemplate = join(VIDEO_CONFIG.audioDir, `${filePrefix}.%(ext)s`);
     const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
-    await new Promise((resolve, reject) => {
-        const proc = spawn(VIDEO_CONFIG.ytDlpPath, [
-            '-x',                          // Extract audio only
-            '--audio-format', 'wav',       // Convert to WAV
-            '--postprocessor-args', `ffmpeg:-ar ${VIDEO_CONFIG.audioSampleRate} -ac ${VIDEO_CONFIG.audioChannels}`,
-            '--ffmpeg-location', VIDEO_CONFIG.ffmpegPath,
-            '--extractor-args', 'youtube:player-client=android', // Bypass "Sign in to confirm you're not a bot"
-            '-o', outputTemplate,
-            '--no-playlist',
-            '--no-warnings',
-            '--match-filter', `!is_live & duration<${VIDEO_CONFIG.maxVideoDuration}`,
-            videoUrl,
-        ], { timeout: VIDEO_CONFIG.ytDlpTimeout });
+    // Try multiple player clients in case one is bot-blocked by YouTube.
+    // Ordered from most to least sneaky: android (no sign-in required in most regions),
+    // mweb (mobile web), web_safari (desktop Safari UA).
+    const PLAYER_CLIENTS = ['android', 'mweb', 'web_safari', 'web'];
+    let lastError;
 
-        const timeout = setTimeout(() => {
-            proc.kill('SIGKILL');
-            reject(new Error('yt-dlp audio download timed out'));
-        }, VIDEO_CONFIG.ytDlpTimeout);
+    for (const playerClient of PLAYER_CLIENTS) {
+        try {
+            await new Promise((resolve, reject) => {
+                const proc = spawn(VIDEO_CONFIG.ytDlpPath, [
+                    '-x',                          // Extract audio only
+                    '--audio-format', 'wav',       // Convert to WAV
+                    '--postprocessor-args', `ffmpeg:-ar ${VIDEO_CONFIG.audioSampleRate} -ac ${VIDEO_CONFIG.audioChannels}`,
+                    '--ffmpeg-location', VIDEO_CONFIG.ffmpegPath,
+                    '--extractor-args', `youtube:player-client=${playerClient}`,
+                    '-o', outputTemplate,
+                    '--no-playlist',
+                    '--no-warnings',
+                    '--match-filter', `!is_live & duration<${VIDEO_CONFIG.maxVideoDuration}`,
+                    videoUrl,
+                ], { timeout: VIDEO_CONFIG.ytDlpTimeout });
 
-        let stderr = '';
-        proc.stderr.on('data', d => { stderr += d.toString(); });
+                const timeout = setTimeout(() => {
+                    proc.kill('SIGKILL');
+                    reject(new Error('yt-dlp audio download timed out'));
+                }, VIDEO_CONFIG.ytDlpTimeout);
 
-        proc.on('close', (code) => {
-            clearTimeout(timeout);
-            if (code === 0) resolve();
-            else reject(new Error(`yt-dlp failed (code ${code}): ${stderr.substring(0, 200)}`));
-        });
-        proc.on('error', (err) => { clearTimeout(timeout); reject(err); });
-    });
+                let stderr = '';
+                proc.stderr.on('data', d => { stderr += d.toString(); });
+
+                proc.on('close', (code) => {
+                    clearTimeout(timeout);
+                    if (code === 0) resolve();
+                    else reject(new Error(`yt-dlp failed (code ${code}): ${stderr.substring(0, 300)}`));
+                });
+                proc.on('error', (err) => { clearTimeout(timeout); reject(err); });
+            });
+
+            log.ai.debug(`Audio downloaded using player-client=${playerClient}`, { videoId });
+            break; // success — exit the retry loop
+
+        } catch (err) {
+            lastError = err;
+            const isBotBlock = err.message?.includes('Sign in to confirm') || err.message?.includes('bot');
+            log.ai.warn(`yt-dlp attempt failed with player-client=${playerClient}`, {
+                videoId, isBotBlock, error: err.message?.substring(0, 100),
+            });
+            if (!isBotBlock) {
+                // Non-bot error (e.g. private video, timeout) — no point retrying other clients
+                throw err;
+            }
+            // Bot block — try next player client
+        }
+    }
+
+    if (lastError && !PLAYER_CLIENTS.every(c => lastError.message?.includes(c))) {
+        // If we exhausted all clients and the last error was a bot block, throw it
+        const wasSuccessful = await readdir(VIDEO_CONFIG.audioDir).then(f => f.some(fn => fn.startsWith(filePrefix)));
+        if (!wasSuccessful) throw lastError;
+    }
+
 
     // yt-dlp may produce .wav, .webm, .mp3, .m4a, .opus etc. depending on the video and ffmpeg.
     // Scan the audio directory for any file starting with our unique prefix.
