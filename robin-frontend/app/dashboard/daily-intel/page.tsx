@@ -771,23 +771,101 @@ function PoliticalAnalysisSection({ articles }: { articles: Article[] }) {
                 </div>
             </div>
 
-            {/* ── Row 2: Summary Insight ── */}
-            {(govtArts.length > 0 || discourseArts.length > 0) && (
-                <div className="rounded-lg border border-slate-700/30 bg-slate-900/60 px-5 py-4">
-                    <p className="text-2xs font-mono text-teal-400/70 uppercase tracking-wider mb-2">📋 Today&apos;s Political Landscape Summary</p>
-                    <p className="text-sm text-slate-300 leading-relaxed">
-                        {govtArts.length > 0
-                            ? `Government & CM coverage today is <strong>${govtTone.label.toLowerCase()}</strong> across ${govtArts.length} article${govtArts.length !== 1 ? "s" : ""}. `
-                            : "No direct CM or government coverage found today. "}
-                        {topFocus.length > 0
-                            ? `${topFocus.length} area${topFocus.length !== 1 ? "s" : ""} of concern identified — primarily around ${topFocus.slice(0, 2).map(a => (a.title_en || a.title).split(" ").slice(0, 5).join(" ")).join("; ")}. `
-                            : "No critical government issues flagged. "}
-                        {discourseArts.length > 0
-                            ? `Political discourse includes ${discourseArts.length} article${discourseArts.length !== 1 ? "s" : ""} on legislative and assembly activities${ds.negPct >= 40 ? ", with critical tone dominating" : ""}.`
-                            : "No significant assembly or legislative coverage today."}
-                    </p>
-                </div>
-            )}
+            {/* ── Row 2: Article-Derived Insights ── */}
+            {(govtArts.length > 0 || discourseArts.length > 0) && (() => {
+                // Extract top entities from political articles
+                const entityCount: Record<string, number> = {};
+                for (const a of [...govtArts, ...discourseArts]) {
+                    for (const e of [...(a.entities?.people || []), ...(a.entities?.orgs || [])]) {
+                        if (e && e.length > 2) entityCount[e] = (entityCount[e] || 0) + 1;
+                    }
+                }
+                const topEntities = Object.entries(entityCount).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, count]) => ({ name, count }));
+
+                // Extract key themes from titles of top articles
+                const criticalTitles = topFocus.slice(0, 3).map(a => a.title_en || a.title);
+                const positiveTitle = topAchievements[0] ? (topAchievements[0].title_en || topAchievements[0].title) : null;
+
+                // Top negative discourse items
+                const discNeg = discourseArts.filter(a => (a.sentiment || "").toLowerCase() === "negative").slice(0, 2);
+
+                // Source diversity
+                const srcSet = new Set([...govtArts, ...discourseArts].map(a => a.source_name).filter(Boolean));
+
+                return (
+                    <div className="space-y-3">
+                        {/* Key Insight Block */}
+                        <div className="rounded-lg border border-slate-700/30 bg-slate-900/60 px-5 py-4">
+                            <p className="text-2xs font-mono text-teal-400/70 uppercase tracking-wider mb-3">📋 Today&apos;s Political Landscape — Key Insights</p>
+                            <div className="space-y-2.5">
+                                {/* Govt coverage insight */}
+                                <div className="flex items-start gap-2">
+                                    <span className={cn("w-2 h-2 rounded-full flex-shrink-0 mt-1.5", govtTone.color === "text-emerald-400" ? "bg-emerald-500" : govtTone.color === "text-amber-400" ? "bg-amber-500" : govtTone.color === "text-red-400" ? "bg-red-500" : "bg-slate-500")} />
+                                    <p className="text-sm text-slate-300 leading-relaxed">
+                                        <span className="font-semibold text-slate-100">Government coverage</span> is{" "}
+                                        <span className={govtTone.color}>{govtTone.label.toLowerCase()}</span>{" "}
+                                        ({gs.pos} positive, {gs.neg} critical across {govtArts.length} article{govtArts.length !== 1 ? "s" : ""}{srcSet.size > 0 ? ` from ${srcSet.size} source${srcSet.size !== 1 ? "s" : ""}` : ""}).
+                                        {gs.neg === 0 && gs.pos > 0 && " No critical coverage of the government detected today."}
+                                    </p>
+                                </div>
+
+                                {/* Critical issues */}
+                                {criticalTitles.length > 0 && (
+                                    <div className="flex items-start gap-2">
+                                        <span className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5 bg-red-500" />
+                                        <p className="text-sm text-slate-300 leading-relaxed">
+                                            <span className="font-semibold text-red-400">Issues requiring attention:</span>{" "}
+                                            {criticalTitles.map((t, i) => (
+                                                <span key={i}>{i > 0 ? "; " : ""}<span className="text-slate-200 italic">{t.length > 90 ? t.slice(0, 90) + "…" : t}</span></span>
+                                            ))}.
+                                        </p>
+                                    </div>
+                                )}
+
+                                {/* Positive achievement */}
+                                {positiveTitle && (
+                                    <div className="flex items-start gap-2">
+                                        <span className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5 bg-emerald-500" />
+                                        <p className="text-sm text-slate-300 leading-relaxed">
+                                            <span className="font-semibold text-emerald-400">Notable positive:</span>{" "}
+                                            <span className="text-slate-200 italic">{positiveTitle.length > 100 ? positiveTitle.slice(0, 100) + "…" : positiveTitle}</span>
+                                        </p>
+                                    </div>
+                                )}
+
+                                {/* Discourse insight */}
+                                {discourseArts.length > 0 && (
+                                    <div className="flex items-start gap-2">
+                                        <span className={cn("w-2 h-2 rounded-full flex-shrink-0 mt-1.5", ds.negPct >= 50 ? "bg-red-400" : "bg-slate-500")} />
+                                        <p className="text-sm text-slate-300 leading-relaxed">
+                                            <span className="font-semibold text-slate-100">Political discourse</span>{" "}
+                                            ({discourseArts.length} article{discourseArts.length !== 1 ? "s" : ""}) is{" "}
+                                            {ds.negPct >= 60 ? <span className="text-red-400">predominantly critical</span>
+                                                : ds.negPct >= 40 ? <span className="text-amber-400">mixed with significant criticism</span>
+                                                : ds.posPct >= 50 ? <span className="text-emerald-400">broadly constructive</span>
+                                                : <span className="text-slate-400">largely neutral / procedural</span>}.
+                                            {discNeg.length > 0 && <span className="text-slate-400"> Key flashpoints: <span className="text-slate-300 italic">{discNeg.map(a => (a.title_en || a.title).split("|")[0].trim().slice(0, 70)).join("; ")}</span>.</span>}
+                                        </p>
+                                    </div>
+                                )}
+
+                                {/* Key people/orgs */}
+                                {topEntities.length > 0 && (
+                                    <div className="flex items-start gap-2">
+                                        <span className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5 bg-violet-500" />
+                                        <p className="text-sm text-slate-300 leading-relaxed">
+                                            <span className="font-semibold text-slate-100">Most mentioned:</span>{" "}
+                                            {topEntities.map((e, i) => (
+                                                <span key={e.name}>{i > 0 ? ", " : ""}<span className="text-violet-300">{e.name}</span> ({e.count}×)</span>
+                                            ))}.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
         </div>
     );
 }
@@ -1255,142 +1333,159 @@ function EntityIntelSection({ articles, externalEntities }: { articles: Article[
 
 // ─── Media Tone ───────────────────────────────────────────────────────────────
 
-function MediaToneSection({ sentiment, narrative, totalArticles }: {
+function MediaToneSection({ sentiment, articles }: {
     sentiment: { positive: number; negative: number; neutral: number; positive_pct: number; negative_pct: number; neutral_pct: number; total: number } | null;
-    narrative: { weekly_narrative?: string; dominant_sentiment?: string; emerging_themes?: string[] } | null;
-    totalArticles: number;
+    articles: Article[];
 }) {
     if (!sentiment) return <div className="px-5 py-6 text-sm text-slate-500 text-center">Sentiment data not available.</div>;
+
     const dominant = sentiment.positive_pct >= sentiment.negative_pct && sentiment.positive_pct >= sentiment.neutral_pct ? "POSITIVE"
         : sentiment.negative_pct >= sentiment.positive_pct && sentiment.negative_pct >= sentiment.neutral_pct ? "NEGATIVE" : "NEUTRAL";
     const toneLabel = dominant === "POSITIVE" ? "Favourable" : dominant === "NEGATIVE" ? "Adverse" : "Mixed";
     const toneColor = dominant === "POSITIVE" ? "text-emerald-400" : dominant === "NEGATIVE" ? "text-red-400" : "text-slate-400";
 
+    // Derive insights from actual articles
+    const negArts = [...articles].filter(a => (a.sentiment || "").toLowerCase() === "negative").sort((a, b) => (b.importance_score || 0) - (a.importance_score || 0));
+    const posArts = [...articles].filter(a => (a.sentiment || "").toLowerCase() === "positive").sort((a, b) => (b.importance_score || 0) - (a.importance_score || 0));
+
+    // Source breakdown — how many articles per source
+    const srcCount: Record<string, { count: number; neg: number; pos: number }> = {};
+    for (const a of articles) {
+        const s = a.source_name || "Unknown";
+        if (!srcCount[s]) srcCount[s] = { count: 0, neg: 0, pos: 0 };
+        srcCount[s].count++;
+        if ((a.sentiment || "").toLowerCase() === "negative") srcCount[s].neg++;
+        if ((a.sentiment || "").toLowerCase() === "positive") srcCount[s].pos++;
+    }
+    const topSources = Object.entries(srcCount).sort((a, b) => b[1].count - a[1].count).slice(0, 6);
+
+    // Entity frequency across all articles
+    const entityCount: Record<string, number> = {};
+    for (const a of articles) {
+        for (const e of [...(a.entities?.people || []), ...(a.entities?.orgs || [])]) {
+            if (e && e.length > 2) entityCount[e] = (entityCount[e] || 0) + 1;
+        }
+    }
+    const topEntities = Object.entries(entityCount).sort((a, b) => b[1] - a[1]).slice(0, 8);
+
     return (
-        <div className="p-5">
-            <div className="flex items-center justify-between mb-4">
+        <div className="p-5 space-y-5">
+            {/* ── Tone header ── */}
+            <div className="flex items-center justify-between">
                 <div>
                     <div className="text-2xs text-slate-500 uppercase tracking-wider mb-1">Overall Media Tone</div>
                     <div className={cn("text-2xl font-bold", toneColor)}>{toneLabel}</div>
-                    <div className="text-xs text-slate-500 mt-0.5">{totalArticles} articles analysed</div>
+                    <div className="text-xs text-slate-500 mt-0.5">{articles.length} articles analysed</div>
                 </div>
-                <div className="text-right">
-                    <div className="text-2xs text-slate-500 mb-1">Dominant Sentiment</div>
-                    <div className={cn("text-sm font-semibold", sentimentColor(narrative?.dominant_sentiment || dominant))}>
-                        {narrative?.dominant_sentiment || dominant}
-                    </div>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                    {[
+                        { label: "Positive", value: sentiment.positive, pct: sentiment.positive_pct, color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
+                        { label: "Neutral", value: sentiment.neutral, pct: sentiment.neutral_pct, color: "text-slate-400", bg: "bg-slate-700/40 border-slate-600/30" },
+                        { label: "Negative", value: sentiment.negative, pct: sentiment.negative_pct, color: "text-red-400", bg: "bg-red-500/10 border-red-500/20" },
+                    ].map(item => (
+                        <div key={item.label} className={cn("rounded-lg border px-3 py-2", item.bg)}>
+                            <div className={cn("text-lg font-bold font-mono", item.color)}>{item.value}</div>
+                            <div className="text-2xs text-slate-500">{item.pct}%</div>
+                            <div className="text-2xs text-slate-600">{item.label}</div>
+                        </div>
+                    ))}
                 </div>
             </div>
-            <div className="mb-4">
-                <div className="flex rounded-full overflow-hidden h-3">
+
+            {/* Sentiment bar */}
+            <div>
+                <div className="flex rounded-full overflow-hidden h-2.5">
                     <div style={{ width: `${sentiment.positive_pct}%` }} className="bg-emerald-500 transition-all" />
                     <div style={{ width: `${sentiment.neutral_pct}%` }} className="bg-slate-600 transition-all" />
                     <div style={{ width: `${sentiment.negative_pct}%` }} className="bg-red-500 transition-all" />
                 </div>
-                <div className="flex justify-between text-2xs mt-1.5 text-slate-500">
-                    <span className="text-emerald-500">{sentiment.positive_pct}% Positive</span>
-                    <span>{sentiment.neutral_pct}% Neutral</span>
-                    <span className="text-red-400">{sentiment.negative_pct}% Negative</span>
+            </div>
+
+            {/* ── Article-derived insights ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+                {/* What media is criticising */}
+                <div className="rounded-lg border border-red-500/15 bg-red-500/5 p-4">
+                    <p className="text-2xs font-mono text-red-400/70 uppercase tracking-wider mb-2.5">⚠ What Media Is Criticising ({negArts.length} articles)</p>
+                    {negArts.length === 0 ? (
+                        <p className="text-xs text-slate-500">No negative coverage today — situation appears stable.</p>
+                    ) : (
+                        <div className="space-y-2">
+                            {negArts.slice(0, 4).map(a => (
+                                <a key={a.id} href={a.url} target="_blank" rel="noreferrer" className="flex items-start gap-2 group">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0 mt-1.5" />
+                                    <div>
+                                        <p className="text-xs text-slate-300 leading-snug group-hover:text-red-300 transition-colors line-clamp-2">{a.title_en || a.title}</p>
+                                        <div className="flex gap-2 mt-0.5 text-2xs text-slate-500">
+                                            {a.source_name && <span>{a.source_name}</span>}
+                                            {a.importance_score && <span className="text-amber-500/70">Priority {a.importance_score}/10</span>}
+                                        </div>
+                                    </div>
+                                </a>
+                            ))}
+                            {negArts.length > 4 && <p className="text-2xs text-slate-600 mt-1">+{negArts.length - 4} more critical articles</p>}
+                        </div>
+                    )}
+                </div>
+
+                {/* What media is praising */}
+                <div className="rounded-lg border border-emerald-500/15 bg-emerald-500/5 p-4">
+                    <p className="text-2xs font-mono text-emerald-400/70 uppercase tracking-wider mb-2.5">✓ What Media Is Highlighting Positively ({posArts.length} articles)</p>
+                    {posArts.length === 0 ? (
+                        <p className="text-xs text-slate-500">No significant positive coverage today.</p>
+                    ) : (
+                        <div className="space-y-2">
+                            {posArts.slice(0, 4).map(a => (
+                                <a key={a.id} href={a.url} target="_blank" rel="noreferrer" className="flex items-start gap-2 group">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0 mt-1.5" />
+                                    <div>
+                                        <p className="text-xs text-slate-300 leading-snug group-hover:text-emerald-300 transition-colors line-clamp-2">{a.title_en || a.title}</p>
+                                        {a.source_name && <p className="text-2xs text-slate-500 mt-0.5">{a.source_name}</p>}
+                                    </div>
+                                </a>
+                            ))}
+                            {posArts.length > 4 && <p className="text-2xs text-slate-600 mt-1">+{posArts.length - 4} more positive articles</p>}
+                        </div>
+                    )}
                 </div>
             </div>
-            <div className="grid grid-cols-3 gap-3 mb-4">
-                {[
-                    { label: "Positive", value: sentiment.positive, color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
-                    { label: "Neutral", value: sentiment.neutral, color: "text-slate-400", bg: "bg-slate-700/40 border-slate-600/30" },
-                    { label: "Negative", value: sentiment.negative, color: "text-red-400", bg: "bg-red-500/10 border-red-500/20" },
-                ].map(item => (
-                    <div key={item.label} className={cn("rounded-lg border px-3 py-2.5 text-center", item.bg)}>
-                        <div className={cn("text-xl font-bold font-mono", item.color)}>{item.value}</div>
-                        <div className="text-2xs text-slate-500 mt-0.5">{item.label}</div>
-                    </div>
-                ))}
-            </div>
-            {narrative?.emerging_themes && narrative.emerging_themes.length > 0 && (
+
+            {/* ── Source activity ── */}
+            {topSources.length > 0 && (
                 <div>
-                    <div className="text-2xs text-slate-500 uppercase tracking-wider mb-2">Emerging Themes</div>
+                    <p className="text-2xs font-mono text-slate-500 uppercase tracking-wider mb-2.5">📡 Most Active Sources Today</p>
+                    <div className="space-y-1.5">
+                        {topSources.map(([src, data]) => {
+                            const negPct = data.count > 0 ? Math.round((data.neg / data.count) * 100) : 0;
+                            return (
+                                <div key={src} className="flex items-center gap-3">
+                                    <span className="text-xs text-slate-300 w-40 truncate flex-shrink-0">{src}</span>
+                                    <div className="flex-1 flex h-1.5 rounded-full overflow-hidden bg-slate-800">
+                                        <div className="bg-emerald-500/70" style={{ width: `${data.count > 0 ? (data.pos / data.count) * 100 : 0}%` }} />
+                                        <div className="bg-slate-600/60" style={{ width: `${data.count > 0 ? ((data.count - data.pos - data.neg) / data.count) * 100 : 0}%` }} />
+                                        <div className="bg-red-500/70" style={{ width: `${negPct}%` }} />
+                                    </div>
+                                    <span className="text-2xs text-slate-500 w-16 text-right flex-shrink-0">{data.count} articles{negPct >= 50 ? <span className="text-red-400 ml-1">({negPct}% neg)</span> : null}</span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
+            {/* ── Most mentioned entities ── */}
+            {topEntities.length > 0 && (
+                <div>
+                    <p className="text-2xs font-mono text-slate-500 uppercase tracking-wider mb-2">👥 Most Mentioned in Today&apos;s Coverage</p>
                     <div className="flex flex-wrap gap-2">
-                        {narrative.emerging_themes.slice(0, 8).map(theme => (
-                            <span key={theme} className="text-xs bg-slate-800 border border-slate-700 text-slate-300 px-2.5 py-1 rounded-full">{theme}</span>
+                        {topEntities.map(([name, count]) => (
+                            <span key={name} className="text-xs bg-slate-800 border border-slate-700 text-slate-300 px-2.5 py-1 rounded-full">
+                                {name} <span className="text-slate-500 font-mono">×{count}</span>
+                            </span>
                         ))}
                     </div>
                 </div>
             )}
-            {narrative?.weekly_narrative && (() => {
-                // Parse JSON narrative if it's a JSON string, else show as plain text
-                let parsed: Record<string, string> | null = null;
-                try {
-                    const raw = narrative.weekly_narrative!.trim();
-                    if (raw.startsWith("{")) parsed = JSON.parse(raw);
-                } catch { /* not JSON */ }
-
-                if (parsed) {
-                    const sections: { key: string; label: string; icon: string }[] = [
-                        { key: "executive_summary", label: "Executive Summary", icon: "📋" },
-                        { key: "key_developments", label: "Key Developments", icon: "📌" },
-                        { key: "emerging_threats", label: "Emerging Threats", icon: "⚠️" },
-                        { key: "entity_movements", label: "Entity Movements", icon: "👥" },
-                        { key: "coverage_patterns", label: "Coverage Patterns", icon: "📰" },
-                        { key: "watch_list", label: "Watch List", icon: "👁️" },
-                        { key: "full_narrative", label: "Full Analysis", icon: "📄" },
-                    ];
-
-                    // Render a markdown-like text block cleanly (strip ## headings, clean bullets)
-                    const renderCleanText = (raw: string) => {
-                        const lines = raw
-                            .replace(/\\n/g, "\n")   // unescape \n
-                            .split("\n")
-                            .map(l => l.trim())
-                            .filter(Boolean);
-
-                        return (
-                            <div className="space-y-1.5">
-                                {lines.map((line, i) => {
-                                    // ## Heading or # Heading → styled subheading
-                                    if (/^#{1,3}\s/.test(line)) {
-                                        const text = line.replace(/^#{1,3}\s+/, "").replace(/\*\*/g, "");
-                                        return <p key={i} className="text-xs font-semibold text-slate-300 mt-2 first:mt-0 uppercase tracking-wide">{text}</p>;
-                                    }
-                                    // * bullet or • bullet
-                                    if (/^[*•\-]\s/.test(line)) {
-                                        const text = line.replace(/^[*•\-]\s+/, "").replace(/\*\*/g, "");
-                                        return (
-                                            <p key={i} className="text-xs text-slate-400 leading-relaxed flex gap-1.5">
-                                                <span className="text-teal-500 flex-shrink-0 mt-0.5">•</span>
-                                                <span>{text}</span>
-                                            </p>
-                                        );
-                                    }
-                                    // Plain paragraph
-                                    return <p key={i} className="text-xs text-slate-400 leading-relaxed">{line.replace(/\*\*/g, "")}</p>;
-                                })}
-                            </div>
-                        );
-                    };
-
-                    return (
-                        <div className="mt-4 space-y-2">
-                            {sections.map(({ key, label, icon }) => {
-                                const text = parsed![key];
-                                if (!text) return null;
-                                return (
-                                    <div key={key} className="p-3 bg-slate-800/60 border border-slate-700/40 rounded-lg">
-                                        <div className="text-2xs text-slate-500 uppercase tracking-wider mb-2">{icon} {label}</div>
-                                        {renderCleanText(text)}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    );
-                }
-
-                // Plain text fallback
-                return (
-                    <div className="mt-4 p-3 bg-slate-800/60 border border-slate-700/40 rounded-lg">
-                        <div className="text-2xs text-slate-500 uppercase tracking-wider mb-1.5">📄 Narrative Analysis</div>
-                        <p className="text-xs text-slate-400 leading-relaxed">{narrative.weekly_narrative}</p>
-                    </div>
-                );
-            })()}
         </div>
     );
 }
@@ -1644,7 +1739,7 @@ export default function DailyIntelPage() {
                     <SectionCard title="Media Tone Analysis" icon={<Radio size={15} />}
                         badge={<span className="text-2xs text-slate-500 ml-1">How Odisha is covered today</span>}
                         defaultOpen={false}>
-                        <MediaToneSection sentiment={sentimentData} narrative={intelData?.narrative || null} totalArticles={articles.length} />
+                        <MediaToneSection sentiment={sentimentData} articles={articles} />
                     </SectionCard>
 
                     <div className="h-8" />
