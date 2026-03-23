@@ -54,6 +54,13 @@ Environment variables (Render):
 
 ---
 
+## GIT WORKFLOW RULE
+> **Do NOT push to GitHub after individual changes.**
+> Commit locally after each change (`git commit`), but only push when the user explicitly says "push to GitHub".
+> This keeps the live Render/Vercel deployment stable while changes accumulate locally.
+
+---
+
 ## EXECUTION PHASES
 
 | Phase | What | Sessions | Status |
@@ -636,6 +643,7 @@ LOG_LEVEL=info
 | Date | Session | What was done | What's next |
 |------|---------|---------------|-------------|
 | 2026-03-23 | Planning | Created PLAN.md | Phase 1: Run SQL, then orchestrator changes |
+| 2026-03-23 | Phase 1 | SQL complete (all indexes + source health columns + ai_jobs table). orchestrator.js: added updateSourceHealth(), hooked into crawlWithFallback + Google News + Reddit wrappers. Auto-disables source at 15 failures, degrades at 5. Committed locally, NOT pushed. | Phase 2: TRIJYA-7 manual setup (needs server access) |
 
 ---
 
