@@ -4,10 +4,10 @@ import Providers from "./Providers";
 
 export const metadata: Metadata = {
   title: {
-    default: "ROBIN — Intelligence Platform",
+    default: "ROBIN — Media Monitor",
     template: "%s | ROBIN",
   },
-  description: "Real-time OSINT and intelligence analysis platform",
+  description: "Real-time media monitoring and situation analysis platform",
   icons: { icon: "/favicon.ico" },
 };
 

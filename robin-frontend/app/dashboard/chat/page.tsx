@@ -157,7 +157,7 @@ export default function ChatPage() {
             setMessages(prev =>
                 prev.map(m =>
                     m.id === assistantId
-                        ? { ...m, content: "⚠ Unable to reach the intelligence backend. Please verify the server is running." }
+                        ? { ...m, content: "⚠ Unable to reach the analysis backend. Please verify the server is running." }
                         : m
                 )
             );
@@ -257,8 +257,8 @@ export default function ChatPage() {
                 {/* Header */}
                 <div className="flex-shrink-0 px-4 py-4 border-b border-border flex items-center justify-between">
                     <div>
-                        <h1 className="text-xl font-semibold text-text-primary">Intelligence Chat</h1>
-                        <p className="text-sm text-text-muted mt-0.5">Ask anything about your monitored intelligence landscape</p>
+                        <h1 className="text-xl font-semibold text-text-primary">Media Chat</h1>
+                        <p className="text-sm text-text-muted mt-0.5">Ask anything about your monitored media landscape</p>
                     </div>
                     {messages.length > 0 && (
                         <button
@@ -351,7 +351,7 @@ export default function ChatPage() {
                             </div>
                             <div className="bg-surface border border-border rounded-xl rounded-tl-sm px-4 py-3 flex items-center gap-2">
                                 <Loader2 size={13} className="animate-spin text-text-muted" />
-                                <span className="text-xs text-text-muted">Analysing intelligence…</span>
+                                <span className="text-xs text-text-muted">Analysing data…</span>
                             </div>
                         </div>
                     )}

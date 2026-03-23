@@ -161,7 +161,7 @@ export default function IntelligenceBriefPage() {
             <div className="h-[calc(100vh-48px)] flex items-center justify-center" style={{ background: "#080a0e" }}>
                 <div className="text-center space-y-3">
                     <div className="w-8 h-8 border-2 border-teal-500/30 border-t-teal-500 rounded-full animate-spin mx-auto" />
-                    <p className="text-xs text-slate-500 font-mono tracking-wider">COMPILING INTELLIGENCE BRIEF...</p>
+                    <p className="text-xs text-slate-500 font-mono tracking-wider">COMPILING SITUATION BRIEF...</p>
                 </div>
             </div>
         );
@@ -300,7 +300,7 @@ export default function IntelligenceBriefPage() {
 
                         {brief.developments.length === 0 ? (
                             <div className="rounded-lg border border-slate-800/40 bg-[#0c0e14] p-6 text-center">
-                                <p className="text-xs text-slate-600 font-mono">No developments detected. Run batch intelligence after scraping articles.</p>
+                                <p className="text-xs text-slate-600 font-mono">No developments detected. Run batch analysis after scraping articles.</p>
                             </div>
                         ) : brief.developments.map((dev, i) => {
                             const isExpanded = expandedDev === `${i}`;
@@ -403,7 +403,7 @@ export default function IntelligenceBriefPage() {
                             <div className="overflow-y-auto max-h-[600px] custom-scrollbar">
                                 {brief.entity_watchlist.length === 0 ? (
                                     <div className="p-6 text-center">
-                                        <p className="text-xs text-slate-600 font-mono">Entity data will appear after batch intelligence runs.</p>
+                                        <p className="text-xs text-slate-600 font-mono">Entity data will appear after batch analysis runs.</p>
                                     </div>
                                 ) : brief.entity_watchlist.map((entity, i) => {
                                     const es = ENTITY_STATUS[entity.status] || ENTITY_STATUS.stable;
@@ -459,7 +459,7 @@ export default function IntelligenceBriefPage() {
 
                         {brief.active_signals.length === 0 ? (
                             <div className="rounded-lg border border-slate-800/40 bg-[#0c0e14] p-6 text-center">
-                                <p className="text-xs text-slate-600 font-mono">No active signals. Run batch intelligence to detect patterns.</p>
+                                <p className="text-xs text-slate-600 font-mono">No active signals. Run batch analysis to detect patterns.</p>
                             </div>
                         ) : brief.active_signals.slice(0, 8).map((signal) => {
                             const sev = SEV_STYLES[signal.severity] || SEV_STYLES.watch;
@@ -772,7 +772,7 @@ export default function IntelligenceBriefPage() {
                 {/* Footer */}
                 <div className="text-center py-2">
                     <span className="text-[9px] font-mono text-slate-700">
-                        ROBIN Intelligence Brief · Generated {brief.generated_at ? new Date(brief.generated_at).toLocaleString() : "—"}
+                        ROBIN Situation Brief · Generated {brief.generated_at ? new Date(brief.generated_at).toLocaleString() : "—"}
                     </span>
                 </div>
             </div>

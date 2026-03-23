@@ -58,7 +58,7 @@ const sections: NavSection[] = [
         collapsible: true,
         defaultOpen: true,
         items: [
-            { href: "/dashboard/intelligence", label: "Intelligence", icon: Zap },
+            { href: "/dashboard/intelligence", label: "Analysis", icon: Zap },
             { href: "/dashboard/entities", label: "Entities", icon: Users },
         ],
     },
@@ -96,7 +96,7 @@ const sections: NavSection[] = [
         collapsible: true,
         defaultOpen: true,
         items: [
-            { href: "/dashboard/briefs", label: "Intelligence Brief", icon: FileText },
+            { href: "/dashboard/briefs", label: "Situation Brief", icon: FileText },
             { href: "/dashboard/chat", label: "Ask ROBIN", icon: MessageSquare },
             { href: "/dashboard/admin", label: "Admin Panel", icon: Shield },
             { href: "/dashboard/admin/briefs", label: "Brief Review", icon: Settings },
@@ -145,7 +145,7 @@ export default function Sidebar() {
                 </div>
                 <div>
                     <div className="text-sm font-semibold text-text-primary tracking-wide">ROBIN</div>
-                    <div className="text-2xs text-text-muted uppercase tracking-widest">Intelligence</div>
+                    <div className="text-2xs text-text-muted uppercase tracking-widest">Media Monitor</div>
                 </div>
             </div>
 

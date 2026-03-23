@@ -312,7 +312,7 @@ export default function AlertCommandCenter() {
                 <div className="card p-12 text-center">
                     <Bell size={40} className="text-text-muted mx-auto mb-3 opacity-30" />
                     <p className="text-sm text-text-muted">No signals detected yet.</p>
-                    <p className="text-2xs text-text-muted mt-1">Signals will appear once the intelligence pipeline processes content.</p>
+                    <p className="text-2xs text-text-muted mt-1">Signals will appear once the analysis pipeline processes content.</p>
                 </div>
             )}
 

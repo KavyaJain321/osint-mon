@@ -43,7 +43,7 @@ export default function StoryTimeline() {
     if (patterns.length === 0) {
         return (
             <div className="card p-6 text-center">
-                <p className="text-xs text-text-muted">Story clusters will appear after batch intelligence runs.</p>
+                <p className="text-xs text-text-muted">Story clusters will appear after batch analysis runs.</p>
             </div>
         );
     }

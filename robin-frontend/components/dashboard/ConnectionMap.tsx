@@ -136,7 +136,7 @@ export default function ConnectionMap() {
         return (
             <div className="card p-8 text-center">
                 <GitBranch size={32} className="text-text-muted mx-auto mb-2 opacity-30" />
-                <p className="text-xs text-text-muted">No connections to visualize. Run the intelligence pipeline first.</p>
+                <p className="text-xs text-text-muted">No connections to visualize. Run the analysis pipeline first.</p>
             </div>
         );
     }

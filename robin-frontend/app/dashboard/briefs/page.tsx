@@ -334,7 +334,7 @@ export default function BriefsPage() {
             {/* Header */}
             <div className="flex items-start justify-between mb-5">
                 <div>
-                    <h1 className="text-xl font-semibold text-text-primary">Intelligence Brief</h1>
+                    <h1 className="text-xl font-semibold text-text-primary">Situation Brief</h1>
                     <p className="text-sm text-text-muted mt-0.5">
                         Describe your problem → AI generates keywords → discovers sources → auto-starts scraping
                     </p>
@@ -354,7 +354,7 @@ export default function BriefsPage() {
                         <div className="flex-1">
                             <h3 className="text-sm font-semibold text-text-primary mb-1">Replace Current Brief?</h3>
                             <p className="text-xs text-text-secondary mb-3">
-                                This will <span className="text-amber font-medium">delete all existing data</span> — articles, intelligence signals,
+                                This will <span className="text-amber font-medium">delete all existing data</span> — articles, situation signals,
                                 entity profiles, threat assessments, and sources. The dashboard will be empty until new data
                                 is collected from the new brief&apos;s sources.
                             </p>
@@ -377,7 +377,7 @@ export default function BriefsPage() {
                     <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-raised border border-border mb-4">
                         <Search size={28} className="text-text-muted" />
                     </div>
-                    <h2 className="text-lg font-medium text-text-primary mb-1">Start with your intelligence problem</h2>
+                    <h2 className="text-lg font-medium text-text-primary mb-1">Start with your monitoring objective</h2>
                     <p className="text-sm text-text-muted max-w-md mx-auto mb-5">
                         Describe what you need to monitor. ROBIN will generate keywords, discover sources,
                         and automatically start scraping — populating your entire dashboard.
@@ -394,7 +394,7 @@ export default function BriefsPage() {
                         })}
                     </div>
                     <button onClick={() => setShowForm(true)} className="btn btn-primary">
-                        <Plus size={14} /> Submit Intelligence Brief
+                        <Plus size={14} /> Submit Situation Brief
                     </button>
                 </div>
             )}
@@ -404,7 +404,7 @@ export default function BriefsPage() {
                 <div className="card mb-5 animate-fade-in">
                     <div className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3 flex items-center gap-1.5">
                         <FileText size={12} className="text-accent" />
-                        {brief ? "Replace Intelligence Brief" : "Create Intelligence Brief"}
+                        {brief ? "Replace Situation Brief" : "Create Situation Brief"}
                     </div>
 
                     {/* ── Intake Mode Tabs ── */}
@@ -447,7 +447,7 @@ export default function BriefsPage() {
                         {intakeMode === "describe" && (
                             <>
                                 <textarea
-                                    placeholder="Describe your intelligence problem in detail (min 50 chars). What threats concern you? What entities, industries, or regions should we monitor? What kind of information do you need?"
+                                    placeholder="Describe your monitoring objective in detail (min 50 chars). What threats concern you? What entities, industries, or regions should we monitor? What kind of information do you need?"
                                     value={problem}
                                     onChange={e => setProblem(e.target.value)}
                                     rows={5}
@@ -779,7 +779,7 @@ export default function BriefsPage() {
                                     { id: 'sources', num: 2, label: 'Discovering Sources', icon: '🔍' },
                                     { id: 'scraping', num: 3, label: 'Scraping Sources', icon: '🌐' },
                                     { id: 'analysis', num: 4, label: 'AI Article Analysis', icon: '🧠' },
-                                    { id: 'intelligence', num: 5, label: 'Intelligence Engine', icon: '⚡' },
+                                    { id: 'intelligence', num: 5, label: 'Analysis Engine', icon: '⚡' },
                                     { id: 'complete', num: 6, label: 'Complete', icon: '✅' },
                                 ].map((step) => {
                                     const isActive = pipeline.stage === step.id;
@@ -862,7 +862,7 @@ export default function BriefsPage() {
                                         <div>
                                             <p className="text-xs text-emerald font-medium">Pipeline Complete!</p>
                                             <p className="text-2xs text-text-muted mt-0.5">
-                                                All data is populated. Check Overview, Intelligence, and Signals pages.
+                                                All data is populated. Check Overview, Analysis, and Signals pages.
                                             </p>
                                         </div>
                                     </div>

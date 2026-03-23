@@ -87,7 +87,7 @@ export default function AskRobin() {
                         {messages.length === 0 && (
                             <div className="text-center pt-8">
                                 <Sparkles size={28} className="text-text-muted mx-auto mb-3 opacity-30" />
-                                <p className="text-xs text-text-muted mb-4">Ask me anything about your intelligence data.</p>
+                                <p className="text-xs text-text-muted mb-4">Ask me anything about your media data.</p>
                                 <div className="space-y-1.5">
                                     {SUGGESTED_QUESTIONS.map((q, i) => (
                                         <button

@@ -374,7 +374,7 @@ function MapViewPanel({ nodes, onClose }: { nodes: GeoNode[]; onClose: () => voi
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-800/60 bg-card-bg">
                 <div className="flex items-center gap-2">
                     <MapPin size={13} className="text-teal-500" />
-                    <span className="text-[11px] font-mono text-slate-400 tracking-wider">GEOGRAPHIC INTELLIGENCE — MAP VIEW</span>
+                    <span className="text-[11px] font-mono text-slate-400 tracking-wider">GEOGRAPHIC OVERVIEW — MAP VIEW</span>
                 </div>
                 <button
                     onClick={onClose}

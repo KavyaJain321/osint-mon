@@ -54,12 +54,12 @@ export default function LoginPage() {
                     </div>
                     <div>
                         <div className="text-base font-semibold text-text-primary tracking-wide">ROBIN</div>
-                        <div className="text-2xs text-text-muted uppercase tracking-widest">Intelligence Platform</div>
+                        <div className="text-2xs text-text-muted uppercase tracking-widest">Media Monitor</div>
                     </div>
                 </div>
 
                 <h1 className="text-xl font-semibold text-text-primary mb-1">Sign in</h1>
-                <p className="text-sm text-text-muted mb-6">Access your intelligence dashboard</p>
+                <p className="text-sm text-text-muted mb-6">Access your media monitoring dashboard</p>
 
                 {error && (
                     <div className="flex items-start gap-2 p-3 rounded-md bg-rose-subtle border border-rose/20 mb-5">
@@ -129,7 +129,7 @@ export default function LoginPage() {
 
             {/* Bottom caption */}
             <p className="text-center text-2xs text-text-muted mt-4">
-                ROBIN Intelligence Platform · Restricted Access
+                ROBIN Media Monitor · Restricted Access
             </p>
         </div>
     );

@@ -55,7 +55,7 @@ export default function EntityGraph() {
         return (
             <div className="card p-6 text-center">
                 <Users size={32} className="text-text-muted mx-auto mb-2 opacity-30" />
-                <p className="text-xs text-text-muted">Entity profiles will appear after intelligence analysis runs.</p>
+                <p className="text-xs text-text-muted">Entity profiles will appear after situation analysis runs.</p>
             </div>
         );
     }

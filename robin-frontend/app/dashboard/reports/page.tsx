@@ -46,7 +46,7 @@ export default function ReportsPage() {
     const [builderOpen, setBuilderOpen] = useState(false);
     const [template, setTemplate] = useState("daily");
     const [period, setPeriod] = useState("24h");
-    const [headerText, setHeaderText] = useState("Intelligence Report");
+    const [headerText, setHeaderText] = useState("Situation Report");
     const [classification, setClassification] = useState("internal");
     const [sections, setSections] = useState<Record<string, boolean>>({
         executive_summary: true,
@@ -79,7 +79,7 @@ export default function ReportsPage() {
         executive_summary: "① Executive Summary (AI-generated)",
         top_developments: "② Top Developments (story clusters)",
         sentiment_charts: "③ Sentiment Analysis (charts)",
-        entity_intelligence: "④ Entity Intelligence (top entities + relevance)",
+        entity_intelligence: "④ Entity Analysis (top entities + relevance)",
         source_matrix: "⑤ Source Coverage Matrix",
         active_signals: "⑥ Active Signals & Alerts",
         scenario_assessment: "⑦ Scenario Assessment",
@@ -195,7 +195,7 @@ export default function ReportsPage() {
                         onClick={handleGenerateMediaReport}
                         disabled={generatingMedia}
                         className="btn btn-ghost text-xs flex items-center gap-1.5 border border-accent/30 hover:bg-accent/5"
-                        title="Download a full daily media intelligence report with TV, Online & Newspaper sections, article images, and CM perception analysis"
+                        title="Download a full daily media situation report with TV, Online & Newspaper sections, article images, and CM perception analysis"
                     >
                         {generatingMedia ? (
                             <><span className="w-3.5 h-3.5 border-2 border-accent/30 border-t-accent rounded-full animate-spin" /> Generating…</>
@@ -452,7 +452,7 @@ export default function ReportsPage() {
                 <div className="section-header">
                     <div className="flex items-center gap-2">
                         <BarChart2 size={14} className="text-amber" />
-                        <span className="section-title">Weekly Intelligence Narratives</span>
+                        <span className="section-title">Weekly Situation Narratives</span>
                     </div>
                 </div>
 

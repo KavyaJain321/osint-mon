@@ -69,7 +69,7 @@ export default function SignupPage() {
                     </div>
                     <div>
                         <div className="text-base font-semibold text-text-primary tracking-wide">ROBIN</div>
-                        <div className="text-2xs text-text-muted uppercase tracking-widest">Intelligence Platform</div>
+                        <div className="text-2xs text-text-muted uppercase tracking-widest">Media Monitor</div>
                     </div>
                 </div>
 
@@ -151,7 +151,7 @@ export default function SignupPage() {
             </div>
 
             <p className="text-center text-2xs text-text-muted mt-4">
-                ROBIN Intelligence Platform · Restricted Access
+                ROBIN Media Monitor · Restricted Access
             </p>
         </div>
     );

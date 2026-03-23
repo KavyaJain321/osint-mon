@@ -348,7 +348,7 @@ export default function ContentDetail({ article, onClose }: { article: Article; 
                     )}
                     {!isVideo && Boolean(article.analysis?.summary) && (
                         <div className="mb-6 p-4 rounded-xl border border-border bg-surface shadow-sm">
-                            <h3 className="text-[12px] font-mono font-medium text-text-muted tracking-wider mb-2">INTELLIGENCE SUMMARY</h3>
+                            <h3 className="text-[12px] font-mono font-medium text-text-muted tracking-wider mb-2">ANALYSIS SUMMARY</h3>
                             <p className="text-sm text-text-primary leading-relaxed">{cleanSnippet(article.analysis?.summary, 1000)}</p>
                         </div>
                     )}

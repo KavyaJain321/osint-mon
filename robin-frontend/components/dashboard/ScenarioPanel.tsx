@@ -45,7 +45,7 @@ export default function ScenarioPanel() {
         return (
             <div className="card p-6 text-center">
                 <Target size={32} className="text-text-muted mx-auto mb-2 opacity-30" />
-                <p className="text-xs text-text-muted">Scenarios will be generated after the intelligence pipeline runs.</p>
+                <p className="text-xs text-text-muted">Scenarios will be generated after the analysis pipeline runs.</p>
             </div>
         );
     }
