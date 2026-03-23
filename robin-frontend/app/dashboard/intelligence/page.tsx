@@ -244,7 +244,7 @@ export default function IntelligenceBriefPage() {
                         {!showFullNarrative ? (
                             <div className="space-y-4">
                                 {/* Executive Summary */}
-                                <div className="text-[13px] text-slate-200 leading-relaxed prose prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0 max-w-none">
+                                <div className="text-[13px] text-slate-200 leading-relaxed prose prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0 max-w-none [&_table]:w-full [&_table]:text-left [&_table]:border-collapse [&_table]:my-3 [&_th]:border-b [&_th]:border-slate-800/80 [&_th]:p-2 [&_th]:text-slate-300 [&_th]:bg-slate-900/50 [&_th]:font-semibold [&_td]:border-b [&_td]:border-slate-800/50 [&_td]:p-2 [&_td]:align-top [&_tr:last-child_td]:border-0 overflow-x-auto">
                                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{brief.situation_summary.executive_summary || ''}</ReactMarkdown>
                                 </div>
 
@@ -252,7 +252,7 @@ export default function IntelligenceBriefPage() {
                                 {brief.situation_summary.key_developments && (
                                     <div>
                                         <h4 className="text-[10px] font-mono text-amber-500/70 tracking-wider mb-2">KEY DEVELOPMENTS</h4>
-                                        <div className="text-[12px] text-slate-400 leading-relaxed prose prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0 max-w-none">
+                                        <div className="text-[12px] text-slate-400 leading-relaxed prose prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0 max-w-none [&_table]:w-full [&_table]:text-left [&_table]:border-collapse [&_table]:my-3 [&_th]:border-b [&_th]:border-slate-800/80 [&_th]:p-2 [&_th]:text-slate-300 [&_th]:bg-slate-900/50 [&_th]:font-semibold [&_td]:border-b [&_td]:border-slate-800/50 [&_td]:p-2 [&_td]:align-top [&_tr:last-child_td]:border-0 overflow-x-auto">
                                             <ReactMarkdown remarkPlugins={[remarkGfm]}>{brief.situation_summary.key_developments}</ReactMarkdown>
                                         </div>
                                     </div>
@@ -262,7 +262,7 @@ export default function IntelligenceBriefPage() {
                                 {brief.situation_summary.watch_list && (
                                     <div className="border-t border-slate-800/40 pt-3">
                                         <h4 className="text-[10px] font-mono text-sky-500/70 tracking-wider mb-2">WATCH LIST — NEXT 7 DAYS</h4>
-                                        <div className="text-[12px] text-slate-400 leading-relaxed prose prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0 max-w-none">
+                                        <div className="text-[12px] text-slate-400 leading-relaxed prose prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0 max-w-none [&_table]:w-full [&_table]:text-left [&_table]:border-collapse [&_table]:my-3 [&_th]:border-b [&_th]:border-slate-800/80 [&_th]:p-2 [&_th]:text-slate-300 [&_th]:bg-slate-900/50 [&_th]:font-semibold [&_td]:border-b [&_td]:border-slate-800/50 [&_td]:p-2 [&_td]:align-top [&_tr:last-child_td]:border-0 overflow-x-auto">
                                             <ReactMarkdown remarkPlugins={[remarkGfm]}>{brief.situation_summary.watch_list}</ReactMarkdown>
                                         </div>
                                     </div>
@@ -279,7 +279,7 @@ export default function IntelligenceBriefPage() {
                                 ].filter(s => s.content).map(section => (
                                     <div key={section.label}>
                                         <h4 className={`text-[10px] font-mono ${section.color} tracking-wider mb-2`}>{section.label}</h4>
-                                        <div className="text-[12px] text-slate-400 leading-relaxed prose prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0 max-w-none">
+                                        <div className="text-[12px] text-slate-400 leading-relaxed prose prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0 max-w-none [&_table]:w-full [&_table]:text-left [&_table]:border-collapse [&_table]:my-3 [&_th]:border-b [&_th]:border-slate-800/80 [&_th]:p-2 [&_th]:text-slate-300 [&_th]:bg-slate-900/50 [&_th]:font-semibold [&_td]:border-b [&_td]:border-slate-800/50 [&_td]:p-2 [&_td]:align-top [&_tr:last-child_td]:border-0 overflow-x-auto">
                                             <ReactMarkdown remarkPlugins={[remarkGfm]}>{section.content || ''}</ReactMarkdown>
                                         </div>
                                     </div>
