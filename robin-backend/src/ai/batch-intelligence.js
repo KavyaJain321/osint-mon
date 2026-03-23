@@ -1244,52 +1244,61 @@ async function passNarrativeSynthesis(client, entityPass, threatPass, temporalPa
         const resp = await groqChat([
             {
                 role: 'system',
-                content: `You are a senior intelligence analyst writing a weekly intelligence brief about: "${briefTopic || client.name}".
+                content: `You are an open-source intelligence assistant for the Government of Odisha.
+Your task is to generate a concise daily briefing note on the most important developments relevant to the state government's governance, security, economy, and public perception.
+Act as a neutral, policy-focused analyst serving senior officials of the Odisha government. Prioritise relevance to state governance over generic news.
+
+Tone and Analytical constraints:
+- Use clear, civil-service-style language suitable for senior officers. Avoid partisan language or political advocacy.
+- Do not give legal advice; instead, flag when "legal vetting may be required".
+- Always distinguish facts, plausible implications, and unknowns (Use labels: Fact: / Implication: / Unknowns:).
+- Flag conflicting information. If information is thin or unclear, say so explicitly and treat it as an early warning.
+
 Context: ${briefContext || client.industry}
-Write in a direct, analytical tone. Be specific — cite entity names, dates, figures, and source reliability.
-Focus ONLY on information relevant to the topic above. Do NOT mention the organization commissioning this report.
-Distinguish between confirmed developments and analytical inferences.
-Write for a reader who has 3 minutes, not 30 minutes. Do not hedge everything — take analytical positions based on the evidence.`
+Topic: "${briefTopic || client.name}"`
             },
             {
                 role: 'user',
-                content: `Write a structured weekly intelligence brief with EXACTLY these sections, using the data below.
+                content: `Write a structured intelligence brief using the data below.
 
 INTELLIGENCE DATA:
 ${JSON.stringify(briefing)}
 
-Write the following sections with ## headers:
+Respond in this exact structure with ## headers:
 
-## EXECUTIVE SUMMARY
-The single most important thing the reader needs to know this week. 2-3 sentences only.
+## A. Executive Summary
+- 5-8 bullet points (1-2 lines per bullet).
+- Only the most strategically important developments for the Odisha government.
+- Indicate direction of impact using a tag in brackets: [Risk], [Opportunity], [Watch], [Reputational].
 
-## KEY DEVELOPMENTS
-The 3-5 most significant events and their implications. Each as a bullet point: what happened + why it matters.
+## B. Top 5 Priority Stories (Government Lens)
+For each of the top 5, provide:
+- Headline: One-line title.
+- What happened: 2-3 sentence factual summary (Use Fact: / Implication: / Unknowns: labels).
+- Why it matters for Govt: 2-3 sentences on policy, political, security, economic, or reputational implications.
+- Recommended watchpoints / actions: 3-5 bullets focused on immediate monitoring, stakeholders to engage, data needed, or communication risks.
 
-## EMERGING THREATS
-Which risks are accelerating? Be specific about entities, timeframes, and evidence.
+## C. Additional Stories to Track (Short List)
+5-10 bullets of secondary but relevant developments. Each bullet: 1-2 lines explaining relevance to at least one department or function.
 
-## ENTITY MOVEMENTS
-Which key actors had significant activity this week? What trajectory are they on?
+## D. Risk and Narrative Map
+- Key emerging risks: 3-6 bullets on issues that may escalate in the next 3-7 days.
+- Narrative / perception trends: 3-5 bullets on how mainstream/digital media are framing the government, recurring criticism/praise, and misinformation themes.
 
-## COVERAGE PATTERNS
-What is the media/information environment showing? Any notable gaps or surges in coverage?
-
-## WATCH LIST FOR NEXT 7 DAYS
-3-5 specific events, announcements, or indicators that could change the risk picture. Each must be specific and monitorable.`
+## E. Department-wise Relevance Matrix
+Provide a markdown table with columns: Story/Issue | Relevant department(s) | Time-sensitivity | Risk type | Suggested posture.`
             },
-        ], { temperature: 0.4, max_tokens: 2000 });
+        ], { temperature: 0.4, max_tokens: 3000 });
 
         narrative = resp.choices[0]?.message?.content || '';
 
         // Extract structured sections from the response
         const sections = {
-            executive_summary: extractSection(narrative, 'EXECUTIVE SUMMARY'),
-            key_developments: extractSection(narrative, 'KEY DEVELOPMENTS'),
-            emerging_threats: extractSection(narrative, 'EMERGING THREATS'),
-            entity_movements: extractSection(narrative, 'ENTITY MOVEMENTS'),
-            coverage_patterns: extractSection(narrative, 'COVERAGE PATTERNS'),
-            watch_list: extractSection(narrative, 'WATCH LIST'),
+            executive_summary: extractSection(narrative, 'A. Executive Summary'),
+            key_developments: extractSection(narrative, 'B. Top 5 Priority Stories (Government Lens)'),
+            emerging_threats: extractSection(narrative, 'C. Additional Stories to Track (Short List)'),
+            entity_movements: extractSection(narrative, 'D. Risk and Narrative Map'),
+            watch_list: extractSection(narrative, 'E. Department-wise Relevance Matrix'),
         };
 
         // Use watch_list as forecast, key_developments as actions for backward compatibility

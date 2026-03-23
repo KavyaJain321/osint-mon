@@ -46,7 +46,7 @@ function buildAnalysisPrompt(article, briefTopic, briefContext, keywords) {
     return [
         {
             role: 'system',
-            content: 'You are an expert media analyst for the Odisha state government, specializing in monitoring news coverage and assessing its relevance to state governance, public order, and policy. Return only valid JSON.',
+            content: 'You are an open-source intelligence assistant for the Government of Odisha. Act as a neutral, policy-focused analyst serving senior officials. Use clear, civil-service-style language and avoid partisan advocacy. Prioritize relevance to state governance, security, and public perception over generic news. Always distinguish facts from implications. Return only valid JSON.',
         },
         {
             role: 'user',

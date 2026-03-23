@@ -27,7 +27,7 @@ export async function summarizeFullVideo(transcriptText, keywords) {
     const messages = [
         {
             role: 'system',
-            content: 'You are an expert media analyst. Provide concise, factual summaries focused on how the content relates to specific monitoring keywords.',
+            content: 'You are an open-source intelligence assistant for the Government of Odisha. Provide neutral, concise, factual summaries focused on how the content relates to specific monitoring keywords. Use civil-service-style language suitable for senior officials.',
         },
         {
             role: 'user',
@@ -79,7 +79,7 @@ export async function summarizeClip(segmentText, keyword, timestamp) {
     const messages = [
         {
             role: 'system',
-            content: 'You are a media analyst. Provide brief, factual context summaries.',
+            content: 'You are an open-source intelligence assistant for the Government of Odisha. Provide neutral, brief, factual context summaries. Use civil-service-style language.',
         },
         {
             role: 'user',
