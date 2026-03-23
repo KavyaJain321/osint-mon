@@ -49,7 +49,7 @@ const sections: NavSection[] = [
         label: "Command Center",
         items: [
             { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
-            { href: "/dashboard/daily-intel", label: "Daily Intel", icon: ClipboardList },
+            { href: "/dashboard/daily-intel", label: "Daily Report", icon: ClipboardList },
         ],
     },
     {

@@ -128,13 +128,13 @@ export function PriorityTooltip({ score, method }: PriorityTooltipProps) {
             <p className="font-semibold text-slate-100 text-[12px]">Priority Score: {score}/10</p>
             {isLLM ? (
                 <div className="space-y-1">
-                    <p className="text-slate-400">Scored by AI using this rubric:</p>
+                    <p className="text-slate-400">Scored by AI for Odisha govt relevance:</p>
                     <div className="space-y-0.5 font-mono text-[10px]">
-                        <div><span className="text-red-400">9–10</span> Regulatory / legal / major scandal</div>
-                        <div><span className="text-amber-400">7–8</span> Financial impact / leadership change</div>
-                        <div><span className="text-yellow-400">5–6</span> Industry trend / policy development</div>
-                        <div><span className="text-slate-400">3–4</span> General mention / background context</div>
-                        <div><span className="text-slate-500">1–2</span> Tangential / low relevance</div>
+                        <div><span className="text-red-400">9–10</span> CM/Govt in crisis, naxal/riot/casualty, major corruption or court order</div>
+                        <div><span className="text-amber-400">7–8</span> Policy/scheme by CM or minister, assembly, infra &gt;₹100cr, health emergency, protests</div>
+                        <div><span className="text-yellow-400">5–6</span> Scheme progress, interstate disputes, state sports/culture significance</div>
+                        <div><span className="text-slate-400">3–4</span> General Odisha economy, central policy affecting state</div>
+                        <div><span className="text-slate-500">1–2</span> Entertainment, sports scores, passing mention</div>
                     </div>
                 </div>
             ) : (

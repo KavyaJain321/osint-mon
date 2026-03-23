@@ -3,10 +3,10 @@
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { useState } from "react";
 import {
-    Shield, AlertTriangle, TrendingUp, TrendingDown, Eye, Radio,
-    ChevronDown, ChevronRight, ExternalLink, Users, Activity,
+    Shield, AlertTriangle, Radio,
+    ChevronDown, ExternalLink, Users, Activity,
     Target, Minus, Zap, ArrowUpRight, ArrowDownRight,
-    GitBranch, AlertCircle, CheckCircle2, XCircle, Search,
+    AlertCircle, CheckCircle2,
 } from "lucide-react";
 import { useIntelligenceBrief } from "@/lib/hooks/useIntelligence";
 import { cleanSnippet } from "@/lib/utils";
@@ -153,7 +153,7 @@ export default function IntelligenceBriefPage() {
     const { data, isLoading } = useIntelligenceBrief();
     const [expandedDev, setExpandedDev] = useState<string | null>(null);
     const [expandedSignal, setExpandedSignal] = useState<string | null>(null);
-    const [expandedChain, setExpandedChain] = useState<string | null>(null);
+
     const [showFullNarrative, setShowFullNarrative] = useState(false);
 
     if (isLoading || !data) {
@@ -530,53 +530,13 @@ export default function IntelligenceBriefPage() {
                         })}
                     </div>
 
-                    {/* ── RIGHT: Threat Radar + Actions ── */}
+                    {/* ── RIGHT: Government Actions ── */}
                     <div className="space-y-4">
-                        {/* Threat Dimensions */}
-                        {brief.threat_dimensions && (
-                            <div className="rounded-lg border border-slate-800/40 bg-[#0c0e14] p-4">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <Shield size={14} className="text-red-500/70" />
-                                    <span className="text-[11px] font-mono text-slate-500 tracking-wider">THREAT RADAR</span>
-                                </div>
-                                <div className="space-y-2">
-                                    {Object.entries(brief.threat_dimensions.dimensions).map(([dim, score]) => {
-                                        const pct = typeof score === "number" ? score : 0;
-                                        return (
-                                            <div key={dim}>
-                                                <div className="flex items-center justify-between mb-0.5">
-                                                    <span className="text-[10px] text-slate-400 capitalize">{dim}</span>
-                                                    <span className={`text-[10px] font-mono ${pct >= 70 ? "text-red-400" : pct >= 40 ? "text-amber-400" : "text-slate-500"}`}>
-                                                        {pct}
-                                                    </span>
-                                                </div>
-                                                <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                                                    <div
-                                                        className={`h-full rounded-full transition-all duration-700 ${pct >= 70 ? "bg-red-500/70" : pct >= 40 ? "bg-amber-500/60" : "bg-teal-500/50"}`}
-                                                        style={{ width: `${pct}%` }}
-                                                    />
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                                {brief.threat_dimensions.velocity?.direction && (
-                                    <div className="mt-3 pt-2 border-t border-slate-800/30">
-                                        <span className="text-[9px] font-mono text-slate-600">VELOCITY: </span>
-                                        <span className={`text-[10px] font-mono ${brief.threat_dimensions.velocity.direction === "accelerating" ? "text-red-400" : brief.threat_dimensions.velocity.direction === "decelerating" ? "text-emerald-400" : "text-slate-400"}`}>
-                                            {brief.threat_dimensions.velocity.direction?.toUpperCase()}
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* Recommended Actions */}
-                        {brief.recommended_actions.length > 0 && (
+                        {brief.recommended_actions.length > 0 ? (
                             <div className="rounded-lg border border-slate-800/40 bg-[#0c0e14] p-4">
                                 <div className="flex items-center gap-2 mb-3">
                                     <Zap size={14} className="text-amber-500" />
-                                    <span className="text-[11px] font-mono text-slate-500 tracking-wider">ACTIONS</span>
+                                    <span className="text-[11px] font-mono text-slate-500 tracking-wider">PENDING GOVERNMENT ACTIONS</span>
                                 </div>
                                 <div className="space-y-2">
                                     {brief.recommended_actions.map((action, i) => (
@@ -589,185 +549,135 @@ export default function IntelligenceBriefPage() {
                                     ))}
                                 </div>
                             </div>
+                        ) : (
+                            <div className="rounded-lg border border-slate-800/40 bg-[#0c0e14] p-4">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Zap size={14} className="text-amber-500" />
+                                    <span className="text-[11px] font-mono text-slate-500 tracking-wider">PENDING GOVERNMENT ACTIONS</span>
+                                </div>
+                                <p className="text-xs text-slate-600 font-mono">No urgent actions flagged. Run batch analysis to generate recommendations.</p>
+                            </div>
                         )}
                     </div>
                 </div>
 
                 {/* ═══════════════════════════════════════════════════════
-                    SECTION 5: COLLECTION GAPS + INFERENCE CHAINS
+                    SECTION 5: LAW & ORDER + POSITIVE DEVELOPMENTS
                    ═══════════════════════════════════════════════════════ */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {(() => {
+                    const LAW_KEYWORDS = ["crime", "naxal", "maoist", "police", "arrest", "murder", "violence", "encounter", "security", "robbery", "gang", "drug", "trafficking", "protest", "riot", "agitation"];
+                    const lawSignals = brief.active_signals.filter(s =>
+                        LAW_KEYWORDS.some(kw => (s.title + " " + s.description).toLowerCase().includes(kw))
+                    );
+                    const lawDevs = brief.developments.filter(d =>
+                        LAW_KEYWORDS.some(kw => (d.headline + " " + d.summary).toLowerCase().includes(kw))
+                    );
+                    const positiveDevs = brief.developments.filter(d => d.dominant_sentiment === "positive");
+                    const MEDIA_KEYWORDS = ["media", "coverage", "public opinion", "narrative", "criticism", "negative press", "social media", "controversy"];
+                    const mediaPressure = brief.active_signals.filter(s =>
+                        MEDIA_KEYWORDS.some(kw => (s.title + " " + s.description).toLowerCase().includes(kw)) ||
+                        s.severity === "critical"
+                    );
 
-                    {/* ── Collection Gaps ── */}
-                    <div className="rounded-lg border border-slate-800/40 bg-[#0c0e14] p-4">
-                        <div className="flex items-center gap-2 mb-3">
-                            <Eye size={14} className="text-sky-500" />
-                            <span className="text-[11px] font-mono text-slate-500 tracking-wider">COLLECTION INTEGRITY</span>
-                            <span className={`text-[10px] font-mono ml-auto px-1.5 py-0.5 rounded ${brief.collection_gaps.health_score >= 70 ? "bg-teal-500/15 text-teal-400" : brief.collection_gaps.health_score >= 40 ? "bg-amber-500/15 text-amber-400" : "bg-red-500/15 text-red-400"}`}>
-                                {brief.collection_gaps.health_score}% HEALTH
-                            </span>
-                        </div>
-
-                        <div className="space-y-3">
-                            {/* Source Health */}
-                            <div className="flex items-center gap-2 text-[11px]">
-                                <CheckCircle2 size={12} className="text-teal-500" />
-                                <span className="text-slate-400">
-                                    {brief.collection_gaps.active_sources}/{brief.collection_gaps.total_sources} sources active
-                                </span>
+                    return (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            {/* ── Law & Order Situation ── */}
+                            <div className="rounded-lg border border-slate-800/40 bg-[#0c0e14] p-4">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <AlertCircle size={14} className="text-red-500/80" />
+                                    <span className="text-[11px] font-mono text-slate-500 tracking-wider">LAW & ORDER SITUATION</span>
+                                    {(lawSignals.length + lawDevs.length) > 0 && (
+                                        <span className="text-[9px] font-mono bg-red-500/15 text-red-400 px-1.5 py-0.5 rounded ml-auto">
+                                            {lawSignals.length + lawDevs.length} ITEMS
+                                        </span>
+                                    )}
+                                </div>
+                                {lawSignals.length === 0 && lawDevs.length === 0 ? (
+                                    <div className="flex items-center gap-2 text-[11px]">
+                                        <CheckCircle2 size={12} className="text-teal-500" />
+                                        <span className="text-teal-400">No law & order incidents in current monitoring window.</span>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {lawSignals.slice(0, 3).map((s, i) => {
+                                            const sev = SEV_STYLES[s.severity] || SEV_STYLES.watch;
+                                            return (
+                                                <div key={i} className="flex items-start gap-2">
+                                                    <span className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${sev.dot}`} />
+                                                    <div>
+                                                        <p className="text-[12px] text-slate-200 font-medium leading-snug">{s.title}</p>
+                                                        <p className="text-[10px] text-slate-500 mt-0.5 line-clamp-2">{s.description}</p>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                        {lawDevs.slice(0, 3).map((d, i) => (
+                                            <div key={`dev-${i}`} className="flex items-start gap-2">
+                                                <span className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 bg-amber-500" />
+                                                <div>
+                                                    <p className="text-[12px] text-slate-200 font-medium leading-snug">{d.headline}</p>
+                                                    <p className="text-[10px] text-slate-500 mt-0.5">{d.article_count} articles · {d.source_count} sources</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
 
-                            {/* Stale Sources */}
-                            {brief.collection_gaps.stale_sources.length > 0 && (
-                                <div>
-                                    <div className="flex items-center gap-2 text-[11px] mb-1">
-                                        <AlertCircle size={12} className="text-amber-500" />
-                                        <span className="text-amber-400">{brief.collection_gaps.stale_sources.length} stale source{brief.collection_gaps.stale_sources.length > 1 ? "s" : ""} (48h+ silent)</span>
+                            {/* ── Positive Developments + Media Pressure ── */}
+                            <div className="space-y-4">
+                                {/* Positive Developments */}
+                                <div className="rounded-lg border border-slate-800/40 bg-[#0c0e14] p-4">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <CheckCircle2 size={14} className="text-teal-500" />
+                                        <span className="text-[11px] font-mono text-slate-500 tracking-wider">POSITIVE DEVELOPMENTS</span>
                                     </div>
-                                    <div className="ml-5 space-y-0.5">
-                                        {brief.collection_gaps.stale_sources.slice(0, 5).map((s, i) => (
-                                            <div key={i} className="text-[10px] text-slate-500 font-mono">
-                                                {s.name} <span className="text-slate-600">({s.type})</span>
-                                                {s.hours_stale && <span className="text-amber-500/60 ml-1">{s.hours_stale}h</span>}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Failing Sources */}
-                            {brief.collection_gaps.failing_sources.length > 0 && (
-                                <div>
-                                    <div className="flex items-center gap-2 text-[11px] mb-1">
-                                        <XCircle size={12} className="text-red-500" />
-                                        <span className="text-red-400">{brief.collection_gaps.failing_sources.length} failing source{brief.collection_gaps.failing_sources.length > 1 ? "s" : ""}</span>
-                                    </div>
-                                    <div className="ml-5 space-y-0.5">
-                                        {brief.collection_gaps.failing_sources.slice(0, 3).map((s, i) => (
-                                            <div key={i} className="text-[10px] text-slate-500 font-mono">
-                                                {s.name} <span className="text-red-500/60">{s.fail_count} failures</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Blind Spots */}
-                            {brief.collection_gaps.blind_keywords.length > 0 && (
-                                <div>
-                                    <div className="flex items-center gap-2 text-[11px] mb-1">
-                                        <Search size={12} className="text-slate-500" />
-                                        <span className="text-slate-400">{brief.collection_gaps.blind_keywords.length} keyword{brief.collection_gaps.blind_keywords.length > 1 ? "s" : ""} with zero hits</span>
-                                    </div>
-                                    <div className="ml-5 flex flex-wrap gap-1">
-                                        {brief.collection_gaps.blind_keywords.slice(0, 8).map((k, i) => (
-                                            <span key={i} className="text-[9px] font-mono bg-slate-800/60 text-slate-500 px-1.5 py-0.5 rounded">
-                                                {k.keyword}
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {brief.collection_gaps.stale_sources.length === 0 && brief.collection_gaps.failing_sources.length === 0 && brief.collection_gaps.blind_keywords.length === 0 && (
-                                <div className="flex items-center gap-2 text-[11px]">
-                                    <CheckCircle2 size={12} className="text-teal-500" />
-                                    <span className="text-teal-400">All sources healthy. No blind spots detected.</span>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* ── Inference Chains ── */}
-                    <div className="rounded-lg border border-slate-800/40 bg-[#0c0e14] p-4">
-                        <div className="flex items-center gap-2 mb-3">
-                            <GitBranch size={14} className="text-violet-500" />
-                            <span className="text-[11px] font-mono text-slate-500 tracking-wider">INFERENCE CHAINS</span>
-                        </div>
-
-                        {brief.inference_chains.length === 0 ? (
-                            <p className="text-xs text-slate-600 font-mono">No inference chains generated yet.</p>
-                        ) : (
-                            <div className="space-y-2">
-                                {brief.inference_chains.slice(0, 5).map((chain) => {
-                                    const isExpanded = expandedChain === chain.id;
-                                    const confPct = Math.round((chain.conclusion_confidence || 0) * 100);
-                                    const sevStyle = SEV_STYLES[chain.severity] || SEV_STYLES.watch;
-
-                                    return (
-                                        <div key={chain.id} className="border border-slate-800/30 rounded-md overflow-hidden">
-                                            <button
-                                                onClick={() => setExpandedChain(isExpanded ? null : chain.id)}
-                                                className="w-full text-left px-3 py-2 hover:bg-white/[0.01] transition-colors"
-                                            >
-                                                <div className="flex items-start gap-2">
-                                                    <span className={`w-1 h-1 rounded-full mt-1.5 shrink-0 ${sevStyle.dot}`} />
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-[11px] text-slate-200 font-medium truncate">{chain.title}</p>
-                                                        <div className="flex items-center gap-2 mt-0.5">
-                                                            <span className="text-[9px] font-mono text-slate-600">Confidence: {confPct}%</span>
-                                                            <span className={`text-[9px] font-mono ${sevStyle.pill.split(" ")[1]}`}>{chain.severity}</span>
-                                                            {chain.priority_action && (
-                                                                <span className={`text-[9px] font-mono ${chain.priority_action.urgency === 'immediate' ? 'text-red-400' : chain.priority_action.urgency === 'soon' ? 'text-amber-400' : 'text-slate-400'}`}>
-                                                                    {chain.priority_action.urgency?.toUpperCase()}
-                                                                </span>
-                                                            )}
-                                                        </div>
+                                    {positiveDevs.length === 0 ? (
+                                        <p className="text-xs text-slate-600 font-mono">No significant positive developments detected in this window.</p>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {positiveDevs.slice(0, 4).map((d, i) => (
+                                                <div key={i} className="flex items-start gap-2">
+                                                    <span className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 bg-teal-500" />
+                                                    <div>
+                                                        <p className="text-[12px] text-slate-200 font-medium leading-snug">{d.headline}</p>
+                                                        <p className="text-[10px] text-slate-500 mt-0.5">{d.article_count} articles · imp: {d.avg_importance}/10</p>
                                                     </div>
-                                                    <ChevronRight size={12} className={`text-slate-600 shrink-0 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
                                                 </div>
-                                            </button>
-                                            {isExpanded && (
-                                                <div className="px-3 pb-3 border-t border-slate-800/20 animate-in slide-in-from-top-1">
-                                                    {/* Chain Steps */}
-                                                    {chain.chain_steps?.length > 0 && (
-                                                        <div className="mt-2 space-y-1.5">
-                                                            <span className="text-[9px] font-mono text-slate-600 tracking-wider">REASONING CHAIN</span>
-                                                            {chain.chain_steps.map((step, i) => (
-                                                                <div key={i} className="flex items-start gap-2 text-[10px] pl-2 border-l border-slate-700/30">
-                                                                    <span className="text-teal-500 font-mono shrink-0">{step.step_num || i + 1}.</span>
-                                                                    <div>
-                                                                        <span className="text-slate-300">{step.event || step.chain}</span>
-                                                                        {step.evidence && <span className="text-slate-600 ml-1">— {step.evidence}</span>}
-                                                                    </div>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                    {/* Conclusion */}
-                                                    <div className="mt-2 pt-2 border-t border-slate-800/20">
-                                                        <span className="text-[9px] font-mono text-amber-500/70 tracking-wider">CONCLUSION</span>
-                                                        <p className="text-[11px] text-slate-300 mt-0.5 leading-relaxed">{chain.conclusion}</p>
-                                                    </div>
-                                                    {/* Scenarios */}
-                                                    {chain.scenario_7d?.length > 0 && (
-                                                        <div className="mt-2">
-                                                            <span className="text-[9px] font-mono text-sky-500/70 tracking-wider">7-DAY SCENARIOS</span>
-                                                            {chain.scenario_7d.map((s, i) => (
-                                                                <div key={i} className="text-[10px] text-slate-400 mt-0.5">
-                                                                    <span className={`font-mono ${s.probability === 'high' ? 'text-red-400' : s.probability === 'medium' ? 'text-amber-400' : 'text-slate-500'}`}>[{s.probability}]</span>
-                                                                    {' '}{s.scenario}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                    {/* Priority Action */}
-                                                    {chain.priority_action && (
-                                                        <div className="mt-2 pt-2 border-t border-slate-800/20">
-                                                            <span className="text-[9px] font-mono text-violet-500/70 tracking-wider">ACTION</span>
-                                                            <p className="text-[10px] text-slate-300 mt-0.5">{chain.priority_action.title}</p>
-                                                            <p className="text-[10px] text-slate-500 mt-0.5 italic">{chain.priority_action.rationale}</p>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
+                                            ))}
                                         </div>
-                                    );
-                                })}
+                                    )}
+                                </div>
+
+                                {/* Media Pressure Points */}
+                                <div className="rounded-lg border border-slate-800/40 bg-[#0c0e14] p-4">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <Radio size={14} className="text-violet-500" />
+                                        <span className="text-[11px] font-mono text-slate-500 tracking-wider">MEDIA PRESSURE POINTS</span>
+                                    </div>
+                                    {mediaPressure.length === 0 ? (
+                                        <p className="text-xs text-slate-600 font-mono">No significant media pressure detected currently.</p>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {mediaPressure.slice(0, 3).map((s, i) => {
+                                                const sev = SEV_STYLES[s.severity] || SEV_STYLES.watch;
+                                                return (
+                                                    <div key={i} className="flex items-start gap-2">
+                                                        <span className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${sev.dot}`} />
+                                                        <div>
+                                                            <p className="text-[12px] text-slate-200 font-medium leading-snug">{s.title}</p>
+                                                            <p className="text-[10px] text-slate-500 mt-0.5 line-clamp-1">{s.description}</p>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        )}
-                    </div>
-                </div>
+                        </div>
+                    );
+                })()}
 
                 {/* Footer */}
                 <div className="text-center py-2">

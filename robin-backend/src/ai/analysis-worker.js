@@ -46,7 +46,7 @@ function buildAnalysisPrompt(article, briefTopic, briefContext, keywords) {
     return [
         {
             role: 'system',
-            content: 'You are an expert intelligence analyst specializing in media monitoring and risk assessment. Return only valid JSON.',
+            content: 'You are an expert media analyst for the Odisha state government, specializing in monitoring news coverage and assessing its relevance to state governance, public order, and policy. Return only valid JSON.',
         },
         {
             role: 'user',
@@ -79,7 +79,12 @@ Return ONLY a JSON object IN ENGLISH (translate any non-English content to Engli
 IMPORTANT for "entities": Only extract entities that ACTUALLY APPEAR in the text. Do NOT invent or add entities that are not mentioned.
 IMPORTANT for "claims": The claims array MUST contain 2-4 specific factual claims as simple strings. Each claim should mention specific names, numbers, dates, or events. If purely opinion, write: "This content is opinion/analysis without specific factual assertions." DO NOT return an empty claims array.
 
-Scoring: 9-10=regulatory/legal/scandal, 7-8=financial/leadership, 5-6=industry trends, 3-4=general mention, 1-2=tangential`,
+Importance scoring for Odisha state government context:
+9-10 = CM/Govt portrayed negatively, naxal/communal violence/riots, natural disaster with casualties, major corruption scandal, court order against Odisha government
+7-8 = Policy announcement by CM or minister, state assembly developments, infrastructure project >₹100cr, public health emergency, large protests/strikes, political confrontation affecting governance
+5-6 = Government scheme progress, routine infrastructure, state-level sports/cultural significance, interstate water/border disputes
+3-4 = General Odisha economic news, central government policy that affects Odisha, passing state reference
+1-2 = Entertainment, sports scores, tangential mention, no direct Odisha government relevance`,
         },
     ];
 }

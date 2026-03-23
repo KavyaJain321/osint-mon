@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BarChart2, TrendingUp, TrendingDown, FileText, Download, Mail, Clock as ClockIcon, ChevronDown, ChevronUp } from "lucide-react";
-import { analyticsApi, intelligenceApi } from "@/lib/api";
+import { BarChart2, TrendingUp, TrendingDown, FileText, Download, Mail, Clock as ClockIcon, ChevronDown, ChevronUp, Landmark } from "lucide-react";
+import { analyticsApi, intelligenceApi, articlesApi } from "@/lib/api";
 import { sentimentColor } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import {
@@ -31,6 +31,18 @@ interface Narrative {
     pattern_date?: string;
 }
 
+interface ArticleItem {
+    id: string; title: string; title_en?: string; sentiment?: string;
+    importance_score?: number; source_name?: string; published_at?: string;
+}
+
+interface PoliticalAnalysis {
+    govtArticles: ArticleItem[];
+    discourseArticles: ArticleItem[];
+    govtPositive: number; govtNegative: number; govtNeutral: number;
+    discoursePositive: number; discourseNegative: number; discourseNeutral: number;
+}
+
 const CHART_BLUE = "#2563eb";
 const CHART_GREEN = "#059669";
 const CHART_RED = "#dc2626";
@@ -40,6 +52,7 @@ export default function ReportsPage() {
     const [sentiment, setSentiment] = useState<SentimentData | null>(null);
     const [velocity, setVelocity] = useState<VelocityPoint[]>([]);
     const [narratives, setNarratives] = useState<Narrative[]>([]);
+    const [political, setPolitical] = useState<PoliticalAnalysis | null>(null);
     const [loading, setLoading] = useState(true);
 
     // Report Builder state
@@ -53,10 +66,9 @@ export default function ReportsPage() {
         top_developments: true,
         sentiment_charts: true,
         entity_intelligence: true,
+        political_analysis: true,
         source_matrix: true,
         active_signals: true,
-        scenario_assessment: false,
-        competitive_benchmarks: false,
         watch_list: true,
         appendix: true,
     });
@@ -80,12 +92,11 @@ export default function ReportsPage() {
         top_developments: "② Top Developments (story clusters)",
         sentiment_charts: "③ Sentiment Analysis (charts)",
         entity_intelligence: "④ Entity Analysis (top entities + relevance)",
-        source_matrix: "⑤ Source Coverage Matrix",
-        active_signals: "⑥ Active Signals & Alerts",
-        scenario_assessment: "⑦ Scenario Assessment",
-        competitive_benchmarks: "⑧ Competitive Benchmarks",
-        watch_list: "⑨ Watch List & Predictions",
-        appendix: "⑩ Appendix: Full Article List",
+        political_analysis: "⑤ Political Analysis (CM & Legislative Discourse)",
+        source_matrix: "⑥ Source Coverage Matrix",
+        active_signals: "⑦ Active Signals & Alerts",
+        watch_list: "⑧ Watch List & Predictions",
+        appendix: "⑨ Appendix: Full Article List",
     };
 
     const toggleSection = (key: string) => setSections(s => ({ ...s, [key]: !s[key] }));
@@ -178,6 +189,33 @@ export default function ReportsPage() {
                     };
                 });
                 setNarratives(mapped);
+
+                // 4. Political Analysis — derive from article sentiment
+                const artRes = await articlesApi.list(200) as { data?: ArticleItem[] };
+                const allArts = artRes.data ?? [];
+                const GOVT_KW = ["chief minister", "cm mohan", "mohan majhi", "bjp government", "odisha government", "state government", "minister", "cabinet", "cm naveen"];
+                const DISCOURSE_KW = ["assembly", "legislature", "legislative", "bjd", "congress", "opposition", "political party", "mla", "political discourse", "political debate", "political confrontation"];
+                const govtArts = allArts.filter(a => {
+                    const t = ((a.title_en || a.title) + " " + (a.source_name || "")).toLowerCase();
+                    return GOVT_KW.some(kw => t.includes(kw));
+                });
+                const discourseArts = allArts.filter(a => {
+                    const t = ((a.title_en || a.title) + " " + (a.source_name || "")).toLowerCase();
+                    return DISCOURSE_KW.some(kw => t.includes(kw)) && !GOVT_KW.some(kw => t.includes(kw));
+                });
+                const countSentiment = (arts: ArticleItem[]) => ({
+                    pos: arts.filter(a => (a.sentiment || "").toLowerCase() === "positive").length,
+                    neg: arts.filter(a => (a.sentiment || "").toLowerCase() === "negative").length,
+                    neu: arts.filter(a => (a.sentiment || "").toLowerCase() === "neutral" || !a.sentiment).length,
+                });
+                const gs = countSentiment(govtArts);
+                const ds = countSentiment(discourseArts);
+                setPolitical({
+                    govtArticles: govtArts.slice(0, 5),
+                    discourseArticles: discourseArts.slice(0, 5),
+                    govtPositive: gs.pos, govtNegative: gs.neg, govtNeutral: gs.neu,
+                    discoursePositive: ds.pos, discourseNegative: ds.neg, discourseNeutral: ds.neu,
+                });
             } catch { /* graceful */ }
             setLoading(false);
         })();
@@ -446,6 +484,87 @@ export default function ReportsPage() {
                     )}
                 </div>
             </div>
+
+            {/* Political Analysis */}
+            {!loading && political && (
+                <div className="card mb-3">
+                    <div className="section-header">
+                        <div className="flex items-center gap-2">
+                            <Landmark size={14} className="text-accent" />
+                            <span className="section-title">Political Analysis</span>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-1">
+                        {/* Government Coverage */}
+                        <div className="rounded-md border border-border/60 bg-raised p-3">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs font-semibold text-text-primary">Government & CM Coverage</span>
+                                <span className="text-2xs text-text-muted">{political.govtArticles.length + (political.govtNegative + political.govtPositive + political.govtNeutral - political.govtArticles.length > 0 ? political.govtNegative + political.govtPositive + political.govtNeutral - political.govtArticles.length : 0)} articles</span>
+                            </div>
+                            <div className="flex items-center gap-1 mb-3">
+                                {political.govtPositive + political.govtNegative + political.govtNeutral > 0 && (() => {
+                                    const total = political.govtPositive + political.govtNegative + political.govtNeutral;
+                                    return (
+                                        <>
+                                            <div className="flex-1 h-2 bg-overlay rounded-full overflow-hidden flex">
+                                                <div className="bg-emerald h-full" style={{ width: `${(political.govtPositive / total) * 100}%` }} title={`Positive: ${political.govtPositive}`} />
+                                                <div className="bg-text-muted/40 h-full" style={{ width: `${(political.govtNeutral / total) * 100}%` }} title={`Neutral: ${political.govtNeutral}`} />
+                                                <div className="bg-rose h-full" style={{ width: `${(political.govtNegative / total) * 100}%` }} title={`Negative: ${political.govtNegative}`} />
+                                            </div>
+                                            <span className="text-2xs text-emerald w-10 text-right">{Math.round((political.govtPositive / total) * 100)}% +</span>
+                                            <span className="text-2xs text-rose w-10 text-right">{Math.round((political.govtNegative / total) * 100)}% −</span>
+                                        </>
+                                    );
+                                })()}
+                            </div>
+                            <div className="space-y-1">
+                                {political.govtArticles.length === 0 ? (
+                                    <p className="text-xs text-text-muted">No government-related articles in current dataset.</p>
+                                ) : political.govtArticles.map(a => (
+                                    <div key={a.id} className="flex items-start gap-2">
+                                        <span className={cn("text-2xs mt-0.5 flex-shrink-0", (a.sentiment || "").toLowerCase() === "positive" ? "text-emerald" : (a.sentiment || "").toLowerCase() === "negative" ? "text-rose" : "text-text-muted")}>●</span>
+                                        <span className="text-xs text-text-secondary leading-snug">{a.title_en || a.title}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Political Discourse */}
+                        <div className="rounded-md border border-border/60 bg-raised p-3">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs font-semibold text-text-primary">Political Discourse</span>
+                                <span className="text-2xs text-text-muted badge badge-muted">Legislative & Assembly</span>
+                            </div>
+                            <div className="flex items-center gap-1 mb-3">
+                                {political.discoursePositive + political.discourseNegative + political.discourseNeutral > 0 && (() => {
+                                    const total = political.discoursePositive + political.discourseNegative + political.discourseNeutral;
+                                    return (
+                                        <>
+                                            <div className="flex-1 h-2 bg-overlay rounded-full overflow-hidden flex">
+                                                <div className="bg-emerald h-full" style={{ width: `${(political.discoursePositive / total) * 100}%` }} />
+                                                <div className="bg-text-muted/40 h-full" style={{ width: `${(political.discourseNeutral / total) * 100}%` }} />
+                                                <div className="bg-rose h-full" style={{ width: `${(political.discourseNegative / total) * 100}%` }} />
+                                            </div>
+                                            <span className="text-2xs text-emerald w-10 text-right">{Math.round((political.discoursePositive / total) * 100)}% +</span>
+                                            <span className="text-2xs text-rose w-10 text-right">{Math.round((political.discourseNegative / total) * 100)}% −</span>
+                                        </>
+                                    );
+                                })()}
+                            </div>
+                            <div className="space-y-1">
+                                {political.discourseArticles.length === 0 ? (
+                                    <p className="text-xs text-text-muted">No political discourse coverage in current dataset.</p>
+                                ) : political.discourseArticles.map(a => (
+                                    <div key={a.id} className="flex items-start gap-2">
+                                        <span className={cn("text-2xs mt-0.5 flex-shrink-0", (a.sentiment || "").toLowerCase() === "positive" ? "text-emerald" : (a.sentiment || "").toLowerCase() === "negative" ? "text-rose" : "text-text-muted")}>●</span>
+                                        <span className="text-xs text-text-secondary leading-snug">{a.title_en || a.title}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Weekly Narratives */}
             <div className="card">
