@@ -1590,7 +1590,7 @@ export default function DailyIntelPage() {
     const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
 
     const [articles, setArticles] = useState<Article[]>([]);
-    const [intelData, setIntelData] = useState<{ entity_profiles?: EntityProfile[]; signals?: Signal[]; threat_assessment?: { level?: string; critical_count?: number; warning_count?: number }; narrative?: { weekly_narrative?: string; dominant_sentiment?: string; emerging_themes?: string[] } } | null>(null);
+    const [intelData, setIntelData] = useState<{ entity_profiles?: EntityProfile[]; signals?: Signal[]; threat_assessment?: { level?: string; critical_count?: number; warning_count?: number }; narrative?: { weekly_narrative?: string; dominant_sentiment?: string; emerging_themes?: string[]; executive_summary?: string; key_developments?: string; emerging_threats?: string; entity_movements?: string; watch_list?: string; } } | null>(null);
     const [sentimentData, setSentimentData] = useState<{ positive: number; negative: number; neutral: number; positive_pct: number; negative_pct: number; neutral_pct: number; total: number } | null>(null);
     const [keywords, setKeywords] = useState<KeywordItem[]>([]);
 
