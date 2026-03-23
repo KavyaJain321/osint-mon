@@ -1,5 +1,7 @@
 "use client";
 
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { useState } from "react";
 import {
@@ -242,16 +244,16 @@ export default function IntelligenceBriefPage() {
                         {!showFullNarrative ? (
                             <div className="space-y-4">
                                 {/* Executive Summary */}
-                                <p className="text-[13px] text-slate-200 leading-relaxed">
-                                    {brief.situation_summary.executive_summary}
-                                </p>
+                                <div className="text-[13px] text-slate-200 leading-relaxed prose prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0 max-w-none">
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{brief.situation_summary.executive_summary || ''}</ReactMarkdown>
+                                </div>
 
                                 {/* Key Developments */}
                                 {brief.situation_summary.key_developments && (
                                     <div>
                                         <h4 className="text-[10px] font-mono text-amber-500/70 tracking-wider mb-2">KEY DEVELOPMENTS</h4>
-                                        <div className="text-[12px] text-slate-400 leading-relaxed whitespace-pre-line">
-                                            {brief.situation_summary.key_developments}
+                                        <div className="text-[12px] text-slate-400 leading-relaxed prose prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0 max-w-none">
+                                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{brief.situation_summary.key_developments}</ReactMarkdown>
                                         </div>
                                     </div>
                                 )}
@@ -260,8 +262,8 @@ export default function IntelligenceBriefPage() {
                                 {brief.situation_summary.watch_list && (
                                     <div className="border-t border-slate-800/40 pt-3">
                                         <h4 className="text-[10px] font-mono text-sky-500/70 tracking-wider mb-2">WATCH LIST — NEXT 7 DAYS</h4>
-                                        <div className="text-[12px] text-slate-400 leading-relaxed whitespace-pre-line">
-                                            {brief.situation_summary.watch_list}
+                                        <div className="text-[12px] text-slate-400 leading-relaxed prose prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0 max-w-none">
+                                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{brief.situation_summary.watch_list}</ReactMarkdown>
                                         </div>
                                     </div>
                                 )}
@@ -277,7 +279,9 @@ export default function IntelligenceBriefPage() {
                                 ].filter(s => s.content).map(section => (
                                     <div key={section.label}>
                                         <h4 className={`text-[10px] font-mono ${section.color} tracking-wider mb-2`}>{section.label}</h4>
-                                        <div className="text-[12px] text-slate-400 leading-relaxed whitespace-pre-line">{section.content}</div>
+                                        <div className="text-[12px] text-slate-400 leading-relaxed prose prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0 max-w-none">
+                                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{section.content || ''}</ReactMarkdown>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
