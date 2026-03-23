@@ -72,13 +72,13 @@ interface ComputedSummary {
 // ─── Odisha Sectors ───────────────────────────────────────────────────────────
 
 const ODISHA_SECTORS = [
-    { key: "agriculture", label: "Agriculture & MSP", icon: "🌾", keywords: ["agriculture", "paddy", "farmer", "crop", "msp", "kharif", "rabi", "irrigation", "procurement", "harvest"] },
-    { key: "disaster", label: "Disaster Management", icon: "🌊", keywords: ["cyclone", "flood", "disaster", "odrf", "ndrf", "relief", "evacuation", "storm", "rainfall", "drought", "heat wave", "earthquake"] },
-    { key: "mining", label: "Mining & Industry", icon: "⛏️", keywords: ["mine", "mining", "steel", "iron ore", "keonjhar", "coal", "mineral", "industry", "factory", "plant", "jharsuguda", "angul"] },
-    { key: "health", label: "Health & Sanitation", icon: "🏥", keywords: ["health", "hospital", "doctor", "vaccine", "disease", "malaria", "dengue", "nutrition", "anemia", "sanitation", "covid", "outbreak"] },
-    { key: "laworder", label: "Law & Order", icon: "🚓", keywords: ["crime", "police", "naxal", "maoist", "arrest", "murder", "violence", "robbery", "encounter", "security", "protest", "agitation"] },
-    { key: "infrastructure", label: "Infrastructure & Roads", icon: "🏗️", keywords: ["road", "bridge", "highway", "construction", "railway", "airport", "smart city", "infrastructure", "project", "tender", "bhubaneswar"] },
-    { key: "education", label: "Education & Employment", icon: "📚", keywords: ["school", "education", "student", "employment", "job", "training", "university", "skill", "scholarship", "recruitment", "exam"] },
+    { key: "agriculture", label: "Agriculture & MSP", icon: "🌾", keywords: ["agriculture", "paddy", "farmer", "crop", "msp", "kharif", "rabi", "irrigation", "procurement", "harvest", "food", "grain", "rice", "vegetable", "horticulture", "fertilizer", "drought", "water supply"] },
+    { key: "disaster", label: "Disaster Management", icon: "🌊", keywords: ["cyclone", "flood", "disaster", "odrf", "ndrf", "relief", "evacuation", "storm", "rainfall", "drought", "heat wave", "earthquake", "fire", "accident", "blast", "landslide", "rescue", "casualty", "dead", "death", "injured", "crisis", "emergency"] },
+    { key: "mining", label: "Mining & Industry", icon: "⛏️", keywords: ["mine", "mining", "steel", "iron ore", "keonjhar", "coal", "mineral", "industry", "factory", "plant", "jharsuguda", "angul", "vedanta", "tata", "nalco", "hindalco", "power plant", "investment", "startup", "msme"] },
+    { key: "health", label: "Health & Sanitation", icon: "🏥", keywords: ["health", "hospital", "doctor", "vaccine", "disease", "malaria", "dengue", "nutrition", "anemia", "sanitation", "covid", "outbreak", "patient", "medicine", "treatment", "nurse", "clinic", "ambulance", "epidemic", "preventive", "heatstroke", "ailment"] },
+    { key: "laworder", label: "Law & Order", icon: "🚓", keywords: ["crime", "police", "naxal", "maoist", "arrest", "murder", "violence", "robbery", "encounter", "security", "protest", "agitation", "court", "legal", "judiciary", "mla", "mp", "bjd", "bjp", "congress", "political", "assembly", "disqualification", "suspended", "election", "ban", "raid", "drug", "gang", "scam", "corruption", "bribery"] },
+    { key: "infrastructure", label: "Infrastructure & Roads", icon: "🏗️", keywords: ["road", "bridge", "highway", "construction", "railway", "airport", "smart city", "infrastructure", "project", "tender", "bhubaneswar", "cuttack", "puri", "berhampur", "odisha cm", "chief minister", "water", "electricity", "power", "gas", "lpg", "shortage", "supply", "connectivity"] },
+    { key: "education", label: "Education & Employment", icon: "📚", keywords: ["school", "education", "student", "employment", "job", "training", "university", "skill", "scholarship", "recruitment", "exam", "teacher", "college", "board", "result", "youth", "graduate"] },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -135,7 +135,12 @@ function riskLevelStyle(level?: string) {
 }
 
 function matchesSector(article: Article, sector: typeof ODISHA_SECTORS[0]) {
-    const text = `${article.title} ${article.summary || ""} ${(article.keywords || []).join(" ")}`.toLowerCase();
+    const text = [
+        article.title,
+        article.title_en,
+        article.summary,
+        ...(article.keywords || []),
+    ].filter(Boolean).join(" ").toLowerCase();
     return sector.keywords.some(kw => text.includes(kw));
 }
 
@@ -143,9 +148,15 @@ function assignSectors(articles: Article[]): Record<string, Article[]> {
     const map: Record<string, Article[]> = {};
     for (const s of ODISHA_SECTORS) map[s.key] = [];
     for (const a of articles) {
+        let matched = false;
         for (const s of ODISHA_SECTORS) {
-            if (matchesSector(a, s)) { map[s.key].push(a); break; }
+            if (matchesSector(a, s)) {
+                map[s.key].push(a);
+                matched = true;
+            }
         }
+        // If no sector matched, put under infrastructure as a catch-all
+        if (!matched) map["infrastructure"].push(a);
     }
     return map;
 }
@@ -498,11 +509,9 @@ function TopNewsSection({ articles, reviewedIds, onReview }: {
                                         {article.sentiment && <span className={cn("font-semibold", sentimentColor(article.sentiment))}>{article.sentiment.toUpperCase()}</span>}
                                     </div>
 
-                                    {article.summary && (
-                                        <p className={cn("text-xs text-slate-400 leading-relaxed mb-2.5", isExp ? "" : "line-clamp-2")}>
-                                            {article.summary}
-                                        </p>
-                                    )}
+                                    <p className={cn("text-xs leading-relaxed mb-2.5", isExp ? "" : "line-clamp-2", article.summary ? "text-slate-400" : "text-slate-600 italic")}>
+                                        {article.summary || "Analysis pending — summary will appear once AI processing completes."}
+                                    </p>
 
                                     {article.keywords && article.keywords.length > 0 && (
                                         <div className="flex flex-wrap gap-1 mb-2.5">

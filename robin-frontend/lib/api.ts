@@ -275,7 +275,7 @@ export const dailyIntelApi = {
 
     /** All articles for a date (for sector analysis) */
     articles: (date: string, limit = 100) =>
-        apiFetch(`/api/articles?limit=${limit}&date=${date}`),
+        apiFetch(`/api/articles?limit=${limit}&from_date=${date}T00:00:00.000Z&to_date=${date}T23:59:59.999Z`),
 
     /** Intelligence brief: situation summary, entity watch, signals */
     intel: () => getCachedIntelligence(),

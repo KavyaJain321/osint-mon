@@ -295,15 +295,24 @@ export async function analyzeArticle(article) {
             log.ai.debug('Watch expression matching skipped', { reason: weErr.message?.substring(0, 50) });
         }
 
-        // Mark as complete + save English title if translated
+        // Mark as complete. Try to save English title if translated.
+        // title_en column may not exist yet — handle gracefully until DB migration runs.
         const articleUpdate = { analysis_status: 'complete' };
-        if (analysis.title_en && analysis.title_en !== article.title) {
-            articleUpdate.title_en = analysis.title_en;
-        }
-        await supabase
+        const hasTitleEn = analysis.title_en && analysis.title_en !== article.title;
+        if (hasTitleEn) articleUpdate.title_en = analysis.title_en;
+
+        const { error: updateErr } = await supabase
             .from('articles')
             .update(articleUpdate)
             .eq('id', article.id);
+
+        // If update failed because title_en column doesn't exist yet, retry without it
+        if (updateErr && hasTitleEn && updateErr.message?.includes('title_en')) {
+            await supabase.from('articles').update({ analysis_status: 'complete' }).eq('id', article.id);
+            log.ai.debug('[ANALYSIS] title_en column not in DB yet — run migration: ALTER TABLE articles ADD COLUMN title_en TEXT');
+        } else if (updateErr) {
+            throw updateErr;
+        }
 
         // Also sync status to content_items (graceful)
         try {

@@ -59,7 +59,7 @@ router.get('/', async (req, res) => {
             let query = supabase
                 .from('articles')
                 .select(
-                    'id, title, url, published_at, matched_keywords, is_tagged, analysis_status, source_id, client_id, created_at, article_analysis!inner(article_id, summary, sentiment, importance_score, importance_reason, narrative_frame, entities)',
+                    'id, title, url, published_at, matched_keywords, is_tagged, analysis_status, source_id, client_id, created_at, sources(name), article_analysis!inner(article_id, summary, sentiment, importance_score, importance_reason, narrative_frame, entities)',
                     { count: 'exact' }
                 );
 
@@ -77,17 +77,27 @@ router.get('/', async (req, res) => {
             const { data, error, count: c } = await query;
             if (error) throw error;
 
-            // Flatten the joined analysis back into the article object
+            // Flatten joined relations back into the article object
             articles = (data || []).map(a => {
-                const { article_analysis, ...rest } = a;
-                return { ...rest, analysis: Array.isArray(article_analysis) ? article_analysis[0] : article_analysis };
+                const { article_analysis, sources: src, ...rest } = a;
+                const analysis = Array.isArray(article_analysis) ? article_analysis[0] : article_analysis;
+                return {
+                    ...rest,
+                    source_name: src?.name || null,
+                    analysis,
+                    // Flatten analysis fields to top-level for Daily Intel compatibility
+                    summary: analysis?.summary || null,
+                    sentiment: analysis?.sentiment || null,
+                    importance_score: analysis?.importance_score || null,
+                    entities: analysis?.entities || null,
+                };
             });
             count = c;
         } else {
             // No analysis filters — standard query, then attach analysis separately
             let query = supabase
                 .from('articles')
-                .select('id, title, url, published_at, matched_keywords, is_tagged, analysis_status, source_id, client_id, created_at', { count: 'exact' });
+                .select('id, title, url, published_at, matched_keywords, is_tagged, analysis_status, source_id, client_id, created_at, sources(name)', { count: 'exact' });
 
             if (clientId) query = query.eq('client_id', clientId);
             if (req.query.source_id) query = query.eq('source_id', req.query.source_id);
@@ -112,7 +122,20 @@ router.get('/', async (req, res) => {
             const analysisMap = {};
             for (const a of (analyses || [])) analysisMap[a.article_id] = a;
 
-            articles = (data || []).map(article => ({ ...article, analysis: analysisMap[article.id] || null }));
+            articles = (data || []).map(article => {
+                const { sources: src, ...rest } = article;
+                const analysis = analysisMap[article.id] || null;
+                return {
+                    ...rest,
+                    source_name: src?.name || null,
+                    analysis,
+                    // Flatten analysis fields to top-level for Daily Intel compatibility
+                    summary: analysis?.summary || null,
+                    sentiment: analysis?.sentiment || null,
+                    importance_score: analysis?.importance_score || null,
+                    entities: analysis?.entities || null,
+                };
+            });
             count = c;
         }
 
