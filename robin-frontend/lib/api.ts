@@ -248,6 +248,8 @@ export const adminApi = {
         apiFetch(`/api/admin/briefs/${briefId}/activate`, { method: "POST" }),
     scrape: (clientId: string) =>
         apiFetch(`/api/admin/scrape/${clientId}`, { method: "POST" }),
+    translateTitles: () =>
+        apiFetch(`/api/admin/migrate/translate-titles`, { method: "POST" }),
 };
 
 /** Chat

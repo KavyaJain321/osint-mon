@@ -292,6 +292,116 @@ router.get('/source-quality', async (req, res) => {
     }
 });
 
+// ── Batch Title Translation Migration ─────────────────────
+
+// POST /api/admin/migrate/translate-titles
+// One-time migration: translate all existing article titles that lack title_en
+// Runs in background — returns immediately with count. Check logs for progress.
+router.post('/migrate/translate-titles', async (req, res) => {
+    try {
+        // Count how many need translating
+        const { count } = await supabase
+            .from('articles')
+            .select('id', { count: 'exact', head: true })
+            .is('title_en', null);
+
+        res.json({
+            message: `Translation started for up to ${count} articles. Running in background — check server logs for progress.`,
+            total_to_translate: count,
+        });
+
+        // Run in background (fire and forget)
+        runTitleTranslationMigration().catch(e =>
+            log.ai.error('[TRANSLATE-MIGRATION] Fatal error', { error: e.message })
+        );
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+async function runTitleTranslationMigration() {
+    const { groqChat } = await import('../lib/groq.js');
+    const BATCH_SIZE = 20;
+    let offset = 0;
+    let totalDone = 0;
+
+    log.ai.info('[TRANSLATE-MIGRATION] Starting batch title translation...');
+
+    while (true) {
+        // Fetch batch of articles without title_en
+        const { data: articles, error } = await supabase
+            .from('articles')
+            .select('id, title')
+            .is('title_en', null)
+            .not('title', 'is', null)
+            .range(offset, offset + BATCH_SIZE - 1);
+
+        if (error) {
+            log.ai.error('[TRANSLATE-MIGRATION] DB fetch failed', { error: error.message });
+            break;
+        }
+        if (!articles || articles.length === 0) break;
+
+        // Filter: only translate titles containing non-ASCII (Odia/Hindi chars)
+        // English-only titles get copied as-is without an API call
+        const needsTranslation = articles.filter(a =>
+            /[\u0B00-\u0B7F\u0900-\u097F]/.test(a.title)
+        );
+        const alreadyEnglish = articles.filter(a =>
+            !/[\u0B00-\u0B7F\u0900-\u097F]/.test(a.title)
+        );
+
+        // Copy English titles directly (no API call needed)
+        for (const a of alreadyEnglish) {
+            await supabase.from('articles').update({ title_en: a.title }).eq('id', a.id);
+            totalDone++;
+        }
+
+        // Batch translate non-English titles
+        if (needsTranslation.length > 0) {
+            try {
+                const wordList = needsTranslation.map((a, i) => `${i + 1}. ${a.title}`).join('\n');
+                const response = await groqChat([
+                    {
+                        role: 'system',
+                        content: 'You are a translator. Translate each numbered title to English. Return ONLY a JSON array of strings in the exact same order. No explanations, no numbering in the output.',
+                    },
+                    {
+                        role: 'user',
+                        content: `Translate these news article titles to English:\n${wordList}\n\nReturn ONLY: ["english title 1","english title 2",...]`,
+                    },
+                ]);
+
+                const raw = response.choices[0]?.message?.content || '[]';
+                const cleaned = raw.trim().replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+                const translations = JSON.parse(cleaned);
+
+                for (let i = 0; i < needsTranslation.length; i++) {
+                    const en = translations[i];
+                    if (en && typeof en === 'string' && en.trim()) {
+                        await supabase.from('articles')
+                            .update({ title_en: en.trim() })
+                            .eq('id', needsTranslation[i].id);
+                        totalDone++;
+                    }
+                }
+            } catch (groqErr) {
+                log.ai.warn('[TRANSLATE-MIGRATION] Groq batch failed, skipping batch', {
+                    error: groqErr.message?.substring(0, 80),
+                });
+            }
+        }
+
+        log.ai.info(`[TRANSLATE-MIGRATION] Progress: ${totalDone} titles translated so far...`);
+        offset += BATCH_SIZE;
+
+        // Small delay to avoid hammering Groq
+        await new Promise(r => setTimeout(r, 1000));
+    }
+
+    log.ai.info(`[TRANSLATE-MIGRATION] Complete. Total titles translated: ${totalDone}`);
+}
+
 // ── Manual Scraper Trigger ─────────────────────────────────
 
 // POST /api/admin/scrape/:clientId — manual trigger for specific client

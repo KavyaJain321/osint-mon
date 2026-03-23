@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Shield, Users, BarChart2, Activity, Play, RefreshCw } from "lucide-react";
+import { Shield, Users, BarChart2, Activity, Play, RefreshCw, Languages } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { formatRelative, formatNumber } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -29,6 +29,7 @@ export default function AdminPage() {
     const [health, setHealth] = useState<SystemHealth | null>(null);
     const [loading, setLoading] = useState(true);
     const [triggerMsg, setTriggerMsg] = useState("");
+    const [translateMsg, setTranslateMsg] = useState("");
 
     useEffect(() => {
         (async () => {
@@ -43,6 +44,17 @@ export default function AdminPage() {
             setLoading(false);
         })();
     }, []);
+
+    const runTitleTranslation = async () => {
+        setTranslateMsg("Starting translation…");
+        try {
+            const data = await adminApi.translateTitles() as { message?: string; total_to_translate?: number };
+            setTranslateMsg(data.message || "✓ Translation started");
+        } catch {
+            setTranslateMsg("⚠ Failed to start translation");
+        }
+        setTimeout(() => setTranslateMsg(""), 8000);
+    };
 
     const triggerScrape = async (clientId: string) => {
         setTriggerMsg("Triggering scrape…");
@@ -110,6 +122,28 @@ export default function AdminPage() {
                     </div>
                 </div>
             )}
+
+            {/* One-time migrations */}
+            <div className="card p-4 mb-3">
+                <div className="section-title mb-3">System Migrations</div>
+                <div className="flex items-center gap-4 flex-wrap">
+                    <div className="flex flex-col gap-1">
+                        <button
+                            onClick={runTitleTranslation}
+                            className="btn btn-secondary gap-2 text-sm"
+                        >
+                            <Languages size={14} />
+                            Translate All Odia Titles to English
+                        </button>
+                        <span className="text-xs text-text-muted">Translates all existing article titles that are in Odia/Hindi. Runs in background.</span>
+                    </div>
+                    {translateMsg && (
+                        <span className="text-xs text-accent-bright bg-accent-bright/10 border border-accent-bright/20 px-3 py-1.5 rounded">
+                            {translateMsg}
+                        </span>
+                    )}
+                </div>
+            </div>
 
             {/* Clients table */}
             <div className="card p-0 overflow-hidden mb-3">
