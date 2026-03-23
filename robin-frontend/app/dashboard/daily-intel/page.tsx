@@ -627,6 +627,56 @@ function PoliticalAnalysisSection({ articles }: { articles: Article[] }) {
     return (
         <div className="p-4 space-y-4">
 
+            {/* ── Political Brief ── */}
+            {(govtArts.length > 0 || discourseArts.length > 0) && (() => {
+                const srcSet = new Set([...govtArts, ...discourseArts].map(a => a.source_name).filter(Boolean));
+                const topCritical = topFocus[0] ? (topFocus[0].title_en || topFocus[0].title) : null;
+                const topPos = topAchievements[0] ? (topAchievements[0].title_en || topAchievements[0].title) : null;
+                const discNegTop = discourseArts
+                    .filter(a => (a.sentiment || "").toLowerCase() === "negative")
+                    .sort((a, b) => (b.importance_score || 0) - (a.importance_score || 0))[0];
+                const entCount: Record<string, number> = {};
+                for (const a of [...govtArts, ...discourseArts]) {
+                    for (const e of [...(a.entities?.people || []), ...(a.entities?.orgs || [])]) {
+                        if (e && e.length > 2) entCount[e] = (entCount[e] || 0) + 1;
+                    }
+                }
+                const topEnt = Object.entries(entCount).sort((a, b) => b[1] - a[1])[0];
+                const needsAttention = focusArts.length >= 2 || gs.negPct >= 45;
+                return (
+                    <div className="rounded-lg border border-teal-500/20 bg-teal-500/5 px-4 py-3.5">
+                        <p className="text-2xs font-mono text-teal-400/60 uppercase tracking-wider mb-2">🗒 Today&apos;s Political Brief</p>
+                        <p className="text-sm text-slate-200 leading-relaxed">
+                            <span className="font-semibold">{govtArts.length + discourseArts.length} political articles</span> from{" "}
+                            <span className="text-teal-300">{srcSet.size} source{srcSet.size !== 1 ? "s" : ""}</span> tracked today.{" "}
+                            Government coverage is{" "}
+                            <span className={govtTone.color}>{govtTone.label.toLowerCase()}</span>
+                            {topCritical && (
+                                <> — key concern: <span className="text-red-300 italic">&ldquo;{topCritical.length > 75 ? topCritical.slice(0, 75) + "…" : topCritical}&rdquo;</span></>
+                            )}.{" "}
+                            {topPos && (
+                                <>Media also noted a positive: <span className="text-emerald-300 italic">&ldquo;{topPos.length > 65 ? topPos.slice(0, 65) + "…" : topPos}&rdquo;</span>.{" "}</>
+                            )}
+                            {discourseArts.length > 0 && (
+                                <>The political/assembly arena ({discourseArts.length} articles) is{" "}
+                                <span className={ds.negPct >= 50 ? "text-red-400" : ds.negPct >= 30 ? "text-amber-400" : "text-slate-400"}>
+                                    {ds.negPct >= 50 ? "heated and contentious" : ds.negPct >= 30 ? "mixed with visible friction" : "largely procedural"}
+                                </span>
+                                {discNegTop && (
+                                    <>, with flashpoints around <span className="text-slate-300 italic">&ldquo;{(discNegTop.title_en || discNegTop.title).slice(0, 65)}…&rdquo;</span></>
+                                )}.{" "}</>
+                            )}
+                            {topEnt && (
+                                <><span className="text-violet-300">{topEnt[0]}</span> is the most-mentioned figure today ({topEnt[1]}×).{" "}</>
+                            )}
+                            {needsAttention && (
+                                <span className="font-semibold text-amber-300">⚡ Immediate attention recommended on {focusArts.length} area{focusArts.length !== 1 ? "s" : ""}.</span>
+                            )}
+                        </p>
+                    </div>
+                );
+            })()}
+
             {/* ── Row 1: Govt Coverage Tone + Discourse Tone ── */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
@@ -1400,6 +1450,45 @@ function MediaToneSection({ sentiment, articles }: {
                     <div style={{ width: `${sentiment.negative_pct}%` }} className="bg-red-500 transition-all" />
                 </div>
             </div>
+
+            {/* ── Day snapshot brief ── */}
+            {(() => {
+                const topNeg = negArts[0];
+                const topPosArt = posArts[0];
+                const topSrcEntry = topSources[0];
+                const topEnt = topEntities[0];
+                return (
+                    <div className="rounded-lg border border-slate-600/30 bg-slate-800/50 px-4 py-3.5">
+                        <p className="text-2xs font-mono text-slate-500 uppercase tracking-wider mb-2">📋 Today&apos;s Media Snapshot</p>
+                        <p className="text-sm text-slate-300 leading-relaxed">
+                            Of{" "}<span className="text-slate-100 font-semibold">{articles.length} articles</span> monitored today,{" "}
+                            <span className={sentiment.negative_pct >= 40 ? "text-red-400 font-semibold" : "text-slate-200"}>
+                                {sentiment.negative_pct}% carry critical or negative coverage
+                            </span>
+                            {topNeg && (
+                                <> — most prominently{" "}
+                                <span className="text-slate-200 italic">
+                                    &ldquo;{(topNeg.title_en || topNeg.title).length > 80 ? (topNeg.title_en || topNeg.title).slice(0, 80) + "…" : (topNeg.title_en || topNeg.title)}&rdquo;
+                                </span></>
+                            )}.{" "}
+                            {topPosArt ? (
+                                <>The {sentiment.positive_pct}% positive coverage is led by{" "}
+                                <span className="text-emerald-300 italic">
+                                    &ldquo;{(topPosArt.title_en || topPosArt.title).length > 65 ? (topPosArt.title_en || topPosArt.title).slice(0, 65) + "…" : (topPosArt.title_en || topPosArt.title)}&rdquo;
+                                </span>.{" "}</>
+                            ) : (
+                                <>Positive coverage is low at {sentiment.positive_pct}%.{" "}</>
+                            )}
+                            {topSrcEntry && (
+                                <><span className="text-teal-300">{topSrcEntry[0]}</span> is the most active outlet today with {topSrcEntry[1].count} articles.{" "}</>
+                            )}
+                            {topEnt && (
+                                <><span className="text-violet-300">{topEnt[0]}</span> is the most-mentioned name, appearing in {topEnt[1]} articles.</>
+                            )}
+                        </p>
+                    </div>
+                );
+            })()}
 
             {/* ── Article-derived insights ── */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
