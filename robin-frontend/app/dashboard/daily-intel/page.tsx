@@ -35,7 +35,7 @@ interface KeywordItem {
     hits: number;
     paused?: boolean;
     sentiments?: { positive: number; negative: number; neutral: number };
-    articles?: { id: string; title: string; importance: number; sentiment: string; summary: string; timestamp: string }[];
+    articles?: { id: string; title: string; title_en?: string; importance: number; sentiment: string; summary: string; timestamp: string }[];
 }
 
 interface Signal {
