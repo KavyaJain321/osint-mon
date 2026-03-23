@@ -672,6 +672,32 @@ router.post('/generate-media-report', async (req, res) => {
             .order('created_at', { ascending: false })
             .limit(10);
 
+        const { data: narrativeRes } = await db.from('narrative_patterns')
+            .select('*')
+            .eq('client_id', client.id)
+            .order('pattern_date', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        let narrative = null;
+        if (narrativeRes) {
+            let sections = {};
+            try {
+                const wn = narrativeRes.weekly_narrative;
+                sections = typeof wn === 'string' ? JSON.parse(wn) : (wn || {});
+            } catch { /* use as-is */ }
+            narrative = {
+                ...narrativeRes,
+                executive_summary: sections.executive_summary || null,
+                key_developments: sections.key_developments || null,
+                emerging_threats: sections.emerging_threats || null,
+                entity_movements: sections.entity_movements || null,
+                watch_list: sections.watch_list || null,
+                full_narrative: sections.full_narrative || null,
+            };
+        }
+
+
         // Enrich + Odisha filter
         const all = (allArticles||[]).map(a=>{
             const src=srcMap[a.source_id]||{};
@@ -743,6 +769,7 @@ router.post('/generate-media-report', async (req, res) => {
 
         const html = generateMediaReportHtml({
             client,
+            narrative,
             enriched,
             pos, neu, neg, tot,
             tvA, onA, npA,

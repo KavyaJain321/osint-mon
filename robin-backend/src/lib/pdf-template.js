@@ -1,5 +1,6 @@
 export function generateMediaReportHtml({ 
     client, 
+    narrative,
     enriched, 
     pos, neu, neg, tot, 
     tvA, onA, npA,
@@ -106,6 +107,45 @@ body { font-family:'Inter', sans-serif; margin:0; padding:0; background:white; c
     <div style="text-align:center;"><div style="font-size:36px;font-weight:800;color:#ef4444;">${neg}</div><div style="font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;">Negative</div></div>
   </div>
 </div>
+
+<!-- AI STRATEGIC BRIEFING -->
+${narrative && (narrative.executive_summary || narrative.key_developments) ? `
+<div class="page-break" style="padding:50px 60px; background:#f8fafc;">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:30px;padding-bottom:16px;border-bottom:3px solid #0f766e;">
+    <span style="font-size:32px;">📑</span>
+    <h2 style="font-size:28px;font-weight:800;color:#0f172a;margin:0;letter-spacing:-0.5px;">Strategic Intelligence Briefing</h2>
+  </div>
+  ${narrative.executive_summary ? `
+  <div style="background:white;border:1px solid #e2e8f0;border-left:4px solid #0d9488;border-radius:8px;padding:24px;margin-bottom:30px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
+    <h3 style="font-size:18px;font-weight:700;color:#0f172a;margin-top:0;margin-bottom:16px;">Executive Summary</h3>
+    <div style="white-space:pre-wrap;line-height:1.6;color:#334155;font-size:14px;">${narrative.executive_summary}</div>
+  </div>` : ''}
+  
+  ${narrative.key_developments ? `
+  <div style="margin-bottom:30px;">
+    <h3 style="font-size:18px;font-weight:700;color:#0f172a;margin-bottom:16px;">Top Priority Stories</h3>
+    <div style="white-space:pre-wrap;line-height:1.6;color:#334155;font-size:14px;">${narrative.key_developments}</div>
+  </div>` : ''}
+  
+  ${narrative.emerging_threats ? `
+  <div style="margin-bottom:30px;">
+    <h3 style="font-size:18px;font-weight:700;color:#0f172a;margin-bottom:16px;">Additional Stories to Track</h3>
+    <div style="white-space:pre-wrap;line-height:1.6;color:#334155;font-size:14px;">${narrative.emerging_threats}</div>
+  </div>` : ''}
+  
+  ${narrative.entity_movements ? `
+  <div style="margin-bottom:30px;">
+    <h3 style="font-size:18px;font-weight:700;color:#0f172a;margin-bottom:16px;">Risk and Narrative Map</h3>
+    <div style="white-space:pre-wrap;line-height:1.6;color:#334155;font-size:14px;">${narrative.entity_movements}</div>
+  </div>` : ''}
+  
+  ${narrative.watch_list ? `
+  <div style="margin-bottom:30px;">
+    <h3 style="font-size:18px;font-weight:700;color:#0f172a;margin-bottom:16px;">Department-wise Relevance Matrix</h3>
+    <div style="white-space:pre-wrap;line-height:1.6;color:#334155;font-size:14px;">${narrative.watch_list}</div>
+  </div>` : ''}
+</div>
+` : ''}
 
 <!-- KEY INTELLIGENCE SIGNALS -->
 <div class="page-break" style="padding:50px 60px;">

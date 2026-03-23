@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { dailyIntelApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import ReactMarkdown from "react-markdown";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1733,9 +1734,13 @@ export default function DailyIntelPage() {
                                 </div>
                                 <h1 className="text-lg font-bold text-slate-100 mb-0.5">Daily Situation Report — {fmtDate(date)}</h1>
                                 <p className="text-xs text-slate-400 mb-3">Prepared by ROBIN Monitor System · Last refreshed {lastRefreshed.toLocaleTimeString("en-IN")}</p>
-                                <p className="text-sm text-slate-300 leading-relaxed line-clamp-3">
-                                    {computedSummary.executive_summary.split("\n\n")[0]}
-                                </p>
+                                <div className="text-sm text-slate-300 leading-relaxed [&>p]:mb-3 [&>ul]:list-disc [&>ul]:ml-5 [&>ul>li]:mb-1 [&>h3]:text-slate-100 [&>h3]:font-bold [&>h3]:mt-4 [&>h3]:mb-2">
+                                    {intelData?.narrative?.executive_summary ? (
+                                        <ReactMarkdown>{intelData.narrative.executive_summary}</ReactMarkdown>
+                                    ) : (
+                                        <p className="line-clamp-3">{computedSummary.executive_summary.split("\n\n")[0]}</p>
+                                    )}
+                                </div>
                             </div>
                             <div className="flex flex-col gap-2 flex-shrink-0 min-w-[160px]">
                                 <div className="grid grid-cols-2 gap-2">
@@ -1754,6 +1759,66 @@ export default function DailyIntelPage() {
                             </div>
                         </div>
                     </div>
+
+                    {/* ── AI Strategic Briefing ── */}
+                    {intelData?.narrative && (intelData.narrative.key_developments || intelData.narrative.emerging_threats) && (
+                        <div className="space-y-4 pt-2">
+                            <div className="flex items-center gap-3 px-1 mb-2">
+                                <span className="text-xl">📑</span>
+                                <h2 className="text-lg font-bold text-slate-100 uppercase tracking-wide">Strategic Intelligence Briefing</h2>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                {intelData.narrative.key_developments && (
+                                    <div className="rounded-xl border border-teal-500/20 bg-teal-500/5 p-5">
+                                        <h3 className="text-sm font-bold text-teal-400 mb-3 flex items-center gap-2">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-teal-400"></span>
+                                            Top Priority Stories
+                                        </h3>
+                                        <div className="text-sm text-slate-300 leading-relaxed [&>p]:mb-3 [&>ul]:list-disc [&>ul]:ml-5 [&>ul>li]:mb-1.5 [&>h3]:text-teal-300 [&>h3]:font-bold [&>h3]:mt-4 [&>h3]:mb-2">
+                                            <ReactMarkdown>{intelData.narrative.key_developments}</ReactMarkdown>
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                {intelData.narrative.emerging_threats && (
+                                    <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-5">
+                                        <h3 className="text-sm font-bold text-amber-400 mb-3 flex items-center gap-2">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                                            Additional Stories to Track
+                                        </h3>
+                                        <div className="text-sm text-slate-300 leading-relaxed [&>p]:mb-3 [&>ul]:list-disc [&>ul]:ml-5 [&>ul>li]:mb-1.5 [&>h3]:text-amber-300 [&>h3]:font-bold [&>h3]:mt-4 [&>h3]:mb-2">
+                                            <ReactMarkdown>{intelData.narrative.emerging_threats}</ReactMarkdown>
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                {intelData.narrative.entity_movements && (
+                                    <div className="rounded-xl border border-violet-500/20 bg-violet-500/5 p-5">
+                                        <h3 className="text-sm font-bold text-violet-400 mb-3 flex items-center gap-2">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
+                                            Risk and Narrative Map
+                                        </h3>
+                                        <div className="text-sm text-slate-300 leading-relaxed [&>p]:mb-3 [&>ul]:list-disc [&>ul]:ml-5 [&>ul>li]:mb-1.5 [&>h3]:text-violet-300 [&>h3]:font-bold [&>h3]:mt-4 [&>h3]:mb-2">
+                                            <ReactMarkdown>{intelData.narrative.entity_movements}</ReactMarkdown>
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                {intelData.narrative.watch_list && (
+                                    <div className="rounded-xl border border-slate-600/30 bg-slate-800/50 p-5">
+                                        <h3 className="text-sm font-bold text-slate-300 mb-3 flex items-center gap-2">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                                            Department-wise Relevance Matrix
+                                        </h3>
+                                        <div className="text-sm text-slate-300 leading-relaxed [&>p]:mb-3 [&>ul]:list-disc [&>ul]:ml-5 [&>ul>li]:mb-1.5 [&>h3]:text-slate-200 [&>h3]:font-bold [&>h3]:mt-4 [&>h3]:mb-2 overflow-x-auto">
+                                            <ReactMarkdown>{intelData.narrative.watch_list}</ReactMarkdown>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Top News — always show Top 10 HOT articles of the day */}
                     <SectionCard
