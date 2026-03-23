@@ -1240,19 +1240,14 @@ async function passNarrativeSynthesis(client, entityPass, threatPass, temporalPa
     let narrative = '', forecast = '', actions = '';
 
     try {
-        // Single structured prompt for 6-section intelligence brief
         const resp = await groqChat([
             {
                 role: 'system',
                 content: `You are an open-source intelligence assistant for the Government of Odisha.
-Your task is to generate a concise daily briefing note on the most important developments relevant to the state government's governance, security, economy, and public perception.
-Act as a neutral, policy-focused analyst serving senior officials of the Odisha government. Prioritise relevance to state governance over generic news.
+Your task is to generate a concise daily briefing on the most important developments relevant to state governance, security, economy, and public perception.
+Act as a neutral, policy-focused analyst serving senior officials. Prioritise relevance to state governance over generic news.
 
-Tone and Analytical constraints:
-- Use clear, civil-service-style language suitable for senior officers. Avoid partisan language or political advocacy.
-- Do not give legal advice; instead, flag when "legal vetting may be required".
-- Always distinguish facts, plausible implications, and unknowns (Use labels: Fact: / Implication: / Unknowns:).
-- Flag conflicting information. If information is thin or unclear, say so explicitly and treat it as an early warning.
+CRITICAL INSTRUCTION: You MUST output ONLY valid JSON. Your response must parse directly using JSON.parse(). Do not wrap in markdown blocks like \`\`\`json. Make sure NO unescaped quotes or newlines exist within the JSON values. Use literal \n for newlines within strings.
 
 Context: ${briefContext || client.industry}
 Topic: "${briefTopic || client.name}"`
@@ -1264,42 +1259,27 @@ Topic: "${briefTopic || client.name}"`
 INTELLIGENCE DATA:
 ${JSON.stringify(briefing)}
 
-Respond in this exact structure with ## headers:
-
-## A. Executive Summary
-- 5-8 bullet points (1-2 lines per bullet).
-- Only the most strategically important developments for the Odisha government.
-- Indicate direction of impact using a tag in brackets: [Risk], [Opportunity], [Watch], [Reputational].
-
-## B. Top 5 Priority Stories (Government Lens)
-For each of the top 5, provide:
-- Headline: One-line title.
-- What happened: 2-3 sentence factual summary (Use Fact: / Implication: / Unknowns: labels).
-- Why it matters for Govt: 2-3 sentences on policy, political, security, economic, or reputational implications.
-- Recommended watchpoints / actions: 3-5 bullets focused on immediate monitoring, stakeholders to engage, data needed, or communication risks.
-
-## C. Additional Stories to Track (Short List)
-5-10 bullets of secondary but relevant developments. Each bullet: 1-2 lines explaining relevance to at least one department or function.
-
-## D. Risk and Narrative Map
-- Key emerging risks: 3-6 bullets on issues that may escalate in the next 3-7 days.
-- Narrative / perception trends: 3-5 bullets on how mainstream/digital media are framing the government, recurring criticism/praise, and misinformation themes.
-
-## E. Department-wise Relevance Matrix
-Provide a markdown table with columns: Story/Issue | Relevant department(s) | Time-sensitivity | Risk type | Suggested posture.`
+JSON RESPONSE FORMAT:
+{
+  "executive_summary": "5-8 bullet points (1-2 lines each) covering the most strategically important developments. Combine points with \\n\\n.",
+  "key_developments": "Top 5 priority stories. For each provide a headline, factual summary, policy implications, and recommended watchpoints. Combine all 5 stories with \\n\\n.",
+  "emerging_threats": "5-10 bullets of secondary but relevant developments. Combine with \\n\\n.",
+  "entity_movements": "Key emerging risks and narrative perception trends. Combine with \\n\\n.",
+  "watch_list": "A markdown table with columns: Story/Issue | Relevant department(s) | Time-sensitivity | Risk type | Suggested posture"
+}`
             },
-        ], { temperature: 0.4, max_tokens: 3000 });
+        ], { temperature: 0.3, max_tokens: 3000, response_format: { type: "json_object" } });
 
-        narrative = resp.choices[0]?.message?.content || '';
-
-        // Extract structured sections from the response
-        const sections = {
-            executive_summary: extractSection(narrative, 'A. Executive Summary'),
-            key_developments: extractSection(narrative, 'B. Top 5 Priority Stories (Government Lens)'),
-            emerging_threats: extractSection(narrative, 'C. Additional Stories to Track (Short List)'),
-            entity_movements: extractSection(narrative, 'D. Risk and Narrative Map'),
-            watch_list: extractSection(narrative, 'E. Department-wise Relevance Matrix'),
-        };
+        const rawContent = resp.choices[0]?.message?.content || '{}';
+        
+        let sections = {};
+        try {
+            sections = JSON.parse(rawContent);
+        } catch (parseErr) {
+            log.ai.warn('Narrative JSON parse failed, cleaning response', { rawPreview: rawContent.substring(0, 200) });
+            const cleaned = rawContent.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+            sections = JSON.parse(cleaned);
+        }
 
         // Use watch_list as forecast, key_developments as actions for backward compatibility
         forecast = sections.watch_list || '';
@@ -1308,14 +1288,22 @@ Provide a markdown table with columns: Story/Issue | Relevant department(s) | Ti
         // Store the structured sections in the narrative for downstream use
         narrative = JSON.stringify({
             ...sections,
-            full_narrative: resp.choices[0]?.message?.content || '',
             risk_level: threatPass.riskLevel,
             generated_at: new Date().toISOString(),
         });
 
     } catch (err) {
         log.ai.warn('Narrative prompt failed', { error: err.message });
-        narrative = `Risk level: ${threatPass.riskLevel}. ${threatPass.activeThreats.length} active threats. ${signalPass.signals.length} signals detected.`;
+        const fallbackStr = `Risk level: ${threatPass.riskLevel}. ${threatPass.activeThreats.length} active threats. ${signalPass.signals.length} signals detected.`;
+        narrative = JSON.stringify({
+             executive_summary: fallbackStr,
+             key_developments: "Forecast unavailable — monitor active threats.",
+             emerging_threats: "1. Monitor active threats.\\n2. Prepare holding statements.\\n3. Brief leadership.",
+             entity_movements: "",
+             watch_list: "",
+             risk_level: threatPass.riskLevel,
+             generated_at: new Date().toISOString(),
+        });
         forecast = 'Forecast unavailable — monitor active threats.';
         actions = '1. Monitor active threats. 2. Prepare holding statements. 3. Brief leadership.';
     }
@@ -1323,16 +1311,6 @@ Provide a markdown table with columns: Story/Issue | Relevant department(s) | Ti
     log.ai.info('Pass 7: Narrative Synthesis', { narrativeLen: narrative.length, forecastLen: forecast.length });
 
     return { narrative, forecast, actions };
-}
-
-/**
- * Extract a section from markdown text by header name.
- * Handles ## HEADER and # HEADER formats.
- */
-function extractSection(text, sectionName) {
-    const regex = new RegExp(`##?\\s*${sectionName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^\\n]*\\n([\\s\\S]*?)(?=\\n##|$)`, 'i');
-    const match = text.match(regex);
-    return match ? match[1].trim() : '';
 }
 
 // ────────────────────────────────────────────────────────────
