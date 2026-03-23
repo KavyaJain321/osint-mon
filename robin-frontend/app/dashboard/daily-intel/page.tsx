@@ -1812,7 +1812,7 @@ export default function DailyIntelPage() {
                                             <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
                                             Department-wise Relevance Matrix
                                         </h3>
-                                        <div className="text-sm text-slate-300 leading-relaxed [&>p]:mb-3 [&>ul]:list-disc [&>ul]:ml-5 [&>ul>li]:mb-1.5 [&>h3]:text-slate-200 [&>h3]:font-bold [&>h3]:mt-4 [&>h3]:mb-2 overflow-x-auto">
+                                        <div className="text-sm text-slate-300 leading-relaxed [&_p]:mb-3 [&_ul]:list-disc [&_ul]:ml-5 [&_ul>li]:mb-1.5 [&_h3]:text-slate-200 [&_h3]:font-bold [&_h3]:mt-4 [&_h3]:mb-2 [&_table]:w-full [&_table]:text-left [&_table]:border-collapse [&_table]:my-3 [&_th]:border-b [&_th]:border-slate-700/50 [&_th]:p-3 [&_th]:text-slate-400 [&_th]:bg-slate-800/20 [&_th]:font-semibold [&_td]:border-b [&_td]:border-slate-700/30 [&_td]:p-3 [&_td]:align-top [&_tr:last-child_td]:border-0 overflow-x-auto">
                                             <ReactMarkdown remarkPlugins={[remarkGfm]}>{intelData.narrative.watch_list}</ReactMarkdown>
                                         </div>
                                     </div>
