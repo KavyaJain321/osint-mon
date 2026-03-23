@@ -1218,10 +1218,9 @@ async function passNarrativeSynthesis(client, entityPass, threatPass, temporalPa
     const briefing = {
         topic: briefTopic || client.name,
         context: briefContext || client.industry,
-        period: '30-day analysis',
+        period: 'Last 24-48 hours',
         threatLevel: `${threatPass.riskLevel} (${threatPass.overall}/100)`,
         dimensions: threatPass.dimensions,
-        velocity: threatPass.velocity,
         activeThreats: threatPass.activeThreats.length,
         topEntities: entityPass.topEntities.slice(0, 8).map(e => ({
             name: e.name, influence: e.influence, trend: e.trend,
@@ -1230,10 +1229,11 @@ async function passNarrativeSynthesis(client, entityPass, threatPass, temporalPa
         signals: signalPass.signals.map(s => ({
             type: s.signal_type, severity: s.severity, title: s.title,
         })),
-        storyTrajectories: temporalPass.storyLifecycles.slice(0, 5),
-        networkClusters: networkPass.networkCommunities.slice(0, 3).map(c => c.members),
-        sourceReliability: sourcePass.sourceSentiments.map(s => ({
-            name: s.name, reliability: s.reliability, bias: s.biasDirection, negPct: s.negativePercent,
+        recentArticles: articles.slice(0, 15).map(a => ({
+            title: a.title,
+            source: a.sourceName,
+            sentiment: a.analysis?.sentiment || 'neutral',
+            summary: a.analysis?.summary || '',
         })),
     };
 
@@ -1244,28 +1244,29 @@ async function passNarrativeSynthesis(client, entityPass, threatPass, temporalPa
             {
                 role: 'system',
                 content: `You are an open-source intelligence assistant for the Government of Odisha.
-Your task is to generate a concise daily briefing on the most important developments relevant to state governance, security, economy, and public perception.
-Act as a neutral, policy-focused analyst serving senior officials. Prioritise relevance to state governance over generic news.
+Your task is to generate a concise daily briefing on the most important developments from the last 24 hours based strictly on the provided "recentArticles" and "signals".
+Act as a neutral, policy-focused analyst serving senior officials.
 
-CRITICAL INSTRUCTION: You MUST output ONLY valid JSON. Your response must parse directly using JSON.parse(). Do not wrap in markdown blocks like \`\`\`json. Make sure NO unescaped quotes or newlines exist within the JSON values. Use literal \n for newlines within strings.
-
-Context: ${briefContext || client.industry}
-Topic: "${briefTopic || client.name}"`
+CRITICAL INSTRUCTIONS:
+- DO NOT report on the "topic" or "context" itself. The topic/context is just the overarching focus area, NOT the news. Focus entirely on the actual events described in "recentArticles".
+- You MUST output ONLY valid JSON.
+- DO NOT include instructional text (like "Top 5 priority stories:" or "5-10 bullets") inside your generated JSON values. Output ONLY the actual summaries and data.
+- Ensure the table in watch_list uses standard markdown format with NO introductory text before the table.`
             },
             {
                 role: 'user',
-                content: `Write a structured intelligence brief using the data below.
+                content: `Write a structured intelligence brief using the data below. Focus ONLY on summarizing the recent articles and signals.
 
 INTELLIGENCE DATA:
 ${JSON.stringify(briefing)}
 
 JSON RESPONSE FORMAT:
 {
-  "executive_summary": "5-8 bullet points (1-2 lines each) covering the most strategically important developments. Combine points with \\n\\n.",
-  "key_developments": "Top 5 priority stories. For each provide a headline, factual summary, policy implications, and recommended watchpoints. Combine all 5 stories with \\n\\n.",
-  "emerging_threats": "5-10 bullets of secondary but relevant developments. Combine with \\n\\n.",
-  "entity_movements": "Key emerging risks and narrative perception trends. Combine with \\n\\n.",
-  "watch_list": "A markdown table with columns: Story/Issue | Relevant department(s) | Time-sensitivity | Risk type | Suggested posture"
+  "executive_summary": "5-8 bullet points covering the most strategically important events from the recentArticles. Combine points with \\n\\n.",
+  "key_developments": "Top 5 priority news stories from the recentArticles. For each, provide a Headline, What happened, and Why it matters for Govt. Combine all 5 stories with \\n\\n.",
+  "emerging_threats": "5-10 bullets of secondary developments from the recentArticles. Combine with \\n\\n.",
+  "entity_movements": "Key emerging risks based on the topEntities and signals. Combine with \\n\\n.",
+  "watch_list": "| Story/Issue | Relevant department(s) | Time-sensitivity | Risk type | Suggested posture |\\n|---|---|---|---|---|"
 }`
             },
         ], { temperature: 0.3, max_tokens: 3000, response_format: { type: "json_object" } });
