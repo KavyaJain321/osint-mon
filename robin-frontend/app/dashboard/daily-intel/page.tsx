@@ -11,6 +11,7 @@ import {
 import { dailyIntelApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1736,7 +1737,7 @@ export default function DailyIntelPage() {
                                 <p className="text-xs text-slate-400 mb-3">Prepared by ROBIN Monitor System · Last refreshed {lastRefreshed.toLocaleTimeString("en-IN")}</p>
                                 <div className="text-sm text-slate-300 leading-relaxed [&>p]:mb-3 [&>ul]:list-disc [&>ul]:ml-5 [&>ul>li]:mb-1 [&>h3]:text-slate-100 [&>h3]:font-bold [&>h3]:mt-4 [&>h3]:mb-2">
                                     {intelData?.narrative?.executive_summary ? (
-                                        <ReactMarkdown>{intelData.narrative.executive_summary}</ReactMarkdown>
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{intelData.narrative.executive_summary}</ReactMarkdown>
                                     ) : (
                                         <p className="line-clamp-3">{computedSummary.executive_summary.split("\n\n")[0]}</p>
                                     )}
@@ -1776,7 +1777,7 @@ export default function DailyIntelPage() {
                                             Top Priority Stories
                                         </h3>
                                         <div className="text-sm text-slate-300 leading-relaxed [&>p]:mb-3 [&>ul]:list-disc [&>ul]:ml-5 [&>ul>li]:mb-1.5 [&>h3]:text-teal-300 [&>h3]:font-bold [&>h3]:mt-4 [&>h3]:mb-2">
-                                            <ReactMarkdown>{intelData.narrative.key_developments}</ReactMarkdown>
+                                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{intelData.narrative.key_developments}</ReactMarkdown>
                                         </div>
                                     </div>
                                 )}
@@ -1788,7 +1789,7 @@ export default function DailyIntelPage() {
                                             Additional Stories to Track
                                         </h3>
                                         <div className="text-sm text-slate-300 leading-relaxed [&>p]:mb-3 [&>ul]:list-disc [&>ul]:ml-5 [&>ul>li]:mb-1.5 [&>h3]:text-amber-300 [&>h3]:font-bold [&>h3]:mt-4 [&>h3]:mb-2">
-                                            <ReactMarkdown>{intelData.narrative.emerging_threats}</ReactMarkdown>
+                                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{intelData.narrative.emerging_threats}</ReactMarkdown>
                                         </div>
                                     </div>
                                 )}
@@ -1800,7 +1801,7 @@ export default function DailyIntelPage() {
                                             Risk and Narrative Map
                                         </h3>
                                         <div className="text-sm text-slate-300 leading-relaxed [&>p]:mb-3 [&>ul]:list-disc [&>ul]:ml-5 [&>ul>li]:mb-1.5 [&>h3]:text-violet-300 [&>h3]:font-bold [&>h3]:mt-4 [&>h3]:mb-2">
-                                            <ReactMarkdown>{intelData.narrative.entity_movements}</ReactMarkdown>
+                                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{intelData.narrative.entity_movements}</ReactMarkdown>
                                         </div>
                                     </div>
                                 )}
@@ -1812,7 +1813,7 @@ export default function DailyIntelPage() {
                                             Department-wise Relevance Matrix
                                         </h3>
                                         <div className="text-sm text-slate-300 leading-relaxed [&>p]:mb-3 [&>ul]:list-disc [&>ul]:ml-5 [&>ul>li]:mb-1.5 [&>h3]:text-slate-200 [&>h3]:font-bold [&>h3]:mt-4 [&>h3]:mb-2 overflow-x-auto">
-                                            <ReactMarkdown>{intelData.narrative.watch_list}</ReactMarkdown>
+                                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{intelData.narrative.watch_list}</ReactMarkdown>
                                         </div>
                                     </div>
                                 )}
