@@ -6,7 +6,7 @@ import {
     ChevronDown, ExternalLink, Clock, RefreshCw,
     Download, CheckCircle2, Eye, Zap, Activity, Users,
     Radio, ArrowUpRight, ArrowDownRight,
-    ChevronUp, Loader2,
+    ChevronUp, Loader2, Landmark,
 } from "lucide-react";
 import { dailyIntelApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -77,7 +77,6 @@ const ODISHA_SECTORS = [
     { key: "disaster", label: "Disaster Management", icon: "🌊", keywords: ["cyclone", "flood", "disaster", "odrf", "ndrf", "relief", "evacuation", "storm", "rainfall", "drought", "heat wave", "earthquake", "fire", "accident", "blast", "landslide", "rescue", "casualty", "dead", "death", "injured", "crisis", "emergency"] },
     { key: "mining", label: "Mining & Industry", icon: "⛏️", keywords: ["mine", "mining", "steel", "iron ore", "keonjhar", "coal", "mineral", "industry", "factory", "plant", "jharsuguda", "angul", "vedanta", "tata", "nalco", "hindalco", "power plant", "investment", "startup", "msme"] },
     { key: "health", label: "Health & Sanitation", icon: "🏥", keywords: ["health", "hospital", "doctor", "vaccine", "disease", "malaria", "dengue", "nutrition", "anemia", "sanitation", "covid", "outbreak", "patient", "medicine", "treatment", "nurse", "clinic", "ambulance", "epidemic", "preventive", "heatstroke", "ailment"] },
-    { key: "political", label: "Political & Governance", icon: "🏛️", keywords: ["chief minister", "cm naveen", "mohan majhi", "minister", "bjd", "bjp", "congress", "mla", "mp", "assembly", "election", "political", "party", "cabinet", "odisha government", "state government", "governor", "chief secretary", "ias", "ips", "transfer", "posting", "corruption", "scam", "rally", "campaign", "vote", "bypolls", "legislature", "legislative", "bjd government", "bjp government"] },
     { key: "laworder", label: "Law & Order", icon: "🚓", keywords: ["crime", "police", "naxal", "maoist", "arrest", "murder", "violence", "robbery", "encounter", "security", "protest", "agitation", "court", "legal", "judiciary", "disqualification", "suspended", "ban", "raid", "drug", "gang", "bribery", "theft", "kidnap", "trafficking", "rape", "atrocity", "cbi", "crime branch", "sti"] },
     { key: "infrastructure", label: "Infrastructure & Roads", icon: "🏗️", keywords: ["road", "bridge", "highway", "construction", "railway", "airport", "smart city", "infrastructure", "project", "tender", "bhubaneswar", "cuttack", "puri", "berhampur", "odisha cm", "chief minister", "water", "electricity", "power", "gas", "lpg", "shortage", "supply", "connectivity"] },
     { key: "education", label: "Education & Employment", icon: "📚", keywords: ["school", "education", "student", "employment", "job", "training", "university", "skill", "scholarship", "recruitment", "exam", "teacher", "college", "board", "result", "youth", "graduate"] },
@@ -573,6 +572,222 @@ function TopNewsSection({ articles, reviewedIds, onReview, kwMap }: {
                     </div>
                 );
             })}
+        </div>
+    );
+}
+
+// ─── Political Analysis ────────────────────────────────────────────────────────
+
+const GOVT_KW = ["chief minister", "cm mohan", "mohan majhi", "bjp government", "odisha government", "state government", "minister", "cabinet", "cm naveen", "chief secretary", "governor"];
+const DISCOURSE_KW = ["assembly", "legislature", "legislative", "bjd", "congress", "mla", "political party", "political debate", "political confrontation", "opposition leader", "bypolls", "election", "rally", "campaign"];
+const FOCUS_KW = ["corruption", "scam", "protest", "agitation", "criticism", "controversy", "failure", "pending", "delay", "oppose", "demand", "allegation", "accused"];
+
+function PoliticalAnalysisSection({ articles }: { articles: Article[] }) {
+    const [expandGovt, setExpandGovt] = useState(false);
+    const [expandDiscourse, setExpandDiscourse] = useState(false);
+
+    const matchKw = (a: Article, kws: string[]) => {
+        const text = [(a.title_en || a.title), a.summary, ...(a.keywords || [])].filter(Boolean).join(" ").toLowerCase();
+        return kws.some(kw => text.includes(kw));
+    };
+
+    const govtArts = articles.filter(a => matchKw(a, GOVT_KW));
+    const discourseArts = articles.filter(a => matchKw(a, DISCOURSE_KW) && !matchKw(a, GOVT_KW));
+    const focusArts = govtArts.filter(a => matchKw(a, FOCUS_KW) || (a.sentiment || "").toLowerCase() === "negative");
+
+    const sentStats = (arts: Article[]) => {
+        const pos = arts.filter(a => (a.sentiment || "").toLowerCase() === "positive").length;
+        const neg = arts.filter(a => (a.sentiment || "").toLowerCase() === "negative").length;
+        const neu = arts.length - pos - neg;
+        const total = arts.length || 1;
+        return { pos, neg, neu, total, posPct: Math.round(pos / total * 100), negPct: Math.round(neg / total * 100), neuPct: Math.round(neu / total * 100) };
+    };
+
+    const gs = sentStats(govtArts);
+    const ds = sentStats(discourseArts);
+
+    const govtTone = gs.negPct >= 60 ? { label: "Predominantly Critical", color: "text-red-400", bg: "bg-red-500/10 border-red-500/20" }
+        : gs.negPct >= 40 ? { label: "Mixed — Some Criticism", color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" }
+        : gs.posPct >= 50 ? { label: "Broadly Positive", color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" }
+        : { label: "Neutral / Balanced", color: "text-slate-400", bg: "bg-slate-700/30 border-slate-600/20" };
+
+    // Top focus areas = high-importance negative govt articles
+    const topFocus = [...focusArts].sort((a, b) => (b.importance_score || 0) - (a.importance_score || 0)).slice(0, 4);
+    // Top achievements = positive govt articles
+    const topAchievements = govtArts.filter(a => (a.sentiment || "").toLowerCase() === "positive").sort((a, b) => (b.importance_score || 0) - (a.importance_score || 0)).slice(0, 3);
+
+    if (govtArts.length === 0 && discourseArts.length === 0) {
+        return (
+            <div className="p-6 text-center text-sm text-slate-500">
+                No political or governance coverage found in today&apos;s articles.
+            </div>
+        );
+    }
+
+    return (
+        <div className="p-4 space-y-4">
+
+            {/* ── Row 1: Govt Coverage Tone + Discourse Tone ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+                {/* Government Coverage Panel */}
+                <div className="rounded-lg border border-slate-700/50 bg-slate-800/40 overflow-hidden">
+                    <div className="px-4 py-3 border-b border-slate-700/30 bg-slate-800/60">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <span className="text-base">🏛️</span>
+                                <span className="text-xs font-semibold text-slate-200">Government & CM Coverage</span>
+                                <span className="text-2xs bg-slate-700/60 text-slate-400 px-1.5 py-0.5 rounded font-mono">{govtArts.length} articles</span>
+                            </div>
+                            <span className={cn("text-2xs font-semibold px-2 py-0.5 rounded border", govtTone.bg, govtTone.color)}>{govtTone.label}</span>
+                        </div>
+                    </div>
+
+                    {/* Sentiment bar */}
+                    <div className="px-4 py-3 border-b border-slate-700/20">
+                        <div className="flex items-center gap-2 mb-1.5">
+                            <div className="flex-1 h-2 rounded-full overflow-hidden flex bg-slate-800">
+                                <div className="bg-emerald-500 h-full transition-all" style={{ width: `${gs.posPct}%` }} />
+                                <div className="bg-slate-600 h-full transition-all" style={{ width: `${gs.neuPct}%` }} />
+                                <div className="bg-red-500 h-full transition-all" style={{ width: `${gs.negPct}%` }} />
+                            </div>
+                        </div>
+                        <div className="flex gap-4 text-2xs">
+                            <span className="text-emerald-400">{gs.posPct}% positive ({gs.pos})</span>
+                            <span className="text-slate-500">{gs.neuPct}% neutral ({gs.neu})</span>
+                            <span className="text-red-400">{gs.negPct}% critical ({gs.neg})</span>
+                        </div>
+                    </div>
+
+                    {/* Areas to focus */}
+                    {topFocus.length > 0 && (
+                        <div className="px-4 py-3 border-b border-slate-700/20">
+                            <p className="text-2xs font-mono text-red-400/70 uppercase tracking-wider mb-2">⚠ Areas Needing Attention</p>
+                            <div className="space-y-2">
+                                {topFocus.map(a => (
+                                    <a key={a.id} href={a.url} target="_blank" rel="noreferrer" className="flex items-start gap-2 group">
+                                        <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5",
+                                            (a.importance_score || 0) >= 8 ? "bg-red-500" : "bg-amber-500"
+                                        )} />
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xs text-slate-300 leading-snug group-hover:text-teal-300 transition-colors line-clamp-2">{a.title_en || a.title}</p>
+                                            <div className="flex items-center gap-2 mt-0.5 text-2xs">
+                                                {a.source_name && <span className="text-slate-500">{a.source_name}</span>}
+                                                {a.importance_score && <span className="text-amber-500/70">Priority {a.importance_score}/10</span>}
+                                            </div>
+                                        </div>
+                                    </a>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Achievements */}
+                    {topAchievements.length > 0 && (
+                        <div className="px-4 py-3">
+                            <p className="text-2xs font-mono text-emerald-400/70 uppercase tracking-wider mb-2">✓ Positive Coverage</p>
+                            <div className="space-y-1.5">
+                                {topAchievements.map(a => (
+                                    <a key={a.id} href={a.url} target="_blank" rel="noreferrer" className="flex items-start gap-2 group">
+                                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5 bg-emerald-500" />
+                                        <p className="text-xs text-slate-400 leading-snug group-hover:text-emerald-300 transition-colors line-clamp-2">{a.title_en || a.title}</p>
+                                    </a>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {govtArts.length === 0 && (
+                        <div className="px-4 py-6 text-center text-xs text-slate-600">No CM/Government articles today</div>
+                    )}
+                </div>
+
+                {/* Political Discourse Panel */}
+                <div className="rounded-lg border border-slate-700/50 bg-slate-800/40 overflow-hidden">
+                    <div className="px-4 py-3 border-b border-slate-700/30 bg-slate-800/60">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <span className="text-base">🗣️</span>
+                                <span className="text-xs font-semibold text-slate-200">Political Discourse</span>
+                                <span className="text-2xs bg-slate-700/60 text-slate-400 px-1.5 py-0.5 rounded font-mono">{discourseArts.length} articles</span>
+                            </div>
+                            <span className="text-2xs text-slate-500 border border-slate-700/40 px-2 py-0.5 rounded">Legislative & Assembly</span>
+                        </div>
+                    </div>
+
+                    {discourseArts.length === 0 ? (
+                        <div className="px-4 py-6 text-center text-xs text-slate-600">No legislative or assembly discourse today</div>
+                    ) : (
+                        <>
+                            {/* Sentiment bar */}
+                            <div className="px-4 py-3 border-b border-slate-700/20">
+                                <div className="flex items-center gap-2 mb-1.5">
+                                    <div className="flex-1 h-2 rounded-full overflow-hidden flex bg-slate-800">
+                                        <div className="bg-emerald-500 h-full" style={{ width: `${ds.posPct}%` }} />
+                                        <div className="bg-slate-600 h-full" style={{ width: `${ds.neuPct}%` }} />
+                                        <div className="bg-red-500 h-full" style={{ width: `${ds.negPct}%` }} />
+                                    </div>
+                                </div>
+                                <div className="flex gap-4 text-2xs">
+                                    <span className="text-emerald-400">{ds.posPct}% positive</span>
+                                    <span className="text-slate-500">{ds.neuPct}% neutral</span>
+                                    <span className="text-red-400">{ds.negPct}% critical</span>
+                                </div>
+                            </div>
+
+                            {/* Key discourse articles */}
+                            <div className="px-4 py-3">
+                                <p className="text-2xs font-mono text-slate-500 uppercase tracking-wider mb-2">Key Debates & Activities</p>
+                                <div className="space-y-2">
+                                    {(expandDiscourse ? discourseArts : discourseArts.slice(0, 5))
+                                        .sort((a, b) => (b.importance_score || 0) - (a.importance_score || 0))
+                                        .map(a => (
+                                        <a key={a.id} href={a.url} target="_blank" rel="noreferrer" className="flex items-start gap-2 group">
+                                            <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5",
+                                                (a.sentiment || "").toLowerCase() === "negative" ? "bg-red-400" :
+                                                (a.sentiment || "").toLowerCase() === "positive" ? "bg-emerald-400" : "bg-slate-500"
+                                            )} />
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-xs text-slate-300 leading-snug group-hover:text-teal-300 transition-colors line-clamp-2">{a.title_en || a.title}</p>
+                                                <div className="flex items-center gap-2 mt-0.5 text-2xs">
+                                                    {a.source_name && <span className="text-slate-500">{a.source_name}</span>}
+                                                    <span className={cn(
+                                                        (a.sentiment || "").toLowerCase() === "negative" ? "text-red-400" :
+                                                        (a.sentiment || "").toLowerCase() === "positive" ? "text-emerald-400" : "text-slate-500"
+                                                    )}>{a.sentiment}</span>
+                                                </div>
+                                            </div>
+                                        </a>
+                                    ))}
+                                </div>
+                                {discourseArts.length > 5 && (
+                                    <button onClick={() => setExpandDiscourse(v => !v)} className="mt-2 text-2xs text-teal-500 hover:text-teal-300 transition-colors">
+                                        {expandDiscourse ? "Show less" : `+${discourseArts.length - 5} more articles`}
+                                    </button>
+                                )}
+                            </div>
+                        </>
+                    )}
+                </div>
+            </div>
+
+            {/* ── Row 2: Summary Insight ── */}
+            {(govtArts.length > 0 || discourseArts.length > 0) && (
+                <div className="rounded-lg border border-slate-700/30 bg-slate-900/60 px-5 py-4">
+                    <p className="text-2xs font-mono text-teal-400/70 uppercase tracking-wider mb-2">📋 Today&apos;s Political Landscape Summary</p>
+                    <p className="text-sm text-slate-300 leading-relaxed">
+                        {govtArts.length > 0
+                            ? `Government & CM coverage today is <strong>${govtTone.label.toLowerCase()}</strong> across ${govtArts.length} article${govtArts.length !== 1 ? "s" : ""}. `
+                            : "No direct CM or government coverage found today. "}
+                        {topFocus.length > 0
+                            ? `${topFocus.length} area${topFocus.length !== 1 ? "s" : ""} of concern identified — primarily around ${topFocus.slice(0, 2).map(a => (a.title_en || a.title).split(" ").slice(0, 5).join(" ")).join("; ")}. `
+                            : "No critical government issues flagged. "}
+                        {discourseArts.length > 0
+                            ? `Political discourse includes ${discourseArts.length} article${discourseArts.length !== 1 ? "s" : ""} on legislative and assembly activities${ds.negPct >= 40 ? ", with critical tone dominating" : ""}.`
+                            : "No significant assembly or legislative coverage today."}
+                    </p>
+                </div>
+            )}
         </div>
     );
 }
@@ -1375,6 +1590,24 @@ export default function DailyIntelPage() {
                             onReview={id => setReviewedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; })}
                             kwMap={Object.fromEntries(keywords.map(k => [k.keyword, k.keyword_en || k.keyword]))}
                         />
+                    </SectionCard>
+
+                    {/* Political Analysis */}
+                    <SectionCard
+                        title="Political Analysis"
+                        icon={<Landmark size={15} />}
+                        badge={(() => {
+                            const matchKw = (a: Article, kws: string[]) => {
+                                const text = [(a.title_en || a.title), a.summary, ...(a.keywords || [])].filter(Boolean).join(" ").toLowerCase();
+                                return kws.some(kw => text.includes(kw));
+                            };
+                            const polCount = articles.filter(a => matchKw(a, GOVT_KW) || matchKw(a, DISCOURSE_KW)).length;
+                            return <span className={cn("text-2xs px-1.5 py-0.5 rounded font-mono ml-1",
+                                polCount > 0 ? "bg-violet-500/20 text-violet-400" : "bg-slate-700 text-slate-500"
+                            )}>{polCount} articles</span>;
+                        })()}
+                    >
+                        <PoliticalAnalysisSection articles={articles} />
                     </SectionCard>
 
                     {/* Sector Pulse */}
