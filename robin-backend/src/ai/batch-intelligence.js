@@ -1216,8 +1216,6 @@ ${signalSummaries}`
 
 async function passNarrativeSynthesis(client, entityPass, threatPass, temporalPass, networkPass, sourcePass, signalPass, articles, briefTopic, briefContext) {
     const briefing = {
-        topic: briefTopic || client.name,
-        context: briefContext || client.industry,
         period: 'Last 24-48 hours',
         threatLevel: `${threatPass.riskLevel} (${threatPass.overall}/100)`,
         dimensions: threatPass.dimensions,
@@ -1248,9 +1246,8 @@ Your task is to generate a concise daily briefing on the most important developm
 Act as a neutral, policy-focused analyst serving senior officials.
 
 CRITICAL INSTRUCTIONS:
-- DO NOT report on the "topic" or "context" itself. The topic/context is just the overarching focus area, NOT the news. Focus entirely on the actual events described in "recentArticles".
 - You MUST output ONLY valid JSON.
-- DO NOT include instructional text (like "Top 5 priority stories:" or "5-10 bullets") inside your generated JSON values. Output ONLY the actual summaries and data.
+- DO NOT echo the prompt instructions. Write ACTUAL news summaries.
 - Ensure the table in watch_list uses standard markdown format with NO introductory text before the table.`
             },
             {
@@ -1262,11 +1259,11 @@ ${JSON.stringify(briefing)}
 
 JSON RESPONSE FORMAT:
 {
-  "executive_summary": "5-8 bullet points covering the most strategically important events from the recentArticles. Combine points with \\n\\n.",
-  "key_developments": "Top 5 priority news stories from the recentArticles. For each, provide a Headline, What happened, and Why it matters for Govt. Combine all 5 stories with \\n\\n.",
-  "emerging_threats": "5-10 bullets of secondary developments from the recentArticles. Combine with \\n\\n.",
-  "entity_movements": "Key emerging risks based on the topEntities and signals. Combine with \\n\\n.",
-  "watch_list": "| Story/Issue | Relevant department(s) | Time-sensitivity | Risk type | Suggested posture |\\n|---|---|---|---|---|"
+  "executive_summary": "• First major news event summary.\\n\\n• Second major news event summary.",
+  "key_developments": "**Headline 1**\\nWhat happened: Summary of actual event...\\nWhy it matters: Policy implications...\\n\\n**Headline 2**\\nWhat happened: Summary of actual event...\\nWhy it matters: Policy implications...",
+  "emerging_threats": "• Secondary news event 1\\n\\n• Secondary news event 2",
+  "entity_movements": "• Mentions of Entity X have increased due to Event Y.\\n\\n• Entity Z is trending.",
+  "watch_list": "| Story/Issue | Relevant department(s) | Time-sensitivity | Risk type | Suggested posture |\\n|---|---|---|---|---|\\n| Describe Issue 1 | Dept Name | High | Operational | Monitor closely |"
 }`
             },
         ], { temperature: 0.3, max_tokens: 3000, response_format: { type: "json_object" } });
