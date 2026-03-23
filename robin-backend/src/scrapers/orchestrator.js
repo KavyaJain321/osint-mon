@@ -82,6 +82,64 @@ async function acquireLock() {
 }
 
 /**
+ * Update source health after each crawl attempt.
+ * Success → reset failure counter, mark healthy.
+ * Failure → increment counter; auto-disable at 15 consecutive failures.
+ * Non-blocking — never interrupts the main scrape flow.
+ */
+async function updateSourceHealth(sourceId, success, failureReason = null) {
+    try {
+        if (success) {
+            await supabase.from('sources').update({
+                consecutive_failures: 0,
+                last_success_at: new Date().toISOString(),
+                last_failure_reason: null,
+                health_status: 'healthy',
+            }).eq('id', sourceId);
+            return;
+        }
+
+        // Fetch current failure count
+        const { data: src } = await supabase
+            .from('sources')
+            .select('consecutive_failures, health_status, name, url')
+            .eq('id', sourceId)
+            .single();
+
+        if (!src) return;
+
+        const newFailures = (src.consecutive_failures || 0) + 1;
+        const newStatus = newFailures >= 15 ? 'dead'
+            : newFailures >= 5 ? 'degraded'
+            : (src.health_status || 'healthy');
+
+        const update = {
+            consecutive_failures: newFailures,
+            last_failure_reason: (failureReason || 'Unknown error').slice(0, 500),
+            health_status: newStatus,
+        };
+
+        // Auto-disable after 15 consecutive failures
+        if (newFailures === 15) {
+            update.is_active = false;
+            update.auto_disabled_at = new Date().toISOString();
+            log.scraper.warn('Source auto-disabled after 15 consecutive failures', {
+                sourceId, name: src.name, url: src.url, reason: failureReason,
+            });
+        } else if (newFailures === 5) {
+            log.scraper.warn('Source degraded — 5 consecutive failures', {
+                sourceId, name: src.name, url: src.url,
+            });
+        }
+
+        await supabase.from('sources').update(update).eq('id', sourceId);
+    } catch (err) {
+        // Health tracking must never break the scrape cycle
+        log.scraper.warn('Source health update failed (non-blocking)', { sourceId, error: err.message });
+    }
+}
+
+/**
  * Release the scraper lock.
  */
 async function releaseLock() {
@@ -244,6 +302,8 @@ async function crawlGoogleNewsWrapper(source, keywords) {
             errors.push({ error: e.message });
         }
     }
+    const failed = items.length === 0 && errors.length > 0;
+    updateSourceHealth(source.id, !failed, failed ? errors[0]?.error : null).catch(() => {});
     return { sourceId: source.id, articlesFound: items.length, articlesSaved: saved, errors };
 }
 
@@ -260,6 +320,8 @@ async function crawlRedditWrapper(source, keywords) {
             errors.push({ error: e.message });
         }
     }
+    const failed = items.length === 0 && errors.length > 0;
+    updateSourceHealth(source.id, !failed, failed ? errors[0]?.error : null).catch(() => {});
     return { sourceId: source.id, articlesFound: items.length, articlesSaved: saved, errors };
 }
 
@@ -294,6 +356,9 @@ async function crawlWithFallback(source, keywords) {
     const fallbacks = FALLBACK_CHAIN[primaryType] || [];
 
     if (!primaryFailed || fallbacks.length === 0) {
+        // Primary succeeded (or no fallbacks to try)
+        if (!primaryFailed) updateSourceHealth(source.id, true).catch(() => {});
+        else updateSourceHealth(source.id, false, result.errors[0]?.error).catch(() => {});
         return result;
     }
 
@@ -318,6 +383,7 @@ async function crawlWithFallback(source, keywords) {
                     found: fallbackResult.articlesFound,
                     saved: fallbackResult.articlesSaved,
                 });
+                updateSourceHealth(source.id, true).catch(() => {});
                 return fallbackResult;
             }
         } catch (error) {
@@ -334,6 +400,8 @@ async function crawlWithFallback(source, keywords) {
         source: source.name || source.url,
         tried: [primaryType, ...fallbacks],
     });
+    const firstError = result.errors[0]?.error || 'All crawlers failed';
+    updateSourceHealth(source.id, false, firstError).catch(() => {});
     return result;
 }
 
