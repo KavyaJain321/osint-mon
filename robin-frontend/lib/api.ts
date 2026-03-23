@@ -86,8 +86,11 @@ export const testApi = {
     /** Source list for this client */
     sources: () => apiFetch(`/api/test/sources`),
 
-    /** Watch keywords */
+    /** Watch keywords (includes keyword_en English translations) */
     keywords: () => apiFetch(`/api/test/keywords`),
+
+    /** Force re-translate all keywords to English */
+    translateKeywords: () => apiFetch(`/api/test/keywords/translate`, { method: "POST" }),
 
     /** Trigger scrape (optional sourceId) */
     scrape: (sourceId?: string) =>

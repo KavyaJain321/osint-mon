@@ -74,6 +74,7 @@ interface Brief {
 interface Keyword {
     id: string;
     keyword: string;
+    keyword_en?: string;
     category: string;
     priority: number;
     rationale: string;
@@ -666,7 +667,7 @@ export default function BriefsPage() {
                                                                 <div className="flex flex-wrap gap-1.5">
                                                                     {kws.map(kw => (
                                                                         <span key={kw.id} className="inline-flex items-center gap-1 px-2 py-1 rounded bg-raised border border-border text-xs text-text-primary" title={kw.rationale}>
-                                                                            <span className="font-medium">{kw.keyword}</span>
+                                                                            <span className="font-medium">{kw.keyword_en || kw.keyword}</span>
                                                                             {kw.priority >= 8 && <span className="text-amber text-2xs">★</span>}
                                                                         </span>
                                                                     ))}

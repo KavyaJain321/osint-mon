@@ -883,7 +883,7 @@ router.patch('/sources/:id/toggle', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// GET /keywords — from active brief
+// GET /keywords — from active brief (with English translations)
 router.get('/keywords', async (req, res) => {
     try {
         const client = await getTestClient(req);
@@ -897,7 +897,69 @@ router.get('/keywords', async (req, res) => {
 
         const { data } = await supabase.from('brief_generated_keywords')
             .select('*').eq('brief_id', brief.id).order('priority', { ascending: false });
-        res.json({ data: data || [], client });
+
+        const keywords = data || [];
+
+        // Auto-translate any keywords missing English translation (fire-and-forget batch)
+        const untranslated = keywords.filter(k => !k.keyword_en);
+        if (untranslated.length > 0) {
+            translateKeywordsBatch(untranslated).catch(() => {}); // non-blocking
+        }
+
+        res.json({ data: keywords, client });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Internal: translate a batch of keywords to English using Groq and persist keyword_en
+async function translateKeywordsBatch(keywords) {
+    try {
+        const { groqChat } = await import('../lib/groq.js');
+        const wordList = keywords.map(k => k.keyword).join('\n');
+        const response = await groqChat([
+            {
+                role: 'system',
+                content: 'You are a translator. Translate each word or phrase to English. Return ONLY a JSON array of strings in the exact same order as the input. No explanations.',
+            },
+            {
+                role: 'user',
+                content: `Translate these keywords to English (they may be in Odia, Hindi, or other Indian languages):\n${wordList}\n\nReturn ONLY a JSON array like: ["english1","english2",...]`,
+            },
+        ]);
+        const raw = response.choices[0]?.message?.content || '[]';
+        const cleaned = raw.trim().replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+        const translations = JSON.parse(cleaned);
+
+        // Persist each translation
+        for (let i = 0; i < keywords.length; i++) {
+            const en = translations[i];
+            if (en && typeof en === 'string' && en.trim()) {
+                await supabase.from('brief_generated_keywords')
+                    .update({ keyword_en: en.trim() })
+                    .eq('id', keywords[i].id);
+            }
+        }
+    } catch {
+        // Translation failed — frontend will fall back to original keyword
+    }
+}
+
+// POST /keywords/translate — force re-translate all keywords for active brief
+router.post('/keywords/translate', async (req, res) => {
+    try {
+        const client = await getTestClient(req);
+        if (!client) return res.status(404).json({ error: 'No client found' });
+
+        const { data: brief } = await supabase.from('client_briefs')
+            .select('id').eq('client_id', client.id).eq('status', 'active').limit(1).single();
+        if (!brief) return res.status(400).json({ error: 'No active brief' });
+
+        const { data: keywords } = await supabase.from('brief_generated_keywords')
+            .select('*').eq('brief_id', brief.id);
+
+        if (!keywords || keywords.length === 0) return res.json({ message: 'No keywords to translate' });
+
+        await translateKeywordsBatch(keywords);
+        res.json({ message: `Translating ${keywords.length} keywords to English. Refresh in a few seconds.` });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

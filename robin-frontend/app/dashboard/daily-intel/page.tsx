@@ -30,6 +30,7 @@ interface Article {
 
 interface KeywordItem {
     keyword: string;
+    keyword_en?: string;
     category: string;
     priority: number;
     hits: number;
@@ -388,7 +389,7 @@ ${signalRows || "<p style='color:#16a34a'>✓ No active warning signals. Situati
 <div style="display:flex;flex-wrap:wrap;gap:8px;margin:12px 0">
 ${keywords.filter(k => !k.paused).map(k =>
     `<span style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;padding:4px 10px;font-size:12px">
-      <strong>${k.keyword}</strong> <span style="color:#9ca3af">${k.category}</span>${k.hits ? ` · ${k.hits} hits` : ""}
+      <strong>${k.keyword_en || k.keyword}</strong> <span style="color:#9ca3af">${k.category}</span>${k.hits ? ` · ${k.hits} hits` : ""}
     </span>`
 ).join("")}
 </div>
@@ -447,8 +448,8 @@ function SectionCard({ title, icon, children, defaultOpen = true, badge }: {
 
 // ─── Top News (Hot Articles) ──────────────────────────────────────────────────
 
-function TopNewsSection({ articles, reviewedIds, onReview }: {
-    articles: Article[]; reviewedIds: Set<string>; onReview: (id: string) => void;
+function TopNewsSection({ articles, reviewedIds, onReview, kwMap }: {
+    articles: Article[]; reviewedIds: Set<string>; onReview: (id: string) => void; kwMap: Record<string, string>;
 }) {
     const [expanded, setExpanded] = useState<string | null>(null);
     // Always show top 10 by importance score — regardless of score threshold
@@ -516,7 +517,7 @@ function TopNewsSection({ articles, reviewedIds, onReview }: {
                                     {article.keywords && article.keywords.length > 0 && (
                                         <div className="flex flex-wrap gap-1 mb-2.5">
                                             {article.keywords.slice(0, 6).map(kw => (
-                                                <span key={kw} className="text-2xs bg-teal-500/8 text-teal-400 border border-teal-500/20 px-1.5 py-0.5 rounded">{kw}</span>
+                                                <span key={kw} className="text-2xs bg-teal-500/8 text-teal-400 border border-teal-500/20 px-1.5 py-0.5 rounded">{kwMap[kw] || kw}</span>
                                             ))}
                                         </div>
                                     )}
@@ -735,7 +736,7 @@ function WatchTopicsSection({ keywords, selectedTopics, onToggle }: {
                             </button>
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
-                                    <span className="text-sm text-slate-200 font-medium">{kw.keyword}</span>
+                                    <span className="text-sm text-slate-200 font-medium">{kw.keyword_en || kw.keyword}</span>
                                     <span className="text-2xs bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded">{kw.category}</span>
                                     {kw.hits > 0 && <span className="text-2xs bg-teal-500/15 text-teal-400 px-1.5 py-0.5 rounded font-mono">{kw.hits} hits</span>}
                                 </div>
@@ -1367,6 +1368,7 @@ export default function DailyIntelPage() {
                             articles={articles}
                             reviewedIds={reviewedIds}
                             onReview={id => setReviewedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; })}
+                            kwMap={Object.fromEntries(keywords.map(k => [k.keyword, k.keyword_en || k.keyword]))}
                         />
                     </SectionCard>
 
