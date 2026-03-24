@@ -73,7 +73,8 @@ export async function downloadAudio(videoId) {
             await new Promise((resolve, reject) => {
                 const ytdlpArgs = [
                     '-x',                          // Extract audio only
-                    '--audio-format', 'wav',       // Convert to WAV
+                    '--audio-format', 'mp3',       // MP3 is universally supported across all player clients
+                    '--audio-quality', '0',        // Best quality
                     '--postprocessor-args', `ffmpeg:-ar ${VIDEO_CONFIG.audioSampleRate} -ac ${VIDEO_CONFIG.audioChannels}`,
                     '--ffmpeg-location', VIDEO_CONFIG.ffmpegPath,
                     '--extractor-args', `youtube:player-client=${playerClient}`,
@@ -112,14 +113,16 @@ export async function downloadAudio(videoId) {
         } catch (err) {
             lastError = err;
             const isBotBlock = err.message?.includes('Sign in to confirm') || err.message?.includes('bot');
+            const isFormatError = err.message?.includes('Requested format is not available') || err.message?.includes('format not available');
+            const isRetriable = isBotBlock || isFormatError;
             log.ai.warn(`yt-dlp attempt failed with player-client=${playerClient}`, {
-                videoId, isBotBlock, error: err.message?.substring(0, 100),
+                videoId, isBotBlock, isFormatError, error: err.message?.substring(0, 100),
             });
-            if (!isBotBlock) {
-                // Non-bot error (e.g. private video, timeout) — no point retrying other clients
+            if (!isRetriable) {
+                // Fatal error (e.g. private video, DRM, timeout) — no point retrying other clients
                 throw err;
             }
-            // Bot block — try next player client
+            // Bot block or format issue — try next player client
         }
     }
 
@@ -182,7 +185,8 @@ async function splitAudioIntoChunks(audioPath, totalDurationSeconds) {
 
     while (start < totalDurationSeconds) {
         const duration = Math.min(maxChunkDuration, totalDurationSeconds - start);
-        const chunkPath = audioPath.replace('.wav', `_chunk${index}.wav`);
+        // Replace the extension (handles .wav, .mp3, .m4a, etc.) with a WAV chunk path
+        const chunkPath = audioPath.replace(/\.[^.]+$/, `_chunk${index}.wav`);
 
         await new Promise((resolve, reject) => {
             const proc = spawn(VIDEO_CONFIG.ffmpegPath, [
