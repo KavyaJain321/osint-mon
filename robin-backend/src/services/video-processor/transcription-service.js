@@ -72,8 +72,9 @@ export async function downloadAudio(videoId) {
         try {
             await new Promise((resolve, reject) => {
                 const ytdlpArgs = [
+                    '--format', 'bestaudio/best',  // Explicitly pick best available audio stream
                     '-x',                          // Extract audio only
-                    '--audio-format', 'mp3',       // MP3 is universally supported across all player clients
+                    '--audio-format', 'mp3',       // Convert to MP3 via ffmpeg post-processing
                     '--audio-quality', '0',        // Best quality
                     '--postprocessor-args', `ffmpeg:-ar ${VIDEO_CONFIG.audioSampleRate} -ac ${VIDEO_CONFIG.audioChannels}`,
                     '--ffmpeg-location', VIDEO_CONFIG.ffmpegPath,
