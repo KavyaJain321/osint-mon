@@ -1,13 +1,11 @@
 // ============================================================
 // ROBIN OSINT — Video Processing Pipeline Orchestrator
-// Chains: transcription → keyword search → clip generation → AI summaries
-// Runs fire-and-forget after video save. Keyword flows through every step.
+// Steps 1+3 run on TRIJYA-7 (RTX 4090, residential IP, no YouTube bot-block)
+// Steps 1b+4+5 run on Render (translation, AI summaries, DB save)
 // ============================================================
 
-import { transcribeVideo } from './transcription-service.js';
+import { processVideoViaTrijya } from './trijya-video-service.js';
 import { isNonEnglishLanguage, translateToEnglish } from './translation-service.js';
-import { searchMultipleKeywords } from './search-service.js';
-import { calculateClipWindows, generateClips } from './clip-generator.js';
 import { summarizeFullVideo, summarizeAllClips } from './summary-service.js';
 import { VIDEO_CONFIG } from './config.js';
 import { supabase } from '../../lib/supabase.js';
@@ -15,47 +13,60 @@ import { log } from '../../lib/logger.js';
 
 /**
  * Process a video through the full pipeline.
- * The matched keywords drive every step — clip selection, summary focus, search.
  *
  * Pipeline:
- *   1. Transcribe (Groq Whisper)
- *   2. Search (find all keyword occurrences with timestamps)
- *   3. Generate clips (14s before + 14s after each occurrence, merge overlaps)
- *   4. AI summaries (keyword-focused for full video + each clip)
- *   5. Save results to database
+ *   TRIJYA-7: 1. Download audio (yt-dlp, residential IP — no bot-block)
+ *             2. Transcribe (faster-whisper on RTX 4090)
+ *             3. Keyword search + clip windows
+ *             4. Download video clips (yt-dlp) + upload to Supabase
  *
- * @param {string} videoId - YouTube video ID
- * @param {string} articleId - Database article/content ID
- * @param {string[]} matchedKeywords - Keywords that triggered this video fetch
+ *   Render:   5. Translate transcript if non-English (Groq)
+ *             6. AI summaries for full video + each clip (Groq)
+ *             7. Save all results to database
  */
 export async function processVideo(videoId, articleId, matchedKeywords) {
     const startTime = Date.now();
 
     try {
-        // Update processing status
-        await updateProcessingStatus(articleId, 'processing', 'Starting transcription...');
+        await updateProcessingStatus(articleId, 'processing', 'Queuing video on TRIJYA-7...');
 
-        // ── Step 1: Transcribe ──────────────────────────────
-        log.ai.info('🎙️ [VIDEO PIPELINE] Step 1: Transcribing', { videoId, keywords: matchedKeywords });
-        const transcript = await withTimeout(
-            transcribeVideo(videoId),
+        // ── Steps 1–4: TRIJYA-7 (download + transcribe + clips) ───────
+        log.ai.info('🎙️ [VIDEO PIPELINE] Steps 1-4: Dispatching to TRIJYA-7', {
+            videoId, keywords: matchedKeywords,
+        });
+
+        const trijyaResult = await withTimeout(
+            processVideoViaTrijya(videoId, matchedKeywords),
             VIDEO_CONFIG.pipelineTimeoutMs,
-            'Transcription timed out'
+            'TRIJYA-7 video pipeline timed out'
         );
 
+        const transcript = trijyaResult.transcript;
+        let clips = trijyaResult.clips || [];                      // already have Supabase URLs
+        const keywordOccurrences = trijyaResult.keywordOccurrences || [];
+
+        log.ai.info('✅ TRIJYA-7 pipeline complete', {
+            videoId,
+            language: transcript.language,
+            words: transcript.words.length,
+            duration: transcript.duration,
+            clips: clips.length,
+            keywordHits: keywordOccurrences.length,
+        });
+
         if (!transcript || !transcript.text || transcript.text.length < 50) {
-            log.ai.warn('Transcript too short or empty, skipping pipeline', { videoId });
+            log.ai.warn('Transcript too short or empty, skipping summaries', { videoId });
             await updateProcessingStatus(articleId, 'skipped', 'Transcript too short');
             await saveTranscript(articleId, transcript, matchedKeywords, []);
             return;
         }
 
-        // ── Step 1b: Translate non-English → English ─────────
+        // ── Step 5: Translate non-English → English (Render/Groq) ─────
         let searchText = transcript.text;
         let originalNativeText = null;
 
         if (isNonEnglishLanguage(transcript.language)) {
-            log.ai.info(`🌐 [VIDEO PIPELINE] Step 1b: ${transcript.language} detected — translating to English`, {
+            log.ai.info(`🌐 [VIDEO PIPELINE] Step 5: ${transcript.language} detected — translating`, {
                 videoId,
                 language: transcript.language,
                 chars: transcript.text.length,
@@ -67,119 +78,59 @@ export async function processVideo(videoId, articleId, matchedKeywords) {
                 searchText = await translateToEnglish(transcript.text, transcript.language);
                 log.ai.info('Translation complete', {
                     videoId,
-                    language: transcript.language,
                     originalChars: originalNativeText.length,
                     translatedChars: searchText.length,
                 });
             } catch (translationErr) {
-                log.ai.warn('Translation failed — using original text for search', {
-                    videoId,
-                    language: transcript.language,
-                    error: translationErr.message,
+                log.ai.warn('Translation failed — using original text', {
+                    videoId, error: translationErr.message,
                 });
-                // Continue with original text; keywords may still be found as transliterations
             }
-        }
-
-        await updateProcessingStatus(articleId, 'processing', 'Searching keywords...');
-
-        // ── Step 2: Search for keywords ─────────────────────
-        log.ai.info('🔍 [VIDEO PIPELINE] Step 2: Searching keywords', {
-            videoId,
-            keywords: matchedKeywords,
-            searchLanguage: originalNativeText ? 'en (translated)' : transcript.language,
-        });
-        // Search on English text (translated if non-English, original if already English)
-        const searchTranscript = originalNativeText
-            ? { ...transcript, text: searchText }
-            : transcript;
-        const keywordOccurrences = searchMultipleKeywords(searchTranscript, matchedKeywords);
-
-        log.ai.info(`Found ${keywordOccurrences.length} keyword occurrences`, {
-            videoId,
-            occurrences: keywordOccurrences.length,
-        });
-
-        await updateProcessingStatus(articleId, 'processing', `Found ${keywordOccurrences.length} keyword hits. Generating clips...`);
-
-        // ── Fallback Clip Injection ─────────────────────────
-        if (keywordOccurrences.length === 0) {
-            log.ai.info('0 literal keyword hits found (fuzzy or translation dropped match). Forcing a 0s-30s fallback clip.', { videoId });
-            keywordOccurrences.push({
-                timestamp: 15, // center of the 0s-30s window
-                endTime: 30,
-                word: matchedKeywords[0] || 'Unknown',
-                text: matchedKeywords[0] || 'Unknown',
-                context: 'Keyword matched via Title/Description search. Fallback highlight clip extracted.',
-                level: 'title-fallback',
-                keyword: matchedKeywords[0] || 'Unknown'
-            });
-        }
-
-        // ── Step 3: Generate clips ──────────────────────────
-        let clips = [];
-        if (keywordOccurrences.length > 0) {
-            log.ai.info('✂️ [VIDEO PIPELINE] Step 3: Generating clips', { videoId });
-
-            const clipWindows = calculateClipWindows(keywordOccurrences, transcript.duration);
-            log.ai.info(`${clipWindows.length} clip windows calculated (after merging overlaps)`, { videoId });
-
-            clips = await generateClips(videoId, clipWindows);
-            log.ai.info(`${clips.length} clips generated`, { videoId });
-        } else {
-            log.ai.info('No keyword occurrences found in transcript audio — skipping clip generation. Retaining full video.', { videoId });
-            // Do NOT delete the video. It matched keywords in title/description.
         }
 
         await updateProcessingStatus(articleId, 'processing', 'Generating AI summaries...');
 
-        // ── Step 4: AI summaries ────────────────────────────
-        log.ai.info('🤖 [VIDEO PIPELINE] Step 4: AI summaries', { videoId });
+        // ── Step 6: AI summaries (Render/Groq) ────────────────────────
+        log.ai.info('🤖 [VIDEO PIPELINE] Step 6: AI summaries', { videoId });
 
-        // Full video summary — use English text (translated or original)
         const fullSummary = await summarizeFullVideo(searchText, matchedKeywords);
 
-        // Per-clip summaries
         let clipsWithSummaries = [];
         if (clips.length > 0) {
             clipsWithSummaries = await summarizeAllClips(clips, transcript);
         }
 
-        // AI QUALITY GATE & GENERATION FAILURE CHECK
-        // We removed the deletion gate here as well, because we want to keep the video
-        // even if no clips were successfully generated.
-        if (clipsWithSummaries.length === 0 && keywordOccurrences.length > 0) {
-            log.ai.info('Clips were attempted but failed AI generation check. Preserving full video anyway.', { videoId });
-        }
-
         await updateProcessingStatus(articleId, 'processing', 'Saving results...');
 
-        // ── Step 5: Save to database ────────────────────────
-        log.ai.info('💾 [VIDEO PIPELINE] Step 5: Saving results', { videoId });
-        
-        // Strictly filter occurrences to only include those belonging to successfully verified clips
+        // ── Step 7: Save to database ───────────────────────────────────
+        log.ai.info('💾 [VIDEO PIPELINE] Step 7: Saving results', { videoId });
+
+        // Collect valid occurrences from successfully summarised clips
         let validOccurrences = [];
         clipsWithSummaries.forEach(clip => {
-            if (clip.occurrences) {
-                clip.occurrences.forEach(occ => validOccurrences.push(occ));
-            }
+            (clip.occurrences || []).forEach(occ => validOccurrences.push(occ));
         });
-        // Deduplicate in case multiple clips captured the same occurrence (rare but possible)
-        validOccurrences = validOccurrences.filter((v, i, a) => a.findIndex(t => (t.timestamp === v.timestamp && (t.keyword || t.text) === (v.keyword || v.text))) === i);
+        // Deduplicate
+        validOccurrences = validOccurrences.filter((v, i, a) =>
+            a.findIndex(t => t.timestamp === v.timestamp && (t.keyword || t.text) === (v.keyword || v.text)) === i
+        );
+
+        // Fall back to all occurrences if no clips generated
+        if (validOccurrences.length === 0 && keywordOccurrences.length > 0) {
+            validOccurrences = keywordOccurrences;
+        }
 
         await saveTranscript(articleId, transcript, matchedKeywords, validOccurrences, fullSummary, {
             originalNativeText,
             translatedText: originalNativeText ? searchText : null,
         });
         await saveClips(articleId, clipsWithSummaries, matchedKeywords);
-
-        // Update content with English text (translated if Odia, original otherwise)
         await updateArticleContent(articleId, searchText, fullSummary);
 
         const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
         await updateProcessingStatus(articleId, 'complete', `Done in ${elapsed}s`);
 
-        log.ai.info(`✅ [VIDEO PIPELINE] Complete`, {
+        log.ai.info('✅ [VIDEO PIPELINE] Complete', {
             videoId,
             articleId,
             duration: elapsed + 's',
@@ -196,19 +147,15 @@ export async function processVideo(videoId, articleId, matchedKeywords) {
             error: error.message,
             duration: elapsed + 's',
         });
-
         await updateProcessingStatus(articleId, 'failed', error.message?.substring(0, 200));
     }
 }
 
-// ── Database Save Functions ──────────────────────────────────
+// ── Database helpers ─────────────────────────────────────────
 
 async function saveTranscript(articleId, transcript, keywords, occurrences, summary = '', translation = {}) {
     try {
         const { originalNativeText, translatedText } = translation;
-
-        // full_text always stores English (for search / AI)
-        // original_text column does not exist in the schema — store native language in ai_summary if needed
         const { error } = await supabase.from('video_transcripts').upsert({
             article_id: articleId,
             full_text: translatedText || transcript?.text || '',
@@ -234,14 +181,10 @@ async function saveTranscript(articleId, transcript, keywords, occurrences, summ
 
 async function saveClips(articleId, clips, keywords) {
     if (!clips || clips.length === 0) return;
-
     try {
-        // Expand merged clips into one DB row per keyword occurrence
-        // This ensures the frontend shows a card for every timestamp hit
         const rows = [];
         clips.forEach(clip => {
-            const occurrences = clip.occurrences || [];
-            occurrences.forEach(occ => {
+            (clip.occurrences || []).forEach(occ => {
                 rows.push({
                     article_id: articleId,
                     keyword: occ.keyword || occ.text || clip.keywords?.[0] || keywords[0] || '',
@@ -253,15 +196,10 @@ async function saveClips(articleId, clips, keywords) {
                 });
             });
         });
-
         if (rows.length === 0) return;
-
-        // Delete existing clips for this article (in case of re-processing)
         await supabase.from('video_clips').delete().eq('article_id', articleId);
-
         const { error } = await supabase.from('video_clips').insert(rows);
         if (error) throw error;
-
         log.ai.info(`${rows.length} clips saved to DB`, { articleId });
     } catch (error) {
         log.ai.error('Failed to save clips', { articleId, error: error.message });
@@ -270,46 +208,21 @@ async function saveClips(articleId, clips, keywords) {
 
 async function updateArticleContent(articleId, transcriptText, summary) {
     try {
-        // Update content in articles table with full transcript
-        await supabase
-            .from('articles')
-            .update({ content: transcriptText.substring(0, 50000) })
-            .eq('id', articleId);
-
-        // Also update content_items
-        await supabase
-            .from('content_items')
-            .update({ content: transcriptText.substring(0, 50000) })
-            .eq('id', articleId);
-    } catch {
-        // Non-critical — original content remains
-    }
+        await supabase.from('articles').update({ content: transcriptText.substring(0, 50000) }).eq('id', articleId);
+        await supabase.from('content_items').update({ content: transcriptText.substring(0, 50000) }).eq('id', articleId);
+    } catch { /* non-critical */ }
 }
 
 async function updateProcessingStatus(articleId, status, message) {
     try {
-        // Update type_metadata.processing_status in content_items
-        const { data } = await supabase
-            .from('content_items')
-            .select('type_metadata')
-            .eq('id', articleId)
-            .single();
-
+        const { data } = await supabase.from('content_items').select('type_metadata').eq('id', articleId).single();
         const metadata = data?.type_metadata || {};
         metadata.processing_status = status;
         metadata.processing_message = message;
         metadata.processing_updated_at = new Date().toISOString();
-
-        await supabase
-            .from('content_items')
-            .update({ type_metadata: metadata })
-            .eq('id', articleId);
-    } catch {
-        // Non-critical
-    }
+        await supabase.from('content_items').update({ type_metadata: metadata }).eq('id', articleId);
+    } catch { /* non-critical */ }
 }
-
-// ── Helpers ──────────────────────────────────────────────────
 
 function withTimeout(promise, ms, message) {
     return Promise.race([
