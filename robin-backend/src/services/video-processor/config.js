@@ -20,8 +20,12 @@ export const VIDEO_CONFIG = {
     // External binary paths
     // Docker (Render): installed system-wide via apt-get (ffmpeg) + pip (yt-dlp)
     // Local dev: install ffmpeg + yt-dlp on your PATH, or override via env vars
-    ytDlpPath:  process.env.YTDLP_PATH  || (process.env.RENDER ? join(process.cwd(), 'yt-dlp') : (process.platform === 'win32' ? join(process.cwd(), 'yt-dlp.exe') : 'yt-dlp')),
-    ffmpegPath: process.env.FFMPEG_PATH || (process.env.RENDER ? join(process.cwd(), 'ffmpeg') : (process.platform === 'win32' ? join(process.cwd(), 'vendor', 'ffmpeg', 'ffmpeg.exe') : 'ffmpeg')),
+    ytDlpPath:   process.env.YTDLP_PATH  || (process.env.RENDER ? join(process.cwd(), 'yt-dlp') : (process.platform === 'win32' ? join(process.cwd(), 'yt-dlp.exe') : 'yt-dlp')),
+    ffmpegPath:  process.env.FFMPEG_PATH || (process.env.RENDER ? join(process.cwd(), 'ffmpeg') : (process.platform === 'win32' ? join(process.cwd(), 'vendor', 'ffmpeg', 'ffmpeg.exe') : 'ffmpeg')),
+
+    // YouTube cookies path — bypasses bot detection
+    // Set YTDLP_COOKIES_PATH env var, or YTDLP_COOKIES_B64 (base64-encoded content) for Render
+    cookiesPath: process.env.YTDLP_COOKIES_PATH || null,
 
     // ── Groq Whisper Transcription ──────────────────────────
     whisperModel: 'whisper-large-v3-turbo',

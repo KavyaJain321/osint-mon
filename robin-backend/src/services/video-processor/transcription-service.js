@@ -6,13 +6,25 @@
 // ============================================================
 
 import { spawn } from 'child_process';
-import { readFile, unlink, stat, readdir } from 'fs/promises';
+import { readFile, unlink, stat, readdir, writeFile } from 'fs/promises';
 import { join } from 'path';
+import { tmpdir } from 'os';
 import { randomUUID } from 'crypto';
 import { createReadStream } from 'fs';
 import { VIDEO_CONFIG, ensureDirs } from './config.js';
 import { log } from '../../lib/logger.js';
 import Groq from 'groq-sdk';
+
+// ── Cookies setup ─────────────────────────────────────────────
+// If YTDLP_COOKIES_B64 env var is set (base64-encoded cookies.txt),
+// decode and write to a temp file so yt-dlp can use it on Render.
+let resolvedCookiesPath = VIDEO_CONFIG.cookiesPath || null;
+if (!resolvedCookiesPath && process.env.YTDLP_COOKIES_B64) {
+    resolvedCookiesPath = join(tmpdir(), 'yt_cookies.txt');
+    writeFile(resolvedCookiesPath, Buffer.from(process.env.YTDLP_COOKIES_B64, 'base64').toString('utf8'))
+        .then(() => log.ai.info('YouTube cookies decoded from env var', { path: resolvedCookiesPath }))
+        .catch(err => log.ai.warn('Failed to write cookies file', { error: err.message }));
+}
 
 // ── Key management ───────────────────────────────────────────
 // Track keys that returned 401 so we skip them on future calls
@@ -59,7 +71,7 @@ export async function downloadAudio(videoId) {
     for (const playerClient of PLAYER_CLIENTS) {
         try {
             await new Promise((resolve, reject) => {
-                const proc = spawn(VIDEO_CONFIG.ytDlpPath, [
+                const ytdlpArgs = [
                     '-x',                          // Extract audio only
                     '--audio-format', 'wav',       // Convert to WAV
                     '--postprocessor-args', `ffmpeg:-ar ${VIDEO_CONFIG.audioSampleRate} -ac ${VIDEO_CONFIG.audioChannels}`,
@@ -69,8 +81,14 @@ export async function downloadAudio(videoId) {
                     '--no-playlist',
                     '--no-warnings',
                     '--match-filter', `!is_live & duration<${VIDEO_CONFIG.maxVideoDuration}`,
-                    videoUrl,
-                ], { timeout: VIDEO_CONFIG.ytDlpTimeout });
+                ];
+                // Add cookies if available — bypasses YouTube bot detection
+                if (resolvedCookiesPath) {
+                    ytdlpArgs.push('--cookies', resolvedCookiesPath);
+                    log.ai.debug(`Using cookies file for yt-dlp`, { playerClient, cookiesPath: resolvedCookiesPath });
+                }
+                ytdlpArgs.push(videoUrl);
+                const proc = spawn(VIDEO_CONFIG.ytDlpPath, ytdlpArgs, { timeout: VIDEO_CONFIG.ytDlpTimeout });
 
                 const timeout = setTimeout(() => {
                     proc.kill('SIGKILL');
