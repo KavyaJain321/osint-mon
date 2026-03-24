@@ -5,6 +5,7 @@
 
 import { supabase } from '../lib/supabase.js';
 import { groqChat } from '../lib/groq.js';
+import { analyzeArticleViaQueue } from '../lib/ai-provider.js';
 import { generateAndStoreEmbedding } from '../services/embedding.js';
 import { analyzeLocally } from '../services/local-analyzer.js';
 import { log } from '../lib/logger.js';
@@ -101,10 +102,25 @@ function parseAnalysisResponse(text) {
 }
 
 /**
- * Try Groq LLM analysis, fallback to local rules if all keys fail.
+ * Try TRIJYA-7 → Groq LLM → local rules (in that order).
  */
 async function getAnalysis(article, briefTopic, briefContext, keywords) {
-    // Attempt 1: Groq LLM
+    // Attempt 1: TRIJYA-7 GPU worker via job queue
+    try {
+        const outcome = await analyzeArticleViaQueue(article, keywords);
+        if (outcome?.result?.analysis) {
+            const a = outcome.result.analysis;
+            a._method      = 'trijya7';
+            a._model       = outcome.model_used || 'llama3.1:8b';
+            a._already_saved = true; // TRIJYA-7 already wrote to article_analysis
+            a.claims = normalizeClaims(a.claims, a.summary);
+            return a;
+        }
+    } catch (workerErr) {
+        log.ai.warn('[AI] TRIJYA-7 error, trying Groq', { error: workerErr.message?.slice(0, 80) });
+    }
+
+    // Attempt 2: Groq LLM
     try {
         const messages = buildAnalysisPrompt(article, briefTopic, briefContext, keywords);
         const response = await groqChat(messages);
@@ -124,7 +140,7 @@ async function getAnalysis(article, briefTopic, briefContext, keywords) {
         });
     }
 
-    // Attempt 2: Local rule-based analysis
+    // Attempt 3: Local rule-based analysis
     const analysis = analyzeLocally(article, briefTopic, briefContext);
     analysis._method = 'local';
     analysis.claims = normalizeClaims(analysis.claims, analysis.summary);
@@ -211,17 +227,18 @@ export async function analyzeArticle(article) {
         const analysis = await getAnalysis(article, briefTopic, briefContext, keywords);
 
         // Determine tracking fields
-        const analyzerUsed = analysis._method === 'groq' ? 'groq_llm' : 'local_fallback';
-        const modelUsed = analysis._method === 'groq' ? (analysis._model || 'llama-3.3-70b-versatile') : 'rule_based_v1';
+        const analyzerUsed = analysis._method === 'trijya7' ? 'trijya7_gpu'
+            : analysis._method === 'groq' ? 'groq_llm'
+            : 'local_fallback';
+        const modelUsed = analysis._method === 'trijya7' ? (analysis._model || 'llama3.1:8b')
+            : analysis._method === 'groq' ? (analysis._model || 'llama-3.3-70b-versatile')
+            : 'rule_based_v1';
 
         // Detect if this is a content_item (YouTube, Reddit, etc.) vs a real article
         const isContentItem = article.content_type && article.content_type !== 'article';
 
-        // Save to article_analysis (upsert to handle re-runs)
-        // BUG FIX #2: Removed the dead `if (true) { ... } else { ... }` block.
-        // The else branch was unreachable. We always write article_analysis because
-        // content-saver writes all content types (videos, Reddit, PDFs) to `articles`.
-        {
+        // Save to article_analysis — SKIP if TRIJYA-7 already wrote it
+        if (!analysis._already_saved) {
             const baseData = {
                 article_id: article.id,
                 summary: analysis.summary,
@@ -328,7 +345,7 @@ export async function analyzeArticle(article) {
         } catch { /* content_items may not exist */ }
 
         analysisTotalSinceStartup++;
-        log.ai.info(`Analysis complete (total since startup: ${analysisTotalSinceStartup}) via ${analyzerUsed} (${modelUsed})`, {
+        log.ai.info(`Analysis complete #${analysisTotalSinceStartup} via ${analyzerUsed} (${modelUsed})`, {
             title: (article.title || '').substring(0, 50),
             sentiment: analysis.sentiment,
             score: analysis.importance_score,
