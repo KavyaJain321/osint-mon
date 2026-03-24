@@ -1766,7 +1766,7 @@ export default function DailyIntelPage() {
                         <div className="space-y-4 pt-2">
                             <div className="flex items-center gap-3 px-1 mb-2">
                                 <span className="text-xl">📑</span>
-                                <h2 className="text-lg font-bold text-slate-100 uppercase tracking-wide">Strategic Intelligence Briefing</h2>
+                                <h2 className="text-lg font-bold text-slate-100 uppercase tracking-wide">Daily Media Brief</h2>
                             </div>
                             
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
