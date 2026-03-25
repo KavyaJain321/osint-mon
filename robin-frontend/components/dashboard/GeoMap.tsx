@@ -276,7 +276,7 @@ export default function GeoMap({ nodes }: { nodes: GeoNode[] }) {
                                             <div className="mt-2 flex flex-col gap-1.5">
                                                 {item.nodes[0].articles.slice(0, 3).map(a => (
                                                     <div key={a.id} className="text-[11px] leading-snug line-clamp-2" style={{ color: "#94a3b8" }}>
-                                                        <span className="text-slate-600 mr-1">■</span> {a.title}
+                                                        <span className="text-slate-600 mr-1">■</span> {a.title_en || a.title}
                                                     </div>
                                                 ))}
                                             </div>

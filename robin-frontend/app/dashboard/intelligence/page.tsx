@@ -382,7 +382,7 @@ export default function IntelligenceBriefPage() {
                                                                 [{art.importance}]
                                                             </span>
                                                             <a href={art.url} target="_blank" rel="noopener" className="text-[11px] text-slate-300 hover:text-teal-300 transition-colors flex-1 leading-snug">
-                                                                {art.title}
+                                                                {art.title_en || art.title}
                                                                 <ExternalLink size={9} className="inline ml-1 opacity-40" />
                                                             </a>
                                                             <span className="text-[9px] font-mono text-slate-600 shrink-0">{art.timestamp ? timeAgo(art.timestamp) : ""}</span>

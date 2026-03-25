@@ -186,7 +186,7 @@ function buildSummaryFromArticles(articles: Article[], sectorMap: Record<string,
         const arts = sectorMap[s.key];
         if (arts.length === 0) continue;
         const topArt = [...arts].sort((a, b) => (b.importance_score || 0) - (a.importance_score || 0))[0];
-        devLines.push(`${s.icon} ${s.label} (${arts.length} articles): ${topArt.title}`);
+        devLines.push(`${s.icon} ${s.label} (${arts.length} articles): ${topArt.title_en || topArt.title}`);
     }
     const key_developments = devLines.length > 0
         ? devLines.join("\n")
@@ -195,7 +195,7 @@ function buildSummaryFromArticles(articles: Article[], sectorMap: Record<string,
     // Emerging Threats
     const threatLines = negHigh
         .slice(0, 5)
-        .map(a => `• ${a.title}${a.summary ? ` — ${a.summary.slice(0, 120)}...` : ""}`);
+        .map(a => `• ${a.title_en || a.title}${a.summary ? ` — ${a.summary.slice(0, 120)}...` : ""}`);
     const emerging_threats = threatLines.length > 0
         ? `${negHigh.length} high-importance negative developments detected:\n\n${threatLines.join("\n\n")}`
         : "No significant emerging threats identified. Situation appears stable across monitored domains.";
@@ -258,7 +258,7 @@ function buildReportHTML(
     const critRows = [...criticalArts, ...highArts].slice(0, 10).map((a, i) => `
         <tr style="background:${i % 2 === 0 ? "#fff" : "#f9fafb"}">
           <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-weight:600;color:${(a.importance_score || 0) >= 9 ? "#dc2626" : "#d97706"}">${(a.importance_score || 0) >= 9 ? "CRITICAL" : "HIGH"}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:13px">${a.title}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:13px">${a.title_en || a.title}</td>
           <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${a.importance_score}/10</td>
           <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;color:${a.sentiment?.toUpperCase() === "NEGATIVE" ? "#dc2626" : a.sentiment?.toUpperCase() === "POSITIVE" ? "#16a34a" : "#6b7280"}">${a.sentiment || "–"}</td>
           <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:11px;color:#6b7280">${a.source_name || "–"}</td>
@@ -406,7 +406,7 @@ ${keywords.filter(k => !k.paused).map(k =>
         .slice(0, 30)
         .map((a, i) => `<tr style="background:${i % 2 === 0 ? "#fff" : "#f9fafb"}">
           <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;color:#9ca3af;font-size:11px">${i + 1}</td>
-          <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:12px">${a.title}</td>
+          <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:12px">${a.title_en || a.title}</td>
           <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;color:#6b7280">${a.source_name || "–"}</td>
           <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700;color:${(a.importance_score || 0) >= 9 ? "#dc2626" : (a.importance_score || 0) >= 7 ? "#d97706" : "#374151"}">${a.importance_score || "–"}</td>
           <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;color:${a.sentiment?.toUpperCase() === "NEGATIVE" ? "#dc2626" : a.sentiment?.toUpperCase() === "POSITIVE" ? "#16a34a" : "#6b7280"};font-size:11px">${a.sentiment || "–"}</td>
