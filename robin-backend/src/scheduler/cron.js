@@ -7,6 +7,7 @@
 import cron from 'node-cron';
 import { config } from '../config.js';
 import { runScraperCycle } from '../scrapers/orchestrator.js';
+import { runKeywordExpansionForAllClients } from '../ai/keyword-expander.js';
 import { supabase } from '../lib/supabase.js';
 import { log } from '../lib/logger.js';
 
@@ -46,7 +47,17 @@ export function startScheduler() {
         await runExpiredCleanup();
     });
 
-    log.cron.info('Scraper: "' + scraperCron + '" | Cleanup: "0 3 * * *" | Batch intel: event-driven post-scrape');
+    // Weekly keyword expansion — every Sunday at 2am
+    cron.schedule('0 2 * * 0', async () => {
+        log.cron.info('[KEYWORD EXPANDER] Running weekly auto keyword expansion');
+        try {
+            await runKeywordExpansionForAllClients();
+        } catch (error) {
+            log.cron.error('[KEYWORD EXPANDER] Weekly expansion failed', { error: error.message });
+        }
+    });
+
+    log.cron.info('Scraper: "' + scraperCron + '" | Cleanup: "0 3 * * *" | Keyword expansion: "0 2 * * 0" (weekly) | Batch intel: event-driven post-scrape');
 }
 
 

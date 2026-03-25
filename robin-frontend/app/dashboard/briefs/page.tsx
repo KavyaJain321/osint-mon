@@ -131,6 +131,8 @@ export default function BriefsPage() {
     const [perf, setPerf] = useState<KeywordPerf[]>([]);
     const [perfLoading, setPerfLoading] = useState(false);
     const [perfView, setPerfView] = useState(false);
+    const [pending, setPending] = useState<KeywordPerf[]>([]);
+    const [expanding, setExpanding] = useState(false);
     const [title, setTitle] = useState("");
     const [problem, setProblem] = useState("");
     const [showReplaceWarning, setShowReplaceWarning] = useState(false);
@@ -265,18 +267,52 @@ export default function BriefsPage() {
         })();
     }, [brief?.id, brief?.status]);
 
-    // Load keyword performance when brief is active
+    // Load keyword performance + pending suggestions when brief is active
     useEffect(() => {
         if (!brief || brief.status !== "active") return;
         (async () => {
             setPerfLoading(true);
             try {
-                const res = await authFetch(`${BASE}/api/keywords/performance`);
-                if (res.ok) setPerf(await res.json());
+                const [perfRes, pendingRes] = await Promise.all([
+                    authFetch(`${BASE}/api/keywords/performance`),
+                    authFetch(`${BASE}/api/keywords/pending`),
+                ]);
+                if (perfRes.ok) setPerf(await perfRes.json());
+                if (pendingRes.ok) setPending(await pendingRes.json());
             } catch { /* silent */ }
             setPerfLoading(false);
         })();
     }, [brief?.id, brief?.status]);
+
+    const handleApprove = async (id: string) => {
+        await authFetch(`${BASE}/api/keywords/${id}/approve`, { method: 'POST' });
+        setPending(p => p.filter(k => k.id !== id));
+        // Reload detail to show newly approved keyword
+        const res = await authFetch(`${BASE}/api/briefs/${brief!.id}`);
+        if (res.ok) { const d = await res.json(); setDetail({ keywords: d.keywords ?? [], sources: d.recommended_sources ?? [] }); }
+    };
+
+    const handleReject = async (id: string) => {
+        await authFetch(`${BASE}/api/keywords/${id}/reject`, { method: 'POST' });
+        setPending(p => p.filter(k => k.id !== id));
+    };
+
+    const handleApproveAll = async () => {
+        await Promise.all(pending.map(k => authFetch(`${BASE}/api/keywords/${k.id}/approve`, { method: 'POST' })));
+        setPending([]);
+        const res = await authFetch(`${BASE}/api/briefs/${brief!.id}`);
+        if (res.ok) { const d = await res.json(); setDetail({ keywords: d.keywords ?? [], sources: d.recommended_sources ?? [] }); }
+    };
+
+    const handleExpand = async () => {
+        setExpanding(true);
+        await authFetch(`${BASE}/api/keywords/expand`, { method: 'POST' });
+        // Poll for pending after a short delay
+        await new Promise(r => setTimeout(r, 4000));
+        const res = await authFetch(`${BASE}/api/keywords/pending`);
+        if (res.ok) setPending(await res.json());
+        setExpanding(false);
+    };
 
     const submitBrief = async () => {
         // Build problem_statement based on mode
@@ -798,6 +834,59 @@ export default function BriefsPage() {
                                             );
                                         })()}
                                     </div>
+
+                                    {/* Suggested Keywords — auto-discovered, pending review */}
+                                    {brief?.status === 'active' && (
+                                        <div className="rounded-lg border border-amber/30 bg-amber/5 p-3">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div className="flex items-center gap-1.5">
+                                                    <Zap size={12} className="text-amber" />
+                                                    <span className="text-xs font-semibold text-text-primary">
+                                                        AI Suggested Keywords
+                                                    </span>
+                                                    {pending.length > 0 && (
+                                                        <span className="badge badge-muted text-2xs">{pending.length} pending</span>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    {pending.length > 0 && (
+                                                        <button onClick={handleApproveAll} className="text-2xs px-2 py-0.5 rounded bg-emerald/20 text-emerald border border-emerald/30 hover:bg-emerald/30 transition-colors">
+                                                            Approve All
+                                                        </button>
+                                                    )}
+                                                    <button onClick={handleExpand} disabled={expanding} className="flex items-center gap-1 text-2xs px-2 py-0.5 rounded border border-border text-text-muted hover:text-text-primary transition-colors disabled:opacity-50">
+                                                        {expanding ? <Loader2 size={10} className="animate-spin" /> : <RefreshCw size={10} />}
+                                                        {expanding ? 'Scanning…' : 'Scan Now'}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            {pending.length === 0 ? (
+                                                <p className="text-xs text-text-muted">
+                                                    {expanding ? 'Scanning recent articles for new keywords…' : 'No pending suggestions. Click "Scan Now" to discover new keywords from recent articles.'}
+                                                </p>
+                                            ) : (
+                                                <div className="space-y-1.5 max-h-56 overflow-y-auto">
+                                                    {pending.map(kw => (
+                                                        <div key={kw.id} className="flex items-center gap-2 p-2 rounded bg-surface border border-border">
+                                                            <div className="flex-1 min-w-0">
+                                                                <span className="text-xs font-medium text-text-primary">{kw.keyword}</span>
+                                                                <span className="text-2xs text-text-muted ml-2">{kw.category}</span>
+                                                                {kw.rationale && <p className="text-2xs text-text-muted mt-0.5 truncate">{kw.rationale}</p>}
+                                                            </div>
+                                                            <div className="flex items-center gap-1 flex-shrink-0">
+                                                                <button onClick={() => handleApprove(kw.id)} className="p-1 rounded hover:bg-emerald/20 text-emerald transition-colors" title="Approve">
+                                                                    <CheckCircle size={14} />
+                                                                </button>
+                                                                <button onClick={() => handleReject(kw.id)} className="p-1 rounded hover:bg-rose/20 text-rose transition-colors" title="Reject">
+                                                                    <XCircle size={14} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
 
                                     {/* Sources by Type */}
                                     <div>
