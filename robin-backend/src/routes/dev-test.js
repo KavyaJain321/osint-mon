@@ -2456,17 +2456,22 @@ router.get('/overview', async (req, res) => {
                 try {
                     const r = await fetch(`${SUPA_URL}/rest/v1/${table}?${qs}`, { headers });
                     if (!r.ok) {
-                        const err = await r.text().catch(() => '?');
-                        console.error(`[OVERVIEW] fetchSupa ${table} failed ${r.status}: ${err.substring(0, 100)}`);
+                        const errText = await r.text().catch(() => '?');
+                        console.error(`[OVERVIEW] fetchSupa ${table} failed ${r.status}: ${errText.substring(0, 100)}`);
                         return [];
                     }
-                    return await r.json();
+                    return await r.json().catch(parseErr => {
+                        console.error(`[OVERVIEW] fetchSupa ${table} JSON parse error: ${parseErr.message}`);
+                        return [];
+                    });
                 } catch (err) {
                     lastErr = err;
                     if (err.message?.includes('fetch failed') || err.code === 'ECONNRESET') {
                         await new Promise(res => setTimeout(res, 500 * (i + 1)));
                     } else {
-                        throw err;
+                        // Non-network error (e.g. TypeError from bad URL) — log and bail
+                        console.error(`[OVERVIEW] fetchSupa ${table} unexpected error: ${err.message}`);
+                        return [];
                     }
                 }
             }
@@ -2836,13 +2841,16 @@ router.get('/overview', async (req, res) => {
             const locs = a.analysis?.entities?.locations || [];
             const locArr = Array.isArray(locs) ? locs : typeof locs === 'string' ? [locs] : [];
             locArr.forEach(loc => {
-                const key = loc.toLowerCase().trim();
+                // loc can be a plain string OR an object {name, ...} from AI output
+                const locStr = typeof loc === 'string' ? loc : (loc?.name || loc?.location || '');
+                if (!locStr) return;
+                const key = locStr.toLowerCase().trim();
                 const coords = GEOCODE[key];
                 if (!coords) return;
                 // Scope filter: India-focused briefs skip non-Indian locations
                 if (isIndiaBrief && !INDIA_KEYS.has(key)) return;
                 if (!geoMap[key]) {
-                    geoMap[key] = { label: loc, lat: coords.lat, lng: coords.lng, events: 0, importanceSum: 0, sentiments: { positive: 0, negative: 0, neutral: 0 }, articles: [] };
+                    geoMap[key] = { label: locStr, lat: coords.lat, lng: coords.lng, events: 0, importanceSum: 0, sentiments: { positive: 0, negative: 0, neutral: 0 }, articles: [] };
                 }
                 geoMap[key].events++;
                 geoMap[key].importanceSum += a.analysis?.importance_score || 0;
