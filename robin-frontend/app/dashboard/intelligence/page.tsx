@@ -30,7 +30,7 @@ interface SituationSummary {
     risk_level: string | null;
 }
 interface DevelopmentArticle {
-    id: string; title: string; url: string; timestamp: string;
+    id: string; title: string; title_en?: string | null; url: string; timestamp: string;
     importance: number; sentiment: string; summary: string;
 }
 interface Development {

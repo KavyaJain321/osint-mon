@@ -9,7 +9,7 @@ import "leaflet/dist/leaflet.css";
 interface GeoNode {
     label: string; lat: number; lng: number; events: number;
     avgImportance: number; sentiments: { positive: number; negative: number; neutral: number };
-    articles: { id: string; title: string; importance: number; sentiment: string }[];
+    articles: { id: string; title: string; title_en?: string | null; importance: number; sentiment: string }[];
 }
 
 /* Fixed bounds for Odisha */
