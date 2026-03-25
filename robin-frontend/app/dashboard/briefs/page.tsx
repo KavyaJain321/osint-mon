@@ -5,7 +5,8 @@ import {
     FileText, Plus, Loader2, ChevronDown, ChevronUp,
     CheckCircle, XCircle, Globe, Tag, MapPin, Clock,
     Zap, AlertCircle, Search, Rss, Monitor, Tv,
-    FileDown, Chrome, RefreshCw, Trash2, Upload, Users
+    FileDown, Chrome, RefreshCw, Trash2, Upload, Users,
+    BarChart2, List
 } from "lucide-react";
 import { formatRelative } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -80,6 +81,17 @@ interface Keyword {
     rationale: string;
 }
 
+interface KeywordPerf {
+    id: string;
+    keyword: string;
+    category: string;
+    priority: number;
+    rationale: string;
+    match_count_7d: number;
+    match_count_30d: number;
+    last_matched_at: string | null;
+}
+
 interface Source {
     id: string;
     name: string;
@@ -116,6 +128,9 @@ export default function BriefsPage() {
     const [submitting, setSubmitting] = useState(false);
     const [detail, setDetail] = useState<{ keywords: Keyword[]; sources: Source[] } | null>(null);
     const [detailLoading, setDetailLoading] = useState(false);
+    const [perf, setPerf] = useState<KeywordPerf[]>([]);
+    const [perfLoading, setPerfLoading] = useState(false);
+    const [perfView, setPerfView] = useState(false);
     const [title, setTitle] = useState("");
     const [problem, setProblem] = useState("");
     const [showReplaceWarning, setShowReplaceWarning] = useState(false);
@@ -247,6 +262,19 @@ export default function BriefsPage() {
                 setDetail({ keywords: data.keywords ?? [], sources: data.recommended_sources ?? [] });
             } catch { /* silent */ }
             setDetailLoading(false);
+        })();
+    }, [brief?.id, brief?.status]);
+
+    // Load keyword performance when brief is active
+    useEffect(() => {
+        if (!brief || brief.status !== "active") return;
+        (async () => {
+            setPerfLoading(true);
+            try {
+                const res = await authFetch(`${BASE}/api/keywords/performance`);
+                if (res.ok) setPerf(await res.json());
+            } catch { /* silent */ }
+            setPerfLoading(false);
         })();
     }, [brief?.id, brief?.status]);
 
@@ -599,16 +627,102 @@ export default function BriefsPage() {
                                 </div>
                             ) : detail ? (
                                 <div className="space-y-4">
-                                    {/* Keywords — grouped by category */}
+                                    {/* Keywords — category view or performance view */}
                                     <div>
-                                        <div className="text-2xs uppercase tracking-wider text-text-muted mb-2 flex items-center gap-1.5">
-                                            <Tag size={10} className="text-accent" />
-                                            Generated Keywords ({detail.keywords.length})
+                                        {/* Header row with toggle */}
+                                        <div className="flex items-center justify-between mb-3">
+                                            <div className="text-2xs uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+                                                <Tag size={10} className="text-accent" />
+                                                Keywords ({detail.keywords.length})
+                                                {perf.length > 0 && (() => {
+                                                    const dead = perf.filter(p => p.match_count_7d === 0).length;
+                                                    const low  = perf.filter(p => p.match_count_7d > 0 && p.match_count_7d <= 5).length;
+                                                    return dead > 0 ? (
+                                                        <span className="ml-1 text-rose text-2xs">· {dead} inactive</span>
+                                                    ) : low > 0 ? (
+                                                        <span className="ml-1 text-amber text-2xs">· {low} low activity</span>
+                                                    ) : null;
+                                                })()}
+                                            </div>
+                                            {brief?.status === 'active' && (
+                                                <button
+                                                    onClick={() => setPerfView(v => !v)}
+                                                    className={cn("flex items-center gap-1 text-2xs px-2 py-0.5 rounded border transition-colors",
+                                                        perfView
+                                                            ? "border-accent text-accent bg-accent/10"
+                                                            : "border-border text-text-muted hover:text-text-primary"
+                                                    )}
+                                                >
+                                                    {perfView ? <><List size={10} /> Category</> : <><BarChart2 size={10} /> Performance</>}
+                                                </button>
+                                            )}
                                         </div>
+
                                         {detail.keywords.length === 0 ? (
                                             <p className="text-xs text-text-muted py-2">No keywords generated</p>
+                                        ) : perfView && perf.length > 0 ? (
+                                            /* ── Performance View ── */
+                                            <div className="space-y-1">
+                                                {perfLoading ? (
+                                                    <div className="flex items-center gap-2 py-4 text-text-muted justify-center">
+                                                        <Loader2 size={12} className="animate-spin" />
+                                                        <span className="text-xs">Loading performance data…</span>
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        {/* Summary stats */}
+                                                        <div className="grid grid-cols-3 gap-2 mb-3">
+                                                            {[
+                                                                { label: 'Active', count: perf.filter(p => p.match_count_7d > 5).length, color: 'text-emerald' },
+                                                                { label: 'Low', count: perf.filter(p => p.match_count_7d > 0 && p.match_count_7d <= 5).length, color: 'text-amber' },
+                                                                { label: 'Inactive', count: perf.filter(p => p.match_count_7d === 0).length, color: 'text-rose' },
+                                                            ].map(s => (
+                                                                <div key={s.label} className="text-center p-2 rounded bg-raised border border-border">
+                                                                    <div className={cn("text-lg font-bold", s.color)}>{s.count}</div>
+                                                                    <div className="text-2xs text-text-muted">{s.label}</div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                        {/* Keyword rows sorted by match count */}
+                                                        <div className="rounded border border-border overflow-hidden">
+                                                            <div className="grid grid-cols-[1fr_auto_auto] gap-2 px-3 py-1.5 bg-raised text-2xs text-text-muted uppercase tracking-wider border-b border-border">
+                                                                <span>Keyword</span>
+                                                                <span className="text-right">7d</span>
+                                                                <span className="text-right">30d</span>
+                                                            </div>
+                                                            <div className="max-h-64 overflow-y-auto divide-y divide-border">
+                                                                {perf.map(p => {
+                                                                    const status = p.match_count_7d > 5 ? 'active'
+                                                                        : p.match_count_7d > 0 ? 'low' : 'dead';
+                                                                    const dot = status === 'active' ? 'bg-emerald' : status === 'low' ? 'bg-amber' : 'bg-rose';
+                                                                    const lastSeen = p.last_matched_at
+                                                                        ? new Date(p.last_matched_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+                                                                        : 'Never';
+                                                                    return (
+                                                                        <div key={p.id} className="grid grid-cols-[1fr_auto_auto] gap-2 px-3 py-2 items-center hover:bg-raised/50 transition-colors">
+                                                                            <div className="flex items-center gap-1.5 min-w-0">
+                                                                                <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", dot)} />
+                                                                                <span className="text-xs text-text-primary truncate font-medium">{p.keyword}</span>
+                                                                                <span className="text-2xs text-text-muted flex-shrink-0">· {lastSeen}</span>
+                                                                            </div>
+                                                                            <span className={cn("text-xs font-mono text-right tabular-nums",
+                                                                                status === 'active' ? 'text-emerald' : status === 'low' ? 'text-amber' : 'text-text-muted'
+                                                                            )}>{p.match_count_7d}</span>
+                                                                            <span className="text-xs font-mono text-right tabular-nums text-text-muted">{p.match_count_30d}</span>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
+                                                    </>
+                                                )}
+                                            </div>
                                         ) : (() => {
-                                            // Group by category
+                                            /* ── Category View (default) ── */
+                                            // Build perf lookup by keyword text for dot indicators
+                                            const perfMap: Record<string, KeywordPerf> = {};
+                                            for (const p of perf) perfMap[p.keyword] = p;
+
                                             const groups: Record<string, Keyword[]> = {};
                                             for (const kw of detail.keywords) {
                                                 const cat = kw.category || 'other';
@@ -627,7 +741,6 @@ export default function BriefsPage() {
                                                 abstract_lateral: { label: 'Lateral Connections', color: 'text-violet' },
                                                 proxy_indicator: { label: 'Proxy Indicators', color: 'text-emerald' },
                                                 narrative: { label: 'Narrative Triggers', color: 'text-amber' },
-                                                // Backward compat
                                                 primary: { label: 'Primary', color: 'text-sky' },
                                                 entity: { label: 'Entities', color: 'text-sky' },
                                                 semantic: { label: 'Semantic', color: 'text-violet' },
@@ -636,15 +749,12 @@ export default function BriefsPage() {
                                                 negative: { label: 'Negative', color: 'text-rose' },
                                                 other: { label: 'Other', color: 'text-text-muted' },
                                             };
-
                                             const categoryOrder = [
-                                                'core_entity', 'industry_sector', 'regulatory_legal', 'geographic',
-                                                'competitor_peer', 'stakeholder', 'sentiment', 'abstract_lateral',
-                                                'proxy_indicator', 'narrative',
-                                                // Backward compat
-                                                'primary', 'entity', 'semantic', 'competitive', 'temporal', 'negative', 'other',
+                                                'core_entity','industry_sector','regulatory_legal','geographic',
+                                                'competitor_peer','stakeholder','sentiment','abstract_lateral',
+                                                'proxy_indicator','narrative','primary','entity','semantic',
+                                                'competitive','temporal','negative','other',
                                             ];
-
                                             const sortedCats = Object.keys(groups).sort((a, b) => {
                                                 const ai = categoryOrder.indexOf(a);
                                                 const bi = categoryOrder.indexOf(b);
@@ -659,18 +769,27 @@ export default function BriefsPage() {
                                                         return (
                                                             <div key={cat}>
                                                                 <div className="flex items-center gap-1.5 mb-1.5">
-                                                                    <span className={cn("text-2xs font-medium uppercase tracking-wider", cfg.color)}>
-                                                                        {cfg.label}
-                                                                    </span>
+                                                                    <span className={cn("text-2xs font-medium uppercase tracking-wider", cfg.color)}>{cfg.label}</span>
                                                                     <span className="text-2xs text-text-muted">· {kws.length}</span>
                                                                 </div>
                                                                 <div className="flex flex-wrap gap-1.5">
-                                                                    {kws.map(kw => (
-                                                                        <span key={kw.id} className="inline-flex items-center gap-1 px-2 py-1 rounded bg-raised border border-border text-xs text-text-primary" title={kw.rationale}>
-                                                                            <span className="font-medium">{kw.keyword_en || kw.keyword}</span>
-                                                                            {kw.priority >= 8 && <span className="text-amber text-2xs">★</span>}
-                                                                        </span>
-                                                                    ))}
+                                                                    {kws.map(kw => {
+                                                                        const p = perfMap[kw.keyword];
+                                                                        const dot = !p ? null
+                                                                            : p.match_count_7d > 5 ? 'bg-emerald'
+                                                                            : p.match_count_7d > 0 ? 'bg-amber'
+                                                                            : 'bg-rose';
+                                                                        const title = p
+                                                                            ? `${p.match_count_7d} matches (7d) · ${p.match_count_30d} matches (30d)${kw.rationale ? '\n' + kw.rationale : ''}`
+                                                                            : kw.rationale;
+                                                                        return (
+                                                                            <span key={kw.id} className="inline-flex items-center gap-1 px-2 py-1 rounded bg-raised border border-border text-xs text-text-primary" title={title}>
+                                                                                {dot && <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", dot)} />}
+                                                                                <span className="font-medium">{kw.keyword_en || kw.keyword}</span>
+                                                                                {kw.priority >= 8 && <span className="text-amber text-2xs">★</span>}
+                                                                            </span>
+                                                                        );
+                                                                    })}
                                                                 </div>
                                                             </div>
                                                         );

@@ -67,6 +67,25 @@ router.post('/', requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
     }
 });
 
+// GET /performance — Keyword match counts for active brief (7d + 30d)
+router.get('/performance', async (req, res) => {
+    try {
+        const { data: brief } = await supabase.from('client_briefs')
+            .select('id').eq('client_id', req.user.clientId).eq('status', 'active').limit(1).single();
+        if (!brief) return res.json([]);
+
+        const { data, error } = await supabase.rpc('get_keyword_performance', {
+            brief_id_param: brief.id,
+        });
+
+        if (error) throw error;
+        res.json(data || []);
+    } catch (error) {
+        log.api.error('GET /keywords/performance failed', { error: error.message });
+        res.status(500).json({ error: 'Failed to fetch keyword performance' });
+    }
+});
+
 // DELETE /:id — Delete keyword (ADMIN only)
 router.delete('/:id', requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
     try {
