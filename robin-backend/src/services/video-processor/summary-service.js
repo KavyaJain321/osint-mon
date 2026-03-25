@@ -27,7 +27,7 @@ export async function summarizeFullVideo(transcriptText, keywords) {
     const messages = [
         {
             role: 'system',
-            content: 'You are a senior intelligence analyst for the Government of Odisha. Produce structured intelligence briefings. Be specific - extract exact names, allegations, figures, and locations. Avoid vague or generic summaries. Senior officials will act on this. Do NOT use the em dash (-) character anywhere in your response; use a hyphen (-) or reword instead.',
+            content: 'You are a senior intelligence analyst for the Government of Odisha. Produce structured intelligence briefings in ENGLISH ONLY. The transcript may be in Odia, Hindi, Gujarati, or other Indian languages — always translate and write your entire response in English. Never include non-Latin script characters. Be specific - extract exact names, allegations, figures, and locations. Avoid vague or generic summaries. Senior officials will act on this. Do NOT use the em dash character anywhere in your response; use a hyphen (-) or reword instead.',
         },
         {
             role: 'user',
@@ -35,6 +35,8 @@ export async function summarizeFullVideo(transcriptText, keywords) {
 
 TRANSCRIPT:
 "${truncatedTranscript}"
+
+NOTE: The transcript may be in Odia, Hindi, Gujarati, or another Indian language. Translate all content to English. Write your entire response in English only. Never include non-Latin script characters.
 
 Write a structured intelligence brief using EXACTLY this format (use actual newlines between each section):
 
@@ -77,8 +79,8 @@ Be precise and factual. If the transcript is too fragmented to analyse, write "T
  * @returns {Promise<string>} AI-generated clip summary
  */
 export async function summarizeClip(segmentText, keyword, timestamp, videoContext = '') {
-    if (!segmentText || segmentText.length < 20) {
-        return `Clip around "${keyword}" at ${formatTime(timestamp)}.`;
+    if (!segmentText || segmentText.length < 80) {
+        return `Clip around "${keyword}" at ${formatTime(timestamp)}. Transcript segment too short to summarise.`;
     }
 
     const contextLine = videoContext
@@ -88,7 +90,7 @@ export async function summarizeClip(segmentText, keyword, timestamp, videoContex
     const messages = [
         {
             role: 'system',
-            content: 'You are a senior intelligence analyst for the Government of Odisha. Extract specific, actionable intelligence from video clips. Name exact people, allegations, places, and figures. Never produce vague summaries. Do NOT use the em dash (-) character anywhere in your response; use a hyphen (-) or reword instead.',
+            content: 'You are a senior intelligence analyst for the Government of Odisha. Extract specific, actionable intelligence from video clips. Write your ENTIRE response in English only. The transcript may be in Odia, Hindi, Gujarati, or other Indian languages — translate all content to English. Never include non-Latin script characters in your response. Name exact people, allegations, places, and figures. Never produce vague summaries. Do NOT use the em dash character anywhere in your response; use a hyphen (-) or reword instead.',
         },
         {
             role: 'user',
@@ -97,13 +99,15 @@ export async function summarizeClip(segmentText, keyword, timestamp, videoContex
 ${contextLine}TRANSCRIPT SEGMENT (at ${formatTime(timestamp)}):
 "${segmentText.substring(0, 1500)}"
 
+NOTE: The transcript above may be in Odia, Hindi, Gujarati, or another Indian language. Translate it to English and write your entire response in English only. Never copy non-Latin script into your response.
+
 Write a short intelligence note using EXACTLY this format (use actual newlines between each line):
 
-What: [One sentence — the specific claim, allegation, or statement made about "${keyword}". Name exact people, places, or figures. If only incidentally mentioned, say so.]
+What: [One sentence — the specific claim, allegation, or statement made about "${keyword}". Name exact people, places, or figures in English. If only incidentally mentioned, say so.]
 Context: [One phrase — the angle: corruption allegation / political criticism / government announcement / protest / court action / general reporting]
 Why it matters: [One sentence on why this clip matters for someone monitoring "${keyword}".]
 
-IMPORTANT: If the segment is incoherent, hallucinated, or "${keyword}" is not meaningfully discussed, reply with exactly: IRRELEVANT_GARBAGE`,
+IMPORTANT: If the segment is incoherent, too fragmented to understand, or "${keyword}" is not meaningfully discussed, reply with exactly: IRRELEVANT_GARBAGE`,
         },
     ];
 
