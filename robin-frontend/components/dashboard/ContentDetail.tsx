@@ -274,6 +274,21 @@ function VideoProcessingPanel({ article }: { article: Article }) {
 
 // ── Main ContentDetail Component ────────────────────────────
 
+/** Extract YouTube video ID from any YouTube URL format. Returns null if not a YouTube URL. */
+function getYouTubeVideoId(url: string): string | null {
+    if (!url) return null;
+    // Standard: youtube.com/watch?v=ID or &v=ID
+    let m = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+    if (m) return m[1];
+    // Short: youtu.be/ID
+    m = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+    if (m) return m[1];
+    // Shorts/Live/Embed: youtube.com/shorts/ID, /live/ID, /embed/ID
+    m = url.match(/youtube\.com\/(?:shorts|live|embed)\/([a-zA-Z0-9_-]{11})/);
+    if (m) return m[1];
+    return null;
+}
+
 export default function ContentDetail({ article, onClose }: { article: Article; onClose: () => void }) {
     const contentType = detectContentType(article);
     const typeInfo = TYPE_ICONS[contentType] || TYPE_ICONS.article;
@@ -282,6 +297,7 @@ export default function ContentDetail({ article, onClose }: { article: Article; 
     const isCritical = importance >= 9;
     const isHigh = importance >= 7;
     const isVideo = contentType === "youtube" || contentType === "video";
+    const youtubeVideoId = isVideo ? getYouTubeVideoId(article.url) : null;
 
     return (
         <div className="fixed inset-0 z-40 flex justify-end animate-fade-in" onClick={onClose}>
@@ -290,22 +306,46 @@ export default function ContentDetail({ article, onClose }: { article: Article; 
                 className="relative w-full max-w-[520px] h-full bg-surface border-l border-border overflow-y-auto no-scrollbar animate-slide-left"
                 onClick={(e) => e.stopPropagation()}
             >
-                {/* Header Image Area */}
-                <div className={cn("relative h-40 bg-gradient-to-br", gradient)}>
-                    <div className="absolute inset-0 flex items-center justify-center opacity-20">
-                        <span className="text-6xl">{contentType === "youtube" ? "📺" : contentType === "pdf" ? "📄" : contentType === "govt" ? "📢" : "🌐"}</span>
-                    </div>
-                    <button onClick={onClose} className="absolute top-3 right-3 bg-base/60 backdrop-blur-sm rounded-full p-1.5 text-text-muted hover:text-text-primary transition-colors">
-                        <X size={16} />
-                    </button>
-                    {importance >= 5 && (
-                        <div className={cn("absolute top-3 left-3 px-2.5 py-1 rounded-full text-xs font-bold",
-                            isCritical ? "bg-rose text-white" : isHigh ? "bg-amber text-black" : "bg-overlay text-text-primary"
-                        )}>
-                            {importance}/10
+                {/* Header: YouTube embed for video content, gradient placeholder for others */}
+                {youtubeVideoId ? (
+                    <div className="relative bg-black">
+                        <div className="aspect-video">
+                            <iframe
+                                src={`https://www.youtube.com/embed/${youtubeVideoId}?cc_load_policy=1&cc_lang_pref=en&hl=en&rel=0&modestbranding=1`}
+                                className="w-full h-full"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                                title={article.title_en || article.title}
+                            />
                         </div>
-                    )}
-                </div>
+                        <button onClick={onClose} className="absolute top-3 right-3 bg-base/60 backdrop-blur-sm rounded-full p-1.5 text-text-muted hover:text-text-primary transition-colors z-10">
+                            <X size={16} />
+                        </button>
+                        {importance >= 5 && (
+                            <div className={cn("absolute top-3 left-3 px-2.5 py-1 rounded-full text-xs font-bold z-10",
+                                isCritical ? "bg-rose text-white" : isHigh ? "bg-amber text-black" : "bg-overlay text-text-primary"
+                            )}>
+                                {importance}/10
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <div className={cn("relative h-40 bg-gradient-to-br", gradient)}>
+                        <div className="absolute inset-0 flex items-center justify-center opacity-20">
+                            <span className="text-6xl">{contentType === "youtube" ? "📺" : contentType === "pdf" ? "📄" : contentType === "govt" ? "📢" : "🌐"}</span>
+                        </div>
+                        <button onClick={onClose} className="absolute top-3 right-3 bg-base/60 backdrop-blur-sm rounded-full p-1.5 text-text-muted hover:text-text-primary transition-colors">
+                            <X size={16} />
+                        </button>
+                        {importance >= 5 && (
+                            <div className={cn("absolute top-3 left-3 px-2.5 py-1 rounded-full text-xs font-bold",
+                                isCritical ? "bg-rose text-white" : isHigh ? "bg-amber text-black" : "bg-overlay text-text-primary"
+                            )}>
+                                {importance}/10
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 <div className="p-5 space-y-4">
                     <h2 className="text-base font-semibold text-text-primary leading-snug">{article.title_en || article.title}</h2>

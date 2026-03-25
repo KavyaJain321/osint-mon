@@ -12,6 +12,9 @@ import { VIDEO_CONFIG, ensureDirs } from './config.js';
 import { log } from '../../lib/logger.js';
 import { supabase } from '../../lib/supabase.js';
 
+// Cookies for yt-dlp — bypasses YouTube bot detection on clip downloads
+const clipCookiesPath = VIDEO_CONFIG.cookiesPath || null;
+
 /**
  * Get video duration using yt-dlp.
  * @param {string} videoId
@@ -103,49 +106,68 @@ async function generateSingleClip(videoId, clipWindow) {
     const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
     const duration = clipWindow.end - clipWindow.start;
 
-    return new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-            proc.kill('SIGKILL');
-            reject(new Error('Clip generation timed out'));
-        }, 120000); // 2min per clip
+    // Try multiple player clients in case one is bot-blocked by YouTube
+    const PLAYER_CLIENTS = ['android', 'mweb', 'web_safari', 'web'];
+    let lastError;
 
-        // Use yt-dlp to download just the segment
-        const proc = spawn(VIDEO_CONFIG.ytDlpPath, [
-            '--download-sections', `*${clipWindow.start}-${clipWindow.end}`,
-            '--force-keyframes-at-cuts',
-            '-f', 'bestvideo[height<=720]+bestaudio/best[height<=720]',
-            '--merge-output-format', 'mp4',
-            '--postprocessor-args', 'ffmpeg:-movflags +faststart',
-            '--ffmpeg-location', VIDEO_CONFIG.ffmpegPath,
-            '-o', outputPath,
-            '--no-playlist',
-            '--quiet',
-            '--no-warnings',
-            videoUrl,
-        ], { timeout: 120000 });
+    for (const playerClient of PLAYER_CLIENTS) {
+        try {
+            await new Promise((resolve, reject) => {
+                const ytdlpArgs = [
+                    '--download-sections', `*${clipWindow.start}-${clipWindow.end}`,
+                    '--force-keyframes-at-cuts',
+                    '-f', 'bestvideo[height<=720]+bestaudio/best[height<=720]',
+                    '--merge-output-format', 'mp4',
+                    '--postprocessor-args', 'ffmpeg:-movflags +faststart',
+                    '--ffmpeg-location', VIDEO_CONFIG.ffmpegPath,
+                    '--extractor-args', `youtube:player-client=${playerClient}`,
+                    '-o', outputPath,
+                    '--no-playlist',
+                    '--quiet',
+                    '--no-warnings',
+                ];
+                if (clipCookiesPath) {
+                    ytdlpArgs.push('--cookies', clipCookiesPath);
+                }
+                ytdlpArgs.push(videoUrl);
 
-        let stderr = '';
-        proc.stderr.on('data', d => { stderr += d.toString(); });
+                const proc = spawn(VIDEO_CONFIG.ytDlpPath, ytdlpArgs, { timeout: 120000 });
 
-        proc.on('close', (code) => {
-            clearTimeout(timeout);
-            if (code === 0) {
-                resolve({
-                    localPath: outputPath,
-                    duration,
-                    start: clipWindow.start,
-                    end: clipWindow.end,
+                const timeout = setTimeout(() => {
+                    proc.kill('SIGKILL');
+                    reject(new Error('Clip generation timed out'));
+                }, 120000);
+
+                let stderr = '';
+                proc.stderr.on('data', d => { stderr += d.toString(); });
+
+                proc.on('close', (code) => {
+                    clearTimeout(timeout);
+                    if (code === 0) resolve();
+                    else reject(new Error(`Clip generation failed (code ${code}): ${stderr.substring(0, 200)}`));
                 });
-            } else {
-                reject(new Error(`Clip generation failed (code ${code}): ${stderr.substring(0, 200)}`));
-            }
-        });
 
-        proc.on('error', (err) => {
-            clearTimeout(timeout);
-            reject(err);
-        });
-    });
+                proc.on('error', (err) => {
+                    clearTimeout(timeout);
+                    reject(err);
+                });
+            });
+
+            // Success
+            return { localPath: outputPath, duration, start: clipWindow.start, end: clipWindow.end };
+
+        } catch (err) {
+            lastError = err;
+            const isBotBlock = err.message?.includes('Sign in to confirm') || err.message?.includes('bot');
+            const isRetriable = isBotBlock;
+            log.ai.warn(`Clip yt-dlp failed with player-client=${playerClient}`, {
+                videoId, isBotBlock, error: err.message?.substring(0, 100),
+            });
+            if (!isRetriable) throw err; // Fatal (private video, DRM, timeout) — don't retry
+        }
+    }
+
+    throw lastError || new Error('Clip generation failed for all player clients');
 }
 
 /**

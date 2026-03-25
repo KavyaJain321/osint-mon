@@ -48,6 +48,38 @@ export function enqueueVideo(videoId, articleId, keywords, title = '') {
     }
 }
 
+// ── Internal: fetch all approved, active keywords for a client ──
+async function getAllClientKeywords(clientId) {
+    if (!clientId) return [];
+    try {
+        // Get all active brief IDs for this client
+        const { data: briefs } = await supabase
+            .from('briefs')
+            .select('id')
+            .eq('client_id', clientId)
+            .eq('status', 'active');
+
+        if (!briefs?.length) return [];
+
+        const briefIds = briefs.map(b => b.id);
+
+        const { data: rows } = await supabase
+            .from('generated_keywords')
+            .select('keyword')
+            .in('brief_id', briefIds)
+            .eq('approved', true)
+            .eq('rejected', false)
+            .neq('category', 'negative');
+
+        return rows?.map(r => r.keyword).filter(Boolean) || [];
+    } catch (err) {
+        log.ai.warn('Could not fetch client keywords for video — using matched only', {
+            clientId, error: err.message?.substring(0, 80),
+        });
+        return [];
+    }
+}
+
 // ── Public: status (for /scraper-status endpoint) ────────────
 export function getQueueStatus() {
     return {
@@ -65,7 +97,7 @@ async function pickAndProcess() {
         // Find the oldest video that is still waiting
         const { data: videos, error } = await supabase
             .from('content_items')
-            .select('id, url, matched_keywords, title, type_metadata')
+            .select('id, url, matched_keywords, title, type_metadata, client_id')
             .eq('content_type', 'video')
             .eq('type_metadata->>processing_status', 'queued')
             .order('created_at', { ascending: true })
@@ -95,7 +127,12 @@ async function pickAndProcess() {
         }
 
         const videoId = videoIdMatch[1];
-        const keywords = video.matched_keywords || [];
+        const matchedKeywords = video.matched_keywords || [];
+
+        // Expand to ALL active keywords for this client so we find every
+        // occurrence in the transcript — not just the keyword that triggered the fetch.
+        const clientKeywords = await getAllClientKeywords(video.client_id);
+        const keywords = [...new Set([...matchedKeywords, ...clientKeywords])];
 
         // ── Atomic claim: only transition if STILL 'queued' ──────
         // Guards against double-processing (e.g. on manual retrigger)
