@@ -366,6 +366,77 @@ router.get('/', async (req, res) => {
     }
 });
 
+// ── GET /api/briefs/staleness — staleness check for active brief ──
+// IMPORTANT: must be ABOVE /:id route so Express doesn't match "staleness" as an id
+router.get('/staleness', async (req, res) => {
+    try {
+        const clientId = req.user?.client_id;
+        if (!clientId) return res.status(403).json({ error: 'No client associated' });
+
+        const db = mkAdmin();
+
+        // Get active brief
+        const { data: brief } = await db
+            .from('client_briefs')
+            .select('id, activated_at, created_at')
+            .eq('client_id', clientId)
+            .eq('status', 'active')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+        if (!brief) return res.json({ isStale: false, reasons: [] });
+
+        const reasons = [];
+        const now = Date.now();
+        const activatedAt = new Date(brief.activated_at || brief.created_at).getTime();
+        const briefAgeDays = Math.floor((now - activatedAt) / 86400000);
+
+        // Reason 1: brief is older than 60 days
+        if (briefAgeDays >= 60) {
+            reasons.push({ type: 'age', message: `Brief is ${briefAgeDays} days old — intelligence gaps may have grown`, severity: 'high' });
+        } else if (briefAgeDays >= 45) {
+            reasons.push({ type: 'age', message: `Brief is ${briefAgeDays} days old — consider refreshing soon`, severity: 'medium' });
+        }
+
+        // Reason 2: match rate drop > 30%
+        const now_iso = new Date(now).toISOString();
+        const d7 = new Date(now - 7 * 86400000).toISOString();
+        const d14 = new Date(now - 14 * 86400000).toISOString();
+
+        const [last7Res, prev7Res] = await Promise.all([
+            db.from('articles').select('id', { count: 'exact', head: true }).eq('client_id', clientId).gte('created_at', d7).lte('created_at', now_iso),
+            db.from('articles').select('id', { count: 'exact', head: true }).eq('client_id', clientId).gte('created_at', d14).lte('created_at', d7),
+        ]);
+
+        const last7Count = last7Res.count ?? 0;
+        const prev7Count = prev7Res.count ?? 0;
+        let matchDropPct = 0;
+
+        if (prev7Count > 5 && last7Count < prev7Count) {
+            matchDropPct = Math.round(((prev7Count - last7Count) / prev7Count) * 100);
+            if (matchDropPct >= 50) {
+                reasons.push({ type: 'drop', message: `Article match rate dropped ${matchDropPct}% this week (${last7Count} vs ${prev7Count} last week)`, severity: 'high' });
+            } else if (matchDropPct >= 30) {
+                reasons.push({ type: 'drop', message: `Article match rate dropped ${matchDropPct}% this week — keywords may need updating`, severity: 'medium' });
+            }
+        }
+
+        res.json({
+            isStale: reasons.length > 0,
+            severity: reasons.some(r => r.severity === 'high') ? 'high' : reasons.length > 0 ? 'medium' : 'none',
+            reasons,
+            briefAgeDays,
+            last7Count,
+            prev7Count,
+            matchDropPct,
+        });
+    } catch (err) {
+        log.system.error('Staleness check failed', { error: err.message });
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // ── GET /api/briefs/:id — get full brief with keywords and sources ──
 router.get('/:id', async (req, res) => {
     try {

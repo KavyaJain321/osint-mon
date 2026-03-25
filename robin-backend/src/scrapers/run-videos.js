@@ -20,7 +20,7 @@ async function getClientKeywords(clientId) {
         .from('brief_generated_keywords')
         .select('keyword')
         .eq('brief_id', activeBrief.id)
-        .limit(100);
+        .limit(300);
     return (keywords || []).map((k) => k.keyword);
 }
 

@@ -8,6 +8,7 @@ import cron from 'node-cron';
 import { config } from '../config.js';
 import { runScraperCycle } from '../scrapers/orchestrator.js';
 import { runKeywordExpansionForAllClients } from '../ai/keyword-expander.js';
+import { runClusteringForAllClients } from '../ai/keyword-clusterer.js';
 import { supabase } from '../lib/supabase.js';
 import { log } from '../lib/logger.js';
 
@@ -54,6 +55,16 @@ export function startScheduler() {
             await runKeywordExpansionForAllClients();
         } catch (error) {
             log.cron.error('[KEYWORD EXPANDER] Weekly expansion failed', { error: error.message });
+        }
+    });
+
+    // Weekly keyword clustering — every Sunday at 3:30am (after expansion at 2am)
+    cron.schedule('30 3 * * 0', async () => {
+        log.cron.info('[CLUSTERER] Running weekly semantic keyword clustering');
+        try {
+            await runClusteringForAllClients();
+        } catch (error) {
+            log.cron.error('[CLUSTERER] Weekly clustering failed', { error: error.message });
         }
     });
 

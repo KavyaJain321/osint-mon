@@ -79,6 +79,7 @@ interface Keyword {
     category: string;
     priority: number;
     rationale: string;
+    cluster_group?: string | null;
 }
 
 interface KeywordPerf {
@@ -131,8 +132,12 @@ export default function BriefsPage() {
     const [perf, setPerf] = useState<KeywordPerf[]>([]);
     const [perfLoading, setPerfLoading] = useState(false);
     const [perfView, setPerfView] = useState(false);
+    const [clusterView, setClusterView] = useState(false);
+    const [clustering, setClustering] = useState(false);
     const [pending, setPending] = useState<KeywordPerf[]>([]);
     const [expanding, setExpanding] = useState(false);
+    const [staleness, setStaleness] = useState<{ isStale: boolean; severity: string; reasons: { type: string; message: string; severity: string }[]; briefAgeDays: number } | null>(null);
+    const [stalenessDismissed, setStalenessDismissed] = useState(false);
     const [title, setTitle] = useState("");
     const [problem, setProblem] = useState("");
     const [showReplaceWarning, setShowReplaceWarning] = useState(false);
@@ -273,12 +278,14 @@ export default function BriefsPage() {
         (async () => {
             setPerfLoading(true);
             try {
-                const [perfRes, pendingRes] = await Promise.all([
+                const [perfRes, pendingRes, stalenessRes] = await Promise.all([
                     authFetch(`${BASE}/api/keywords/performance`),
                     authFetch(`${BASE}/api/keywords/pending`),
+                    authFetch(`${BASE}/api/briefs/staleness`),
                 ]);
                 if (perfRes.ok) setPerf(await perfRes.json());
                 if (pendingRes.ok) setPending(await pendingRes.json());
+                if (stalenessRes.ok) setStaleness(await stalenessRes.json());
             } catch { /* silent */ }
             setPerfLoading(false);
         })();
@@ -312,6 +319,17 @@ export default function BriefsPage() {
         const res = await authFetch(`${BASE}/api/keywords/pending`);
         if (res.ok) setPending(await res.json());
         setExpanding(false);
+    };
+
+    const handleCluster = async () => {
+        setClustering(true);
+        await authFetch(`${BASE}/api/keywords/cluster`, { method: 'POST' });
+        // Wait for clustering to complete then reload keywords
+        await new Promise(r => setTimeout(r, 5000));
+        const res = await authFetch(`${BASE}/api/briefs/${brief!.id}`);
+        if (res.ok) { const d = await res.json(); setDetail({ keywords: d.keywords ?? [], sources: d.recommended_sources ?? [] }); }
+        setClusterView(true);
+        setClustering(false);
     };
 
     const submitBrief = async () => {
@@ -613,6 +631,38 @@ export default function BriefsPage() {
                 </div>
             )}
 
+            {/* Staleness Banner */}
+            {staleness?.isStale && !stalenessDismissed && brief?.status === 'active' && !showForm && (
+                <div className={cn(
+                    "rounded-lg border p-3 mb-4 animate-fade-in",
+                    staleness.severity === 'high' ? "border-rose/40 bg-rose/5" : "border-amber/40 bg-amber/5"
+                )}>
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                            <AlertCircle size={16} className={cn("flex-shrink-0 mt-0.5", staleness.severity === 'high' ? "text-rose" : "text-amber")} />
+                            <div>
+                                <p className={cn("text-xs font-semibold mb-0.5", staleness.severity === 'high' ? "text-rose" : "text-amber")}>
+                                    Brief may be outdated — {staleness.briefAgeDays} days old
+                                </p>
+                                <ul className="space-y-0.5">
+                                    {staleness.reasons.map((r, i) => (
+                                        <li key={i} className="text-xs text-text-secondary">{r.message}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                            <button onClick={openNewBriefForm} className="btn btn-primary text-xs">
+                                <RefreshCw size={11} /> Refresh Brief
+                            </button>
+                            <button onClick={() => setStalenessDismissed(true)} className="text-text-muted hover:text-text-secondary p-1">
+                                <XCircle size={14} />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Active Brief Detail */}
             {!loading && brief && !showForm && (
                 <div className="card border border-border animate-fade-in">
@@ -681,16 +731,38 @@ export default function BriefsPage() {
                                                 })()}
                                             </div>
                                             {brief?.status === 'active' && (
-                                                <button
-                                                    onClick={() => setPerfView(v => !v)}
-                                                    className={cn("flex items-center gap-1 text-2xs px-2 py-0.5 rounded border transition-colors",
-                                                        perfView
-                                                            ? "border-accent text-accent bg-accent/10"
-                                                            : "border-border text-text-muted hover:text-text-primary"
-                                                    )}
-                                                >
-                                                    {perfView ? <><List size={10} /> Category</> : <><BarChart2 size={10} /> Performance</>}
-                                                </button>
+                                                <div className="flex items-center gap-1">
+                                                    <button
+                                                        onClick={() => { setPerfView(false); setClusterView(false); }}
+                                                        className={cn("flex items-center gap-1 text-2xs px-2 py-0.5 rounded border transition-colors",
+                                                            !perfView && !clusterView
+                                                                ? "border-accent text-accent bg-accent/10"
+                                                                : "border-border text-text-muted hover:text-text-primary"
+                                                        )}
+                                                    >
+                                                        <List size={10} /> Category
+                                                    </button>
+                                                    <button
+                                                        onClick={() => { setPerfView(true); setClusterView(false); }}
+                                                        className={cn("flex items-center gap-1 text-2xs px-2 py-0.5 rounded border transition-colors",
+                                                            perfView
+                                                                ? "border-accent text-accent bg-accent/10"
+                                                                : "border-border text-text-muted hover:text-text-primary"
+                                                        )}
+                                                    >
+                                                        <BarChart2 size={10} /> Performance
+                                                    </button>
+                                                    <button
+                                                        onClick={() => { setClusterView(true); setPerfView(false); }}
+                                                        className={cn("flex items-center gap-1 text-2xs px-2 py-0.5 rounded border transition-colors",
+                                                            clusterView
+                                                                ? "border-accent text-accent bg-accent/10"
+                                                                : "border-border text-text-muted hover:text-text-primary"
+                                                        )}
+                                                    >
+                                                        <Zap size={10} /> Clusters
+                                                    </button>
+                                                </div>
                                             )}
                                         </div>
 
@@ -753,7 +825,78 @@ export default function BriefsPage() {
                                                     </>
                                                 )}
                                             </div>
-                                        ) : (() => {
+                                        ) : clusterView ? (() => {
+                                            /* ── Cluster View ── */
+                                            const clustered = detail.keywords.filter(k => k.cluster_group);
+                                            const unclustered = detail.keywords.filter(k => !k.cluster_group);
+
+                                            if (clustered.length === 0) {
+                                                return (
+                                                    <div className="text-center py-6 space-y-3">
+                                                        <p className="text-xs text-text-muted">Keywords have not been clustered yet.</p>
+                                                        <button
+                                                            onClick={handleCluster}
+                                                            disabled={clustering}
+                                                            className="btn btn-primary text-xs"
+                                                        >
+                                                            {clustering ? <><Loader2 size={11} className="animate-spin" /> Clustering…</> : <><Zap size={11} /> Run Semantic Clustering</>}
+                                                        </button>
+                                                        <p className="text-2xs text-text-muted">Groups your keywords into semantic topics using AI. Takes ~10s.</p>
+                                                    </div>
+                                                );
+                                            }
+
+                                            // Group by cluster
+                                            const clusterGroups: Record<string, Keyword[]> = {};
+                                            for (const kw of clustered) {
+                                                const c = kw.cluster_group!;
+                                                if (!clusterGroups[c]) clusterGroups[c] = [];
+                                                clusterGroups[c].push(kw);
+                                            }
+                                            const CLUSTER_COLORS = ['text-sky', 'text-violet', 'text-emerald', 'text-amber', 'text-cyan', 'text-rose', 'text-orange', 'text-teal', 'text-pink', 'text-indigo'];
+                                            const clusterKeys = Object.keys(clusterGroups).sort();
+
+                                            return (
+                                                <div className="space-y-3">
+                                                    <div className="flex items-center justify-between">
+                                                        <p className="text-2xs text-text-muted">{clusterKeys.length} semantic clusters · {clustered.length} keywords grouped</p>
+                                                        <button onClick={handleCluster} disabled={clustering} className="text-2xs text-text-muted hover:text-accent flex items-center gap-1">
+                                                            {clustering ? <Loader2 size={10} className="animate-spin" /> : <RefreshCw size={10} />} Re-cluster
+                                                        </button>
+                                                    </div>
+                                                    {clusterKeys.map((cluster, ci) => (
+                                                        <div key={cluster}>
+                                                            <div className="flex items-center gap-1.5 mb-1.5">
+                                                                <span className={cn("text-2xs font-medium uppercase tracking-wider", CLUSTER_COLORS[ci % CLUSTER_COLORS.length])}>{cluster}</span>
+                                                                <span className="text-2xs text-text-muted">· {clusterGroups[cluster].length}</span>
+                                                            </div>
+                                                            <div className="flex flex-wrap gap-1.5">
+                                                                {clusterGroups[cluster].map(kw => (
+                                                                    <span key={kw.id} className="inline-flex items-center gap-1 px-2 py-1 rounded bg-raised border border-border text-xs text-text-primary" title={kw.rationale}>
+                                                                        <span className="font-medium">{kw.keyword_en || kw.keyword}</span>
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                    {unclustered.length > 0 && (
+                                                        <div>
+                                                            <div className="flex items-center gap-1.5 mb-1.5">
+                                                                <span className="text-2xs font-medium uppercase tracking-wider text-text-muted">Unclustered</span>
+                                                                <span className="text-2xs text-text-muted">· {unclustered.length}</span>
+                                                            </div>
+                                                            <div className="flex flex-wrap gap-1.5">
+                                                                {unclustered.map(kw => (
+                                                                    <span key={kw.id} className="inline-flex items-center px-2 py-1 rounded bg-raised border border-border text-xs text-text-muted">
+                                                                        {kw.keyword_en || kw.keyword}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })() : (() => {
                                             /* ── Category View (default) ── */
                                             // Build perf lookup by keyword text for dot indicators
                                             const perfMap: Record<string, KeywordPerf> = {};
@@ -777,6 +920,8 @@ export default function BriefsPage() {
                                                 abstract_lateral: { label: 'Lateral Connections', color: 'text-violet' },
                                                 proxy_indicator: { label: 'Proxy Indicators', color: 'text-emerald' },
                                                 narrative: { label: 'Narrative Triggers', color: 'text-amber' },
+                                                administrative: { label: 'Administrative Units', color: 'text-teal' },
+                                                person_role: { label: 'People & Roles', color: 'text-orange' },
                                                 primary: { label: 'Primary', color: 'text-sky' },
                                                 entity: { label: 'Entities', color: 'text-sky' },
                                                 semantic: { label: 'Semantic', color: 'text-violet' },
@@ -788,8 +933,8 @@ export default function BriefsPage() {
                                             const categoryOrder = [
                                                 'core_entity','industry_sector','regulatory_legal','geographic',
                                                 'competitor_peer','stakeholder','sentiment','abstract_lateral',
-                                                'proxy_indicator','narrative','primary','entity','semantic',
-                                                'competitive','temporal','negative','other',
+                                                'proxy_indicator','narrative','administrative','person_role',
+                                                'primary','entity','semantic','competitive','temporal','negative','other',
                                             ];
                                             const sortedCats = Object.keys(groups).sort((a, b) => {
                                                 const ai = categoryOrder.indexOf(a);

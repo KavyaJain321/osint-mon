@@ -9,6 +9,7 @@ import { authenticate } from '../middleware/auth.js';
 import { requireRole } from '../middleware/roleCheck.js';
 import { log } from '../lib/logger.js';
 import { runKeywordExpansion } from '../ai/keyword-expander.js';
+import { runKeywordClustering } from '../ai/keyword-clusterer.js';
 
 const router = Router();
 router.use(authenticate);
@@ -29,7 +30,7 @@ router.get('/', async (req, res) => {
             .select('*')
             .eq('brief_id', brief.id)
             .order('priority', { ascending: false })
-            .limit(200);
+            .limit(300);
 
         if (error) throw error;
         res.json(data || []);
@@ -158,6 +159,27 @@ router.post('/expand', requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => 
     } catch (error) {
         log.api.error('POST /keywords/expand failed', { error: error.message });
         res.status(500).json({ error: 'Failed to start expansion' });
+    }
+});
+
+// POST /cluster — Semantically cluster all keywords for this brief (ADMIN only)
+router.post('/cluster', requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
+    try {
+        const { data: brief } = await supabase.from('client_briefs')
+            .select('id').eq('client_id', req.user.clientId).eq('status', 'active').limit(1).single();
+        if (!brief) return res.status(400).json({ error: 'No active brief' });
+
+        const { data: client } = await supabase.from('clients')
+            .select('name').eq('id', req.user.clientId).single();
+
+        // Run async — respond immediately
+        res.json({ message: 'Semantic clustering started. Refresh in a few seconds to see clusters.' });
+
+        runKeywordClustering(brief.id, client?.name || 'Unknown')
+            .catch(err => log.api.error('Manual clustering failed', { error: err.message }));
+    } catch (error) {
+        log.api.error('POST /keywords/cluster failed', { error: error.message });
+        res.status(500).json({ error: 'Failed to start clustering' });
     }
 });
 

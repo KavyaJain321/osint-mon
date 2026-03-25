@@ -1,17 +1,18 @@
 // ============================================================
-// Keyword Generator — Enhanced 10-Category Keyword Ontology
-// Three-call LLM strategy for comprehensive coverage:
+// Keyword Generator — Enhanced 12-Category Keyword Ontology
+// Four-call LLM strategy for comprehensive coverage:
 //   Call 1: Extract structured context from problem statement
 //   Call 2: Generate primary keyword batch (categories 1-5)
 //   Call 3: Generate advanced keyword batch (categories 6-10)
-// Target: 80+ keywords across 10 categories
+//   Call 4: Generate Indian govt batch (categories 11-12)
+// Target: 200+ keywords across 12 categories
 // ============================================================
 
 import { groqChat } from '../lib/groq.js';
 import { log } from '../lib/logger.js';
-const MAX_KW = 100; // hard max
+const MAX_KW = 300; // hard max
 
-// ── 10 Category Definitions ───────────────────────────────
+// ── 12 Category Definitions ───────────────────────────────
 
 const CATEGORIES = {
     core_entity: { label: 'Core Entity Names', target: 10, priority: 10 },
@@ -24,6 +25,8 @@ const CATEGORIES = {
     abstract_lateral: { label: 'Abstract/Lateral', target: 8, priority: 5 },
     proxy_indicator: { label: 'Proxy Indicators', target: 6, priority: 5 },
     narrative: { label: 'Narrative Triggers', target: 6, priority: 4 },
+    administrative: { label: 'Administrative Units', target: 20, priority: 8 },
+    person_role: { label: 'Person & Role Combos', target: 20, priority: 7 },
 };
 
 // ── Call 1: Structured context extraction ──────────────────
@@ -177,6 +180,61 @@ Return ONLY valid JSON:
     return parsed.keywords || [];
 }
 
+// ── Call 4: Indian government administrative & person-role keywords ──
+
+async function generateGovtKeywords(context, problemStatement) {
+    const geo = context.geographic_focus?.join(', ') || '';
+    const entities = context.entities_of_interest?.join(', ') || '';
+
+    const prompt = `You are a senior OSINT analyst specialising in Indian state government monitoring.
+
+CLIENT CONTEXT:
+- Industry: ${context.industry}
+- Core Problem: ${context.core_problem}
+- Key Entities: ${entities}
+- Geography: ${geo}
+
+ORIGINAL PROBLEM: ${problemStatement.substring(0, 400)}
+
+Generate TWO batches of highly specific keywords for Indian government monitoring:
+
+**BATCH A — administrative (20 keywords)**
+Specific administrative units, districts, departments, schemes, and programmes tied to the geography above.
+Examples for Odisha: "Bhubaneswar Municipal", "Cuttack district", "Puri collector", "Koraput ADM",
+"IDCO", "IPICOL", "Odisha Mining Corporation", "NALCO", "Mo Sarkar", "5T initiative",
+"Ama Odisha", "KALIA scheme", "ST SC welfare", "Odisha Police", "Odisha cabinet"
+Rules: district + admin role combos, scheme names, govt body abbreviations — all Odisha-specific.
+DO NOT use generic: "district", "state government", "India".
+
+**BATCH B — person_role (20 keywords)**
+Senior official role + geography combos that appear in news headlines.
+Examples for Odisha: "Odisha CM", "Odisha DGP", "Odisha Chief Secretary",
+"Odisha Finance Minister", "Cuttack SP", "Bhubaneswar CP", "Odisha Governor",
+"Odisha BJP chief", "Odisha Congress", "Odisha BJP", "Naveen Patnaik", "Mohan Majhi"
+Rules: role titles must be anchored to state/district. Use short headline form (no full names unless iconic).
+DO NOT generate roles for other states.
+
+Return ONLY valid JSON:
+{
+  "keywords": [
+    {
+      "keyword": "short headline term",
+      "category": "administrative|person_role",
+      "priority": 1-10,
+      "rationale": "one sentence why"
+    }
+  ]
+}`;
+
+    const resp = await groqChat(
+        [{ role: 'user', content: prompt }],
+        { temperature: 0.3, max_tokens: 3000, response_format: { type: 'json_object' } }
+    );
+
+    const parsed = JSON.parse(resp.choices[0].message.content);
+    return parsed.keywords || [];
+}
+
 // ── Quality filter ─────────────────────────────────────────
 
 const GENERIC_WORDS = new Set([
@@ -209,6 +267,10 @@ function filterKeywords(keywords) {
                 'competitive': 'competitor_peer',
                 'temporal': 'narrative',
                 'negative': 'sentiment',
+                'admin': 'administrative',
+                'govt': 'administrative',
+                'person': 'person_role',
+                'role': 'person_role',
             };
             kw.category = catMap[kw.category] || kw.category;
         }
@@ -222,7 +284,8 @@ function filterKeywords(keywords) {
 // ── Public API ─────────────────────────────────────────────
 
 /**
- * Generate an 80+ keyword ontology from a client problem brief.
+ * Generate a 200+ keyword ontology from a client problem brief.
+ * Uses 4 LLM calls: context extraction, primary (1-5), advanced (6-10), govt (11-12).
  *
  * @param {string} problemStatement - Raw problem text from client
  * @param {string} clientName       - Client organization name
@@ -230,7 +293,7 @@ function filterKeywords(keywords) {
  */
 export async function generateKeywordsFromBrief(problemStatement, clientName) {
     const startTime = Date.now();
-    log.ai.info('Keyword generation started (enhanced 10-category)', { clientName, statementLen: problemStatement.length });
+    log.ai.info('Keyword generation started (12-category, 300 max)', { clientName, statementLen: problemStatement.length });
 
     try {
         // Call 1: extract structured context
@@ -249,8 +312,12 @@ export async function generateKeywordsFromBrief(problemStatement, clientName) {
         const advancedKws = await generateAdvancedKeywords(context, problemStatement, primaryKws);
         log.ai.info('Advanced keywords generated', { count: advancedKws.length });
 
+        // Call 4: generate Indian govt administrative + person_role keywords (categories 11-12)
+        const govtKws = await generateGovtKeywords(context, problemStatement);
+        log.ai.info('Govt keywords generated', { count: govtKws.length });
+
         // Merge and filter
-        const allKws = [...primaryKws, ...advancedKws];
+        const allKws = [...primaryKws, ...advancedKws, ...govtKws];
         const keywords = filterKeywords(allKws).slice(0, MAX_KW);
 
         const finalKeywords = keywords;
@@ -262,7 +329,7 @@ export async function generateKeywordsFromBrief(problemStatement, clientName) {
         }
 
         const elapsed = Date.now() - startTime;
-        log.ai.info('Keyword generation complete (enhanced English only)', {
+        log.ai.info('Keyword generation complete (12-category, 300 max)', {
             total: finalKeywords.length,
             categories: catCounts,
             ms: elapsed,
