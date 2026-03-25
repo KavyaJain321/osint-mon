@@ -237,6 +237,14 @@ export async function analyzeArticle(article) {
         // Detect if this is a content_item (YouTube, Reddit, etc.) vs a real article
         const isContentItem = article.content_type && article.content_type !== 'article';
 
+        // If TRIJYA-7 already wrote the analysis row, just clear the reanalysis flag
+        if (analysis._already_saved) {
+            await supabase
+                .from('article_analysis')
+                .update({ reanalysis_needed: false })
+                .eq('article_id', article.id);
+        }
+
         // Save to article_analysis — SKIP if TRIJYA-7 already wrote it
         if (!analysis._already_saved) {
             const baseData = {
@@ -256,6 +264,7 @@ export async function analyzeArticle(article) {
                 ...baseData,
                 analyzer_used: analyzerUsed,
                 model_used: modelUsed,
+                reanalysis_needed: analyzerUsed === 'local_fallback',
             }, { onConflict: 'article_id' });
 
             if (fullErr && fullErr.message.includes('analyzer_used')) {
@@ -422,7 +431,34 @@ export function startAnalysisWorker() {
             }
 
             const allPending = [...(articles || []), ...contentItems];
-            if (allPending.length === 0) return;
+
+            // When primary queue is empty, upgrade one local_fallback article per cycle
+            if (allPending.length === 0) {
+                try {
+                    const { data: reanalysisRows } = await supabase
+                        .from('article_analysis')
+                        .select('article_id')
+                        .eq('reanalysis_needed', true)
+                        .limit(1);
+
+                    if (reanalysisRows?.length > 0) {
+                        const { data: candidate } = await supabase
+                            .from('articles')
+                            .select('id, client_id, title, content, url, published_at, matched_keywords, source_id')
+                            .eq('id', reanalysisRows[0].article_id)
+                            .neq('analysis_status', 'processing')
+                            .single();
+
+                        if (candidate) {
+                            log.ai.info('Reanalyzing local_fallback article with better model', { articleId: candidate.id });
+                            await analyzeArticle(candidate);
+                        }
+                    }
+                } catch (reErr) {
+                    log.ai.debug('Reanalysis poll skipped', { reason: reErr.message?.substring(0, 60) });
+                }
+                return;
+            }
 
             log.ai.info(`Processing ${allPending.length} pending items (${(articles || []).length} articles, ${contentItems.length} content_items)`);
 
