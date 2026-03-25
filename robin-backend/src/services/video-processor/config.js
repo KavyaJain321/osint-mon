@@ -40,9 +40,9 @@ export const VIDEO_CONFIG = {
     maxClipsPerVideo: 50,    // safety cap
 
     // ── AI Summary ──────────────────────────────────────────
-    summaryTemperature: 0.3,
-    summaryMaxTokens: 300,
-    clipSummaryMaxTokens: 200,
+    summaryTemperature: 0.2,
+    summaryMaxTokens: 450,
+    clipSummaryMaxTokens: 350,
 
     // ── Supabase Storage ────────────────────────────────────
     storageBucket: 'video-clips',

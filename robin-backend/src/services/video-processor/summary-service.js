@@ -27,24 +27,29 @@ export async function summarizeFullVideo(transcriptText, keywords) {
     const messages = [
         {
             role: 'system',
-            content: 'You are an open-source intelligence assistant for the Government of Odisha. Provide neutral, concise, factual summaries focused on how the content relates to specific monitoring keywords. Use civil-service-style language suitable for senior officials.',
+            content: 'You are a senior intelligence analyst for the Government of Odisha. Produce structured intelligence briefings. Be specific — extract exact names, allegations, figures, and locations. Avoid vague or generic summaries. Senior officials will act on this.',
         },
         {
             role: 'user',
-            content: `Summarize this video transcript with emphasis on content related to "${primaryKeyword}".
+            content: `This video was flagged because it discusses: ${allKeywords}
 
-Monitoring keywords: ${allKeywords}
-
-Transcript:
+TRANSCRIPT:
 "${truncatedTranscript}"
 
-Provide a concise 3-4 sentence summary that:
-1. Explains the main topic of the video
-2. Highlights how "${primaryKeyword}" is discussed or referenced
-3. Notes any significant statements, claims, or developments mentioned
-4. Explains WHY this video is relevant to someone monitoring "${primaryKeyword}"
+Write a structured intelligence brief using EXACTLY this format:
 
-Keep it factual and intelligence-focused. Do not add opinions.`,
+HEADLINE: [One sentence — the single most important claim, allegation, or development in this video. Name specific people, places, or figures if present.]
+
+KEY FINDINGS:
+• [Specific finding 1 — quote names, amounts, dates, locations if mentioned]
+• [Specific finding 2]
+• [Specific finding 3 — omit if not applicable]
+
+COVERAGE TYPE: [Choose one: Government Announcement / Corruption Allegation / Political Criticism / Protest or Unrest / Policy Update / Court or Legal Action / General Reporting]
+
+RELEVANCE: [One sentence on why this matters for monitoring "${primaryKeyword}"]
+
+Be precise and factual. If the transcript is too fragmented to analyse, write UNCLEAR TRANSCRIPT under each heading.`,
         },
     ];
 
@@ -71,30 +76,34 @@ Keep it factual and intelligence-focused. Do not add opinions.`,
  * @param {number} timestamp - Timestamp in seconds
  * @returns {Promise<string>} AI-generated clip summary
  */
-export async function summarizeClip(segmentText, keyword, timestamp) {
+export async function summarizeClip(segmentText, keyword, timestamp, videoContext = '') {
     if (!segmentText || segmentText.length < 20) {
         return `Clip around "${keyword}" at ${formatTime(timestamp)}.`;
     }
 
+    const contextLine = videoContext
+        ? `Video context: ${videoContext.substring(0, 200)}\n\n`
+        : '';
+
     const messages = [
         {
             role: 'system',
-            content: 'You are an open-source intelligence assistant for the Government of Odisha. Provide neutral, brief, factual context summaries. Use civil-service-style language.',
+            content: 'You are a senior intelligence analyst for the Government of Odisha. Extract specific, actionable intelligence from video clips. Name exact people, allegations, places, and figures. Never produce vague summaries.',
         },
         {
             role: 'user',
-            content: `Analyze this video transcript segment and explain the context in which "${keyword}" is being discussed.
+            content: `A regional news video was flagged because it mentions "${keyword}". Below is the 28-second transcript segment that triggered this clip.
 
-Transcript segment:
+${contextLine}TRANSCRIPT SEGMENT (at ${formatTime(timestamp)}):
 "${segmentText.substring(0, 1500)}"
 
-Provide a concise 2-3 sentence summary that explains:
-1. What is being discussed when "${keyword}" is mentioned
-2. The main point or context of this segment
+Write a structured intelligence note using EXACTLY this format:
 
-IMPORTANT: If the transcript segment appears to be a jumbled, hallucinated mix of words without making sense, OR if it is impossible to determine any coherent context, OR if the keyword is not actually discussed in a meaningful way, you MUST reply with EXACTLY this string: "IRRELEVANT_GARBAGE". Do not explain why, just output "IRRELEVANT_GARBAGE".
+CLAIM: [What specific statement, allegation, or claim is made involving "${keyword}"? Name people, places, figures if present. If keyword is only incidentally mentioned, say so.]
+CONTEXT: [What is the apparent angle — government announcement, corruption allegation, political criticism, protest coverage, court action, or general reporting?]
+SIGNIFICANCE: [One sentence on why this 28-second clip matters for someone monitoring "${keyword}".]
 
-Otherwise, be factual and concise.`,
+IMPORTANT: If the segment is incoherent, hallucinated, or "${keyword}" is not meaningfully discussed, reply with exactly: IRRELEVANT_GARBAGE`,
         },
     ];
 
@@ -122,6 +131,9 @@ Otherwise, be factual and concise.`,
 export async function summarizeAllClips(clips, transcript) {
     const results = [];
 
+    // Pass first 250 chars of full transcript as context so each clip knows what the video is about
+    const videoContext = (transcript.text || '').substring(0, 250);
+
     for (const clip of clips) {
         const keyword = clip.keywords[0] || 'unknown';
 
@@ -133,7 +145,7 @@ export async function summarizeAllClips(clips, transcript) {
             clip.end
         );
 
-        const summary = await summarizeClip(segmentText, keyword, clip.start);
+        const summary = await summarizeClip(segmentText, keyword, clip.start, videoContext);
 
         if (summary === 'IRRELEVANT_GARBAGE' || summary.includes('IRRELEVANT_GARBAGE')) {
             log.ai.info('AI Quality Gate rejected clip', { keyword, start: clip.start });
