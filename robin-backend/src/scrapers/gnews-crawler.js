@@ -130,6 +130,11 @@ function extractPublicationFromTitle(title) {
 }
 
 export async function scrapeGoogleNews(source, clientId, keywords = []) {
+    // AUTO mode: build dynamic queries from all client keywords instead of a fixed URL
+    if (!source.url || source.url.trim().toLowerCase() === 'auto') {
+        return scrapeGoogleNewsAuto(source, clientId, keywords);
+    }
+
     try {
         const timeoutPromise = new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Google News source timeout after 20s')), 20000)
@@ -145,4 +150,76 @@ export async function scrapeGoogleNews(source, clientId, keywords = []) {
         });
         return [];
     }
+}
+
+/**
+ * AUTO mode: build Google News RSS queries dynamically from client keywords.
+ * Groups keywords into batches of 6, builds one RSS URL per batch using OR operators.
+ * This means one source (url="auto") gives full keyword coverage without manual URL management.
+ *
+ * Google News RSS format:
+ *   https://news.google.com/rss/search?q=keyword1+OR+keyword2+OR+"multi+word"&hl=en-IN&gl=IN&ceid=IN:en
+ */
+async function scrapeGoogleNewsAuto(source, clientId, keywords = []) {
+    if (!keywords.length) {
+        log.scraper.warn('[GNews Auto] No keywords for client, skipping', { clientId });
+        return [];
+    }
+
+    const BATCH_SIZE = 6;
+    const allResults = [];
+    const seenUrls = new Set();
+
+    // Group keywords into batches of BATCH_SIZE
+    const batches = [];
+    for (let i = 0; i < keywords.length; i += BATCH_SIZE) {
+        batches.push(keywords.slice(i, i + BATCH_SIZE));
+    }
+
+    log.scraper.info(`[GNews Auto] Building ${batches.length} query batches from ${keywords.length} keywords`, {
+        clientId, source: source.name,
+    });
+
+    for (const batch of batches) {
+        // Wrap multi-word keywords in quotes, encode everything
+        const queryTerms = batch.map(kw =>
+            kw.includes(' ') ? `"${kw}"` : kw
+        );
+        const q = encodeURIComponent(queryTerms.join(' OR '));
+        const url = `https://news.google.com/rss/search?q=${q}&hl=en-IN&gl=IN&ceid=IN:en`;
+
+        const batchSource = { ...source, url };
+        try {
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('GNews batch timeout')), 20000)
+            );
+            const items = await Promise.race([
+                scrapeGoogleNewsInternal(batchSource, clientId, keywords),
+                timeoutPromise,
+            ]);
+
+            // Deduplicate across batches by URL
+            for (const item of items) {
+                if (!seenUrls.has(item.url)) {
+                    seenUrls.add(item.url);
+                    allResults.push(item);
+                }
+            }
+        } catch (err) {
+            log.scraper.warn('[GNews Auto] Batch failed', {
+                batch: queryTerms, error: err.message,
+            });
+        }
+
+        // Small delay between batch requests to avoid rate limiting
+        if (batches.indexOf(batch) < batches.length - 1) {
+            await new Promise(r => setTimeout(r, 800));
+        }
+    }
+
+    log.scraper.info(`[GNews Auto] Done — ${allResults.length} unique articles from ${batches.length} batches`, {
+        clientId, source: source.name,
+    });
+
+    return allResults;
 }
