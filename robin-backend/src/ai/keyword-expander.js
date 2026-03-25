@@ -73,10 +73,12 @@ export async function runKeywordExpansion(clientId, briefId, clientName) {
         return { suggested: 0, inserted: 0 };
     }
 
-    // 4. Filter out generics and existing keywords
+    // 4. Filter out generics, non-English, and existing keywords
+    const NON_LATIN_RE = /[^\u0000-\u007F\u00C0-\u024F\u1E00-\u1EFF]/;
     const filtered = suggestions.filter(s => {
         const w = s.keyword?.toLowerCase().trim();
         if (!w || w.length < 3) return false;
+        if (NON_LATIN_RE.test(w)) return false; // reject non-English script
         if (GENERIC_WORDS.has(w)) return false;
         if (existingSet.has(w)) return false;
         return true;
@@ -173,6 +175,7 @@ RECENT ARTICLES:
 ${articleLines}
 
 Extract 15-20 NEW specific keywords or short phrases that:
+- Are in ENGLISH ONLY — no Hindi, Odia, or any non-Latin script. Use English transliterations as they appear in English-language media.
 - Appear in multiple articles above
 - Are NOT in the existing keywords list
 - Are specific: names of people, places, organizations, schemes, laws, or events

@@ -78,6 +78,8 @@ CLIENT CONTEXT:
 
 ORIGINAL PROBLEM: ${problemStatement.substring(0, 600)}
 
+LANGUAGE RULE: ALL keywords MUST be in English only. Never output Hindi, Odia, or any other script. Even for Indian proper nouns, use the English transliteration journalists use in English-language media (e.g. "Naveen Patnaik" not "ନବୀନ ପଟ୍ଟନାୟକ").
+
 Generate keywords for these 5 categories:
 
 1. **core_entity** (10 keywords): The exact names, abbreviations, ticker symbols, and short name variants of the primary entities being monitored. Use the SHORTEST form journalists actually write: "Trump" not "Trump Administration", "Fed" not "Federal Reserve Board of Governors", "OPEC" not "OPEC member nations".
@@ -150,6 +152,7 @@ Generate keywords for these 5 categories:
 10. **narrative** (6 keywords): Short media narrative frames: "whistleblower", "cover-up", "crackdown", "bailout", "default".
 
 CRITICAL RULES FOR MATCHING:
+- ALL keywords MUST be in English only — no Hindi, Odia, or any non-Latin script whatsoever.
 - Keywords MUST be highly PRECISE and UNIQUE to the specific client/context so they don't match unrelated global news.
 - REGIONAL STRICTNESS: If the client focus is a specific state or region (e.g., Odisha), DO NOT generate names of other states (like Kerala, West Bengal, Maharashtra, etc.). Stick ONLY to the geography directly requested.
 - Keywords MUST be 1-3 words maximum — they are used for substring matching against news headlines.
@@ -195,6 +198,8 @@ CLIENT CONTEXT:
 - Geography: ${geo}
 
 ORIGINAL PROBLEM: ${problemStatement.substring(0, 400)}
+
+LANGUAGE RULE: ALL keywords MUST be in English only (Latin script). Use English transliterations for Indian proper nouns as they appear in English-language media. No Hindi, Odia, Telugu, or any non-Latin script.
 
 Generate TWO batches of highly specific keywords for Indian government monitoring:
 
@@ -248,11 +253,15 @@ const GENERIC_WORDS = new Set([
     'stocks', 'shares', 'trading', 'investment', 'funding', 'startup'
 ]);
 
+// Matches any character outside printable ASCII + common punctuation (catches Devanagari, Odia, etc.)
+const NON_LATIN_RE = /[^\u0000-\u007F\u00C0-\u024F\u1E00-\u1EFF]/;
+
 function filterKeywords(keywords) {
     const seen = new Set();
     return keywords.filter(kw => {
         const w = kw.keyword.toLowerCase().trim();
         if (w.length < 3) return false;
+        if (NON_LATIN_RE.test(w)) return false; // reject non-English script
         if (GENERIC_WORDS.has(w)) return false;
         if (!kw.category) return false;
         if (seen.has(w)) return false; // dedup

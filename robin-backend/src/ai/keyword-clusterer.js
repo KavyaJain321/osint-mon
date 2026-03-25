@@ -125,6 +125,7 @@ Group these keywords into 5-10 meaningful semantic clusters. Each cluster should
 
 Rules:
 - Every keyword must be assigned to exactly one cluster
+- Cluster names MUST be in English only
 - Cluster names should be specific to "${clientName}" context (e.g. "Corruption & Fraud", "Land & Mining", "Political Leadership", "Police & Law Enforcement")
 - DO NOT use generic names like "Cluster 1", "Group A", "Miscellaneous"
 - Aim for 8-20 keywords per cluster
