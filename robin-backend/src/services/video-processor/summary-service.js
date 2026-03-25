@@ -1,5 +1,5 @@
 // ============================================================
-// ROBIN OSINT — AI Summary Service (Groq Llama 3.3 70B)
+// ROBIN OSINT - AI Summary Service (Groq Llama 3.3 70B)
 // Keyword-aware summaries for full videos and individual clips
 // ============================================================
 
@@ -27,7 +27,7 @@ export async function summarizeFullVideo(transcriptText, keywords) {
     const messages = [
         {
             role: 'system',
-            content: 'You are a senior intelligence analyst for the Government of Odisha. Produce structured intelligence briefings. Be specific — extract exact names, allegations, figures, and locations. Avoid vague or generic summaries. Senior officials will act on this.',
+            content: 'You are a senior intelligence analyst for the Government of Odisha. Produce structured intelligence briefings. Be specific - extract exact names, allegations, figures, and locations. Avoid vague or generic summaries. Senior officials will act on this. Do NOT use the em dash (-) character anywhere in your response; use a hyphen (-) or reword instead.',
         },
         {
             role: 'user',
@@ -38,12 +38,12 @@ TRANSCRIPT:
 
 Write a structured intelligence brief using EXACTLY this format:
 
-HEADLINE: [One sentence — the single most important claim, allegation, or development in this video. Name specific people, places, or figures if present.]
+HEADLINE: [One sentence - the single most important claim, allegation, or development in this video. Name specific people, places, or figures if present.]
 
 KEY FINDINGS:
-• [Specific finding 1 — quote names, amounts, dates, locations if mentioned]
+• [Specific finding 1 - quote names, amounts, dates, locations if mentioned]
 • [Specific finding 2]
-• [Specific finding 3 — omit if not applicable]
+• [Specific finding 3 - omit if not applicable]
 
 COVERAGE TYPE: [Choose one: Government Announcement / Corruption Allegation / Political Criticism / Protest or Unrest / Policy Update / Court or Legal Action / General Reporting]
 
@@ -88,7 +88,7 @@ export async function summarizeClip(segmentText, keyword, timestamp, videoContex
     const messages = [
         {
             role: 'system',
-            content: 'You are a senior intelligence analyst for the Government of Odisha. Extract specific, actionable intelligence from video clips. Name exact people, allegations, places, and figures. Never produce vague summaries.',
+            content: 'You are a senior intelligence analyst for the Government of Odisha. Extract specific, actionable intelligence from video clips. Name exact people, allegations, places, and figures. Never produce vague summaries. Do NOT use the em dash (-) character anywhere in your response; use a hyphen (-) or reword instead.',
         },
         {
             role: 'user',
@@ -100,7 +100,7 @@ ${contextLine}TRANSCRIPT SEGMENT (at ${formatTime(timestamp)}):
 Write a structured intelligence note using EXACTLY this format:
 
 CLAIM: [What specific statement, allegation, or claim is made involving "${keyword}"? Name people, places, figures if present. If keyword is only incidentally mentioned, say so.]
-CONTEXT: [What is the apparent angle — government announcement, corruption allegation, political criticism, protest coverage, court action, or general reporting?]
+CONTEXT: [What is the apparent angle - government announcement, corruption allegation, political criticism, protest coverage, court action, or general reporting?]
 SIGNIFICANCE: [One sentence on why this 28-second clip matters for someone monitoring "${keyword}".]
 
 IMPORTANT: If the segment is incoherent, hallucinated, or "${keyword}" is not meaningfully discussed, reply with exactly: IRRELEVANT_GARBAGE`,
