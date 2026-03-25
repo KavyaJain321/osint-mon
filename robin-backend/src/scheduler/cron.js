@@ -9,6 +9,7 @@ import { config } from '../config.js';
 import { runScraperCycle } from '../scrapers/orchestrator.js';
 import { runKeywordExpansionForAllClients } from '../ai/keyword-expander.js';
 import { runClusteringForAllClients } from '../ai/keyword-clusterer.js';
+import { translateMissingTitles } from '../ai/title-translator.js';
 import { supabase } from '../lib/supabase.js';
 import { log } from '../lib/logger.js';
 
@@ -46,6 +47,17 @@ export function startScheduler() {
     cron.schedule('0 3 * * *', async () => {
         log.cron.info('[CLEANUP] Running expired data cleanup');
         await runExpiredCleanup();
+    });
+
+    // Daily title translation at 4am — catch any articles still missing title_en
+    cron.schedule('0 4 * * *', async () => {
+        log.cron.info('[TITLE-TRANSLATOR] Running daily missing-title translation');
+        try {
+            const result = await translateMissingTitles();
+            log.cron.info('[TITLE-TRANSLATOR] Done', result);
+        } catch (error) {
+            log.cron.error('[TITLE-TRANSLATOR] Daily run failed', { error: error.message });
+        }
     });
 
     // Weekly keyword expansion — every Sunday at 2am

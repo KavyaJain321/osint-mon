@@ -326,11 +326,11 @@ export async function analyzeArticle(article) {
             log.ai.debug('Watch expression matching skipped', { reason: weErr.message?.substring(0, 50) });
         }
 
-        // Mark as complete. Try to save English title if translated.
-        // title_en column may not exist yet — handle gracefully until DB migration runs.
+        // Mark as complete. Always save title_en — even if same as title (English articles).
+        // This ensures title_en is never NULL so the frontend never falls back to non-English.
         const articleUpdate = { analysis_status: 'complete' };
-        const hasTitleEn = analysis.title_en && analysis.title_en !== article.title;
-        if (hasTitleEn) articleUpdate.title_en = analysis.title_en;
+        const hasTitleEn = !!(analysis.title_en && analysis.title_en.trim().length > 0);
+        if (hasTitleEn) articleUpdate.title_en = analysis.title_en.trim();
 
         const { error: updateErr } = await supabase
             .from('articles')
