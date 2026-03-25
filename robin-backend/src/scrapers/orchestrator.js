@@ -22,6 +22,11 @@ import { updatePipelineStage } from '../lib/pipeline-tracker.js';
 const SCRAPER_LOCK_KEY = 'scraper_running';
 const LOCK_TIMEOUT_HOURS = 0.5; // 30 minutes — scrapes typically complete in 10-20 min
 
+// Batch intelligence trigger config
+const BATCH_INTEL_MIN_ARTICLES = parseInt(process.env.BATCH_INTEL_MIN_ARTICLES ?? '3', 10);
+const BATCH_INTEL_COOLDOWN_MS  = parseInt(process.env.BATCH_INTEL_COOLDOWN_MS  ?? String(20 * 60 * 1000), 10);
+let lastBatchIntelRun = 0;
+
 const RSS_CONCURRENCY = 2;
 const HTML_CONCURRENCY = 1;  // keep at 1 — jsdom is memory-heavy
 const PDF_CONCURRENCY = 1;
@@ -547,15 +552,28 @@ export async function runScraperCycle(filterClientId = null) {
                 );
             }
 
-            // Run batch intelligence directly (awaited) — setTimeout was unreliable on Render
-            await updatePipelineStage('analysis', `Scraping done (${totalSaved} articles). Waiting for AI analysis...`, { found: totalFound, saved: totalSaved });
-            log.ai.info('Scraping done (' + totalSaved + ' articles). Starting batch intelligence in 10s...');
-            await new Promise(r => setTimeout(r, 10000)); // short breathing room for DB writes
-            try {
-                const { runBatchIntelligence } = await import('../ai/batch-intelligence.js');
-                await runBatchIntelligence();
-            } catch (e) {
-                log.ai.error('Post-scrape batch intelligence failed', { error: e.message });
+            // Run batch intelligence if enough new articles and cooldown has elapsed
+            const msSinceLast = Date.now() - lastBatchIntelRun;
+            const cooldownOk  = msSinceLast >= BATCH_INTEL_COOLDOWN_MS;
+            const thresholdOk = totalSaved >= BATCH_INTEL_MIN_ARTICLES;
+
+            if (thresholdOk && cooldownOk) {
+                lastBatchIntelRun = Date.now();
+                await updatePipelineStage('analysis', `Scraping done (${totalSaved} articles). Waiting for AI analysis...`, { found: totalFound, saved: totalSaved });
+                log.ai.info(`Post-scrape batch intel triggered (${totalSaved} articles, cooldown ${Math.round(msSinceLast / 60000)}min ago)`);
+                await new Promise(r => setTimeout(r, 10000)); // short breathing room for DB writes
+                try {
+                    const { runBatchIntelligence } = await import('../ai/batch-intelligence.js');
+                    await runBatchIntelligence();
+                } catch (e) {
+                    log.ai.error('Post-scrape batch intelligence failed', { error: e.message });
+                }
+            } else {
+                const reason = !thresholdOk
+                    ? `only ${totalSaved}/${BATCH_INTEL_MIN_ARTICLES} articles (threshold not met)`
+                    : `cooldown active (${Math.round(msSinceLast / 60000)}/${BATCH_INTEL_COOLDOWN_MS / 60000} min elapsed)`;
+                log.ai.info(`Skipping post-scrape batch intel — ${reason}`);
+                await updatePipelineStage('analysis', `Scraping done (${totalSaved} articles). Batch intel skipped: ${reason}.`, { found: totalFound, saved: totalSaved });
             }
         } else {
              await updatePipelineStage('analysis', `Scraping done (0 articles matched filters). Skipping AI analysis...`, { found: totalFound, saved: 0 });

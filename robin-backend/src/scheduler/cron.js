@@ -10,9 +10,6 @@ import { runScraperCycle } from '../scrapers/orchestrator.js';
 import { supabase } from '../lib/supabase.js';
 import { log } from '../lib/logger.js';
 
-// Lazy import to break circular dependency
-let runBatchIntelligence;
-
 /**
  * Start the cron scheduler.
  * Currently DISABLED — manual-only mode for development.
@@ -43,27 +40,13 @@ export function startScheduler() {
         }
     });
 
-    // Schedule nightly batch intelligence at 2am
-    cron.schedule('0 2 * * *', async () => {
-        log.cron.info('Triggering nightly batch intelligence');
-        try {
-            if (!runBatchIntelligence) {
-                const mod = await import('../ai/batch-intelligence.js');
-                runBatchIntelligence = mod.runBatchIntelligence;
-            }
-            await runBatchIntelligence();
-        } catch (error) {
-            log.cron.error('Nightly batch failed', { error: error.message });
-        }
-    });
-
     // Daily cleanup at 3am — remove expired patterns and signals
     cron.schedule('0 3 * * *', async () => {
         log.cron.info('[CLEANUP] Running expired data cleanup');
         await runExpiredCleanup();
     });
 
-    log.cron.info('Scraper: "' + scraperCron + '" | Batch: "0 2 * * *" | Cleanup: "0 3 * * *"');
+    log.cron.info('Scraper: "' + scraperCron + '" | Cleanup: "0 3 * * *" | Batch intel: event-driven post-scrape');
 }
 
 
