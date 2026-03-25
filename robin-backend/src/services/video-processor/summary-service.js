@@ -36,20 +36,20 @@ export async function summarizeFullVideo(transcriptText, keywords) {
 TRANSCRIPT:
 "${truncatedTranscript}"
 
-Write a structured intelligence brief using EXACTLY this format:
+Write a structured intelligence brief using EXACTLY this format (use actual newlines between each section):
 
-HEADLINE: [One sentence - the single most important claim, allegation, or development in this video. Name specific people, places, or figures if present.]
+[One sentence headline — the single most important claim, allegation, or development. Name specific people, places, or figures.]
 
-KEY FINDINGS:
-• [Specific finding 1 - quote names, amounts, dates, locations if mentioned]
+Key findings:
+• [Specific finding 1 — names, amounts, dates, locations if mentioned]
 • [Specific finding 2]
-• [Specific finding 3 - omit if not applicable]
+• [Specific finding 3 — omit if fewer than 3 findings]
 
-COVERAGE TYPE: [Choose one: Government Announcement / Corruption Allegation / Political Criticism / Protest or Unrest / Policy Update / Court or Legal Action / General Reporting]
+Coverage type: [Government Announcement / Corruption Allegation / Political Criticism / Protest or Unrest / Policy Update / Court or Legal Action / General Reporting]
 
-RELEVANCE: [One sentence on why this matters for monitoring "${primaryKeyword}"]
+Why this matters: [One sentence on why this matters for monitoring "${primaryKeyword}"]
 
-Be precise and factual. If the transcript is too fragmented to analyse, write UNCLEAR TRANSCRIPT under each heading.`,
+Be precise and factual. If the transcript is too fragmented to analyse, write "Transcript unclear" for each section.`,
         },
     ];
 
@@ -97,11 +97,11 @@ export async function summarizeClip(segmentText, keyword, timestamp, videoContex
 ${contextLine}TRANSCRIPT SEGMENT (at ${formatTime(timestamp)}):
 "${segmentText.substring(0, 1500)}"
 
-Write a structured intelligence note using EXACTLY this format:
+Write a short intelligence note using EXACTLY this format (use actual newlines between each line):
 
-CLAIM: [What specific statement, allegation, or claim is made involving "${keyword}"? Name people, places, figures if present. If keyword is only incidentally mentioned, say so.]
-CONTEXT: [What is the apparent angle - government announcement, corruption allegation, political criticism, protest coverage, court action, or general reporting?]
-SIGNIFICANCE: [One sentence on why this 28-second clip matters for someone monitoring "${keyword}".]
+What: [One sentence — the specific claim, allegation, or statement made about "${keyword}". Name exact people, places, or figures. If only incidentally mentioned, say so.]
+Context: [One phrase — the angle: corruption allegation / political criticism / government announcement / protest / court action / general reporting]
+Why it matters: [One sentence on why this clip matters for someone monitoring "${keyword}".]
 
 IMPORTANT: If the segment is incoherent, hallucinated, or "${keyword}" is not meaningfully discussed, reply with exactly: IRRELEVANT_GARBAGE`,
         },

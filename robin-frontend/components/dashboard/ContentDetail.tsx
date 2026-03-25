@@ -162,7 +162,7 @@ function VideoProcessingPanel({ article }: { article: Article }) {
                         <Bot size={14} className="text-violet-400" />
                         <h3 className="text-xs font-semibold text-text-primary uppercase tracking-wider">AI Video Summary</h3>
                     </div>
-                    <p className="text-sm text-text-secondary leading-relaxed">{transcript.aiSummary}</p>
+                    <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-line">{transcript.aiSummary}</p>
                 </div>
             )}
 
@@ -213,7 +213,7 @@ function VideoProcessingPanel({ article }: { article: Article }) {
                                         <span className="text-2xs text-text-muted ml-auto">{Math.round(clip.duration)}s</span>
                                     </div>
                                     <ClipPlayer url={clip.clipUrl} startFormatted={clip.startFormatted} endFormatted={clip.endFormatted} />
-                                    {clip.aiSummary && <p className="text-xs text-text-secondary leading-relaxed mt-2">{clip.aiSummary}</p>}
+                                    {clip.aiSummary && <p className="text-xs text-text-secondary leading-relaxed mt-2 whitespace-pre-line">{clip.aiSummary}</p>}
                                     {clip.transcriptSegment && <p className="text-2xs text-text-muted italic line-clamp-2 mt-1">&ldquo;{clip.transcriptSegment}&rdquo;</p>}
                                 </div>
                             ))}
