@@ -958,6 +958,36 @@ function PoliticalAnalysisSection({ articles }: { articles: Article[] }) {
                         </div>
                     </div>
 
+                    {/* Govt Analysis Summary */}
+                    {govtArts.length > 0 && (() => {
+                        const posArts = govtArts.filter(a => (a.sentiment || "").toLowerCase() === "positive")
+                            .sort((a, b) => (b.importance_score || 0) - (a.importance_score || 0));
+                        const negArts = govtArts.filter(a => (a.sentiment || "").toLowerCase() === "negative")
+                            .sort((a, b) => (b.importance_score || 0) - (a.importance_score || 0));
+
+                        // Pull action verbs from titles to construct what CM/govt did
+                        const actionVerbs = ["launches", "inaugurates", "announces", "approves", "directs", "reviews", "meets", "flags", "pushes", "calls", "chairs", "visits", "releases", "signs", "orders"];
+                        const cmAction = posArts.find(a => actionVerbs.some(v => (a.title_en || a.title || "").toLowerCase().includes(v)));
+                        const topCritical = negArts[0];
+                        const topPos = posArts[0];
+
+                        const parts: string[] = [];
+                        if (topPos) parts.push(`Government and CM coverage today is led by positive reporting on <em>${cleanTitle(topPos.title_en || topPos.title || "")}</em>`);
+                        if (cmAction && cmAction.id !== topPos?.id) parts.push(`with notable activity around <em>${cleanTitle(cmAction.title_en || cmAction.title || "")}</em>`);
+                        if (topCritical) parts.push(`Media criticism focuses on <em>${cleanTitle(topCritical.title_en || topCritical.title || "")}</em>${topCritical.source_name ? ` (${topCritical.source_name})` : ""}`);
+                        if (gs.negPct >= 50) parts.push(`with ${gs.negPct}% of articles carrying adverse framing — suggesting reputational pressure`);
+                        else if (gs.posPct >= 50) parts.push(`with ${gs.posPct}% positive framing — broadly favourable coverage today`);
+
+                        if (parts.length === 0) return null;
+                        return (
+                            <div className="px-4 py-3 border-b border-slate-700/20">
+                                <p className="text-2xs font-mono text-teal-400/60 uppercase tracking-wider mb-2">📋 Analysis</p>
+                                <p className="text-xs text-slate-300 leading-relaxed"
+                                    dangerouslySetInnerHTML={{ __html: parts.join(". ") + "." }} />
+                            </div>
+                        );
+                    })()}
+
                     {/* Areas to focus */}
                     {topFocus.length > 0 && (
                         <div className="px-4 py-3 border-b border-slate-700/20">
@@ -1033,6 +1063,46 @@ function PoliticalAnalysisSection({ articles }: { articles: Article[] }) {
                                     <span className="text-red-400">{ds.negPct}% critical</span>
                                 </div>
                             </div>
+
+                            {/* Discourse Analysis Summary */}
+                            {(() => {
+                                const negDisc = discourseArts.filter(a => (a.sentiment || "").toLowerCase() === "negative")
+                                    .sort((a, b) => (b.importance_score || 0) - (a.importance_score || 0));
+                                const posDisc = discourseArts.filter(a => (a.sentiment || "").toLowerCase() === "positive")
+                                    .sort((a, b) => (b.importance_score || 0) - (a.importance_score || 0));
+                                const topNeg = negDisc[0];
+                                const topPos = posDisc[0];
+
+                                // Detect themes from titles
+                                const allTitles = discourseArts.map(a => (a.title_en || a.title || "").toLowerCase());
+                                const adjournedCount = allTitles.filter(t => t.includes("adjourn") || t.includes("disrupted") || t.includes("uproar") || t.includes("chaos")).length;
+                                const demandsCount = allTitles.filter(t => t.includes("demand") || t.includes("resign") || t.includes("protest") || t.includes("oppose")).length;
+
+                                // Build discourse entities
+                                const discEntCount: Record<string, number> = {};
+                                for (const a of discourseArts) {
+                                    for (const e of [...(a.entities?.people || []), ...(a.entities?.orgs || [])]) {
+                                        if (e && e.length > 2) discEntCount[e] = (discEntCount[e] || 0) + 1;
+                                    }
+                                }
+                                const topDiscEnt = Object.entries(discEntCount).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([n]) => n);
+
+                                const parts: string[] = [];
+                                if (adjournedCount >= 2) parts.push(`Assembly proceedings were significantly disrupted today — ${adjournedCount} reports indicate adjournments or chaos`);
+                                else if (topNeg) parts.push(`Legislative discourse is contentious, led by <em>${cleanTitle(topNeg.title_en || topNeg.title || "")}</em>`);
+                                if (demandsCount > 0) parts.push(`Opposition raised ${demandsCount} demand${demandsCount > 1 ? "s" : ""} or protest${demandsCount > 1 ? "s" : ""} in today's session`);
+                                if (topPos) parts.push(`On the positive side, <em>${cleanTitle(topPos.title_en || topPos.title || "")}</em> was highlighted`);
+                                if (topDiscEnt.length > 0) parts.push(`Key figures: ${topDiscEnt.join(", ")}`);
+
+                                if (parts.length === 0) return null;
+                                return (
+                                    <div className="px-4 py-3 border-b border-slate-700/20">
+                                        <p className="text-2xs font-mono text-teal-400/60 uppercase tracking-wider mb-2">📋 Analysis</p>
+                                        <p className="text-xs text-slate-300 leading-relaxed"
+                                            dangerouslySetInnerHTML={{ __html: parts.join(". ") + "." }} />
+                                    </div>
+                                );
+                            })()}
 
                             {/* Key discourse articles */}
                             <div className="px-4 py-3">
@@ -2159,12 +2229,6 @@ export default function DailyIntelPage() {
                                 <PoliticalAnalysisSection articles={articles} />
                             </SectionCard>
 
-                            {/* Media Tone — collapsed by default */}
-                            <SectionCard title="Media Tone Analysis" icon={<Radio size={15} />}
-                                badge={<span className="text-2xs text-slate-500 ml-1">How Odisha is covered today</span>}
-                                defaultOpen={false}>
-                                <MediaToneSection sentiment={sentimentData} articles={articles} />
-                            </SectionCard>
                         </div>
 
                         {/* ── RIGHT COLUMN: Quick overview panels (2/5 width) ── */}
