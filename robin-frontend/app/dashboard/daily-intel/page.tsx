@@ -165,6 +165,244 @@ function assignSectors(articles: Article[]): Record<string, Article[]> {
     return map;
 }
 
+// ─── Story Brief Builder (Prompt-engineered "What happened / Why it matters") ──
+
+function cleanTitle(raw: string): string {
+    return raw
+        .replace(/\s*[|–—]\s*.{0,50}$/, "")  // strip " | SourceName" suffix
+        .replace(/^\[VIDEO\]\s*/i, "")          // strip [VIDEO] prefix
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+function buildStoryBrief(a: Article): { storyName: string; whatHappened: string; whyItMatters: string } {
+    const rawTitle = a.title_en || a.title || "";
+    const storyName = cleanTitle(rawTitle);
+    const summary = (a.summary || "").trim();
+
+    // Split summary into "what happened" (first sentence) and "why it matters" (rest)
+    const firstPeriod = summary.search(/\.\s+[A-Z]/);
+    let whatHappened: string;
+    let whyItMatters: string;
+
+    if (firstPeriod > 20 && firstPeriod < 300) {
+        whatHappened = summary.slice(0, firstPeriod + 1).trim();
+        const rest = summary.slice(firstPeriod + 2).trim();
+        whyItMatters = rest.length > 15 ? (rest.length > 200 ? rest.slice(0, 200) + "…" : rest) : deriveImplication(a);
+    } else if (summary.length > 20) {
+        whatHappened = summary.length > 180 ? summary.slice(0, 180) + "…" : summary;
+        whyItMatters = deriveImplication(a);
+    } else {
+        whatHappened = storyName;
+        whyItMatters = deriveImplication(a);
+    }
+
+    return { storyName: storyName.length > 70 ? storyName.slice(0, 70) + "…" : storyName, whatHappened, whyItMatters };
+}
+
+function deriveImplication(a: Article): string {
+    const sentiment = (a.sentiment || "neutral").toLowerCase();
+    const score = a.importance_score || 5;
+    const keywords = (a.keywords || []).slice(0, 3).join(", ");
+    const sector = ODISHA_SECTORS.find(s => s.keywords.some(kw => {
+        const text = [(a.title_en || a.title), a.summary].filter(Boolean).join(" ").toLowerCase();
+        return text.includes(kw);
+    }))?.label || "governance";
+
+    if (sentiment === "negative" && score >= 8) return `This raises critical concerns for ${sector} in Odisha${keywords ? ` — particularly around ${keywords}` : ""}. Immediate monitoring recommended.`;
+    if (sentiment === "negative" && score >= 6) return `This development signals emerging pressure on ${sector} policy. Requires continued tracking.`;
+    if (sentiment === "positive" && score >= 7) return `A positive outcome for ${sector}${keywords ? `, notably in ${keywords}` : ""}. May indicate improving conditions or effective policy delivery.`;
+    if (score >= 8) return `High-importance development (${score}/10) with potential cross-sector implications for Odisha. Warrants official attention.`;
+    return `This story is being monitored for further developments across ${sector} channels.`;
+}
+
+// ─── Department-wise Relevance Matrix ─────────────────────────────────────────
+
+const SECTOR_DEPT: Record<string, { dept: string; riskType: string }> = {
+    agriculture:    { dept: "Agriculture & Farmers Welfare", riskType: "Economic / Welfare" },
+    disaster:       { dept: "Revenue & Disaster Management", riskType: "Operational / Crisis" },
+    mining:         { dept: "Steel & Mines / Industries", riskType: "Economic / Regulatory" },
+    health:         { dept: "Health & Family Welfare", riskType: "Public Health" },
+    laworder:       { dept: "Home / Police / Judiciary", riskType: "Security / Legal" },
+    infrastructure: { dept: "Works / Housing / Urban Dev.", riskType: "Operational / Dev." },
+    education:      { dept: "School & Mass Education", riskType: "Social / Policy" },
+};
+
+function getSuggestedPosture(articles: Article[]): string {
+    const negCount = articles.filter(a => (a.sentiment || "").toLowerCase() === "negative").length;
+    const maxScore = Math.max(...articles.map(a => a.importance_score || 0));
+    if (maxScore >= 9 || negCount / articles.length >= 0.6) return "Escalate";
+    if (maxScore >= 7 || negCount / articles.length >= 0.4) return "Investigate";
+    return "Monitor";
+}
+
+// ─── Strategic Intelligence Briefing ─────────────────────────────────────────
+
+function StrategicBriefingSection({ articles, sectorMap, narrative, riskLevel, critCount }: {
+    articles: Article[];
+    sectorMap: Record<string, Article[]>;
+    narrative: { executive_summary?: string; key_developments?: string; emerging_threats?: string } | null;
+    riskLevel: string;
+    critCount: number;
+}) {
+    const sorted = [...articles].sort((a, b) => (b.importance_score || 0) - (a.importance_score || 0));
+    const priorityStories = sorted.filter(a => !cleanTitle(a.title_en || a.title || "").startsWith("[VIDEO]")).slice(0, 5);
+    const top3 = priorityStories.slice(0, 3);
+    const additional = priorityStories.slice(3, 6);
+
+    // Risk & Narrative narrative — use API narrative if available, else compute
+    const riskNarrative = narrative?.executive_summary
+        ? narrative.executive_summary.replace(/^Situation summary[\s\S]*?\n\n/, "").slice(0, 500)
+        : (() => {
+            const negHigh = sorted.filter(a => (a.sentiment || "").toLowerCase() === "negative" && (a.importance_score || 0) >= 6);
+            const topEntCount: Record<string, number> = {};
+            for (const a of articles.slice(0, 20)) {
+                for (const e of [...(a.entities?.people || []), ...(a.entities?.orgs || [])]) {
+                    if (e && e.length > 2) topEntCount[e] = (topEntCount[e] || 0) + 1;
+                }
+            }
+            const topEnts = Object.entries(topEntCount).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([n]) => n);
+            const activeSectors = ODISHA_SECTORS.filter(s => (sectorMap[s.key] || []).length > 0);
+
+            return `Media monitoring across ${articles.length} articles identifies ${negHigh.length} high-concern ${negHigh.length === 1 ? "story" : "stories"} in today's coverage. `
+                + `Active governance domains: ${activeSectors.map(s => s.label).join(", ")}. `
+                + (topEnts.length > 0 ? `Key figures in focus: ${topEnts.join(", ")}. ` : "")
+                + (critCount > 0 ? `${critCount} critical-severity article${critCount > 1 ? "s" : ""} detected — immediate attention recommended.` : "No critical-severity articles. Situation broadly stable.");
+        })();
+
+    // Department matrix from sectorMap
+    const deptRows = ODISHA_SECTORS.map(s => {
+        const arts = sectorMap[s.key] || [];
+        if (arts.length === 0) return null;
+        const top = [...arts].sort((a, b) => (b.importance_score || 0) - (a.importance_score || 0))[0];
+        const d = SECTOR_DEPT[s.key];
+        const posture = getSuggestedPosture(arts);
+        return { sector: s.label, icon: s.icon, dept: d.dept, riskType: d.riskType, posture, count: arts.length, topTitle: cleanTitle(top.title_en || top.title || "") };
+    }).filter(Boolean) as { sector: string; icon: string; dept: string; riskType: string; posture: string; count: number; topTitle: string }[];
+
+    const postureColor = (p: string) => p === "Escalate" ? "text-red-400 bg-red-500/10 border-red-500/20" : p === "Investigate" ? "text-amber-400 bg-amber-500/10 border-amber-500/20" : "text-teal-400 bg-teal-500/10 border-teal-500/20";
+
+    if (articles.length === 0) return null;
+
+    return (
+        <div className="bg-surface border border-border rounded-xl overflow-hidden">
+            <div className="px-5 py-3 border-b border-border flex items-center gap-2">
+                <span className="text-sm">📋</span>
+                <span className="text-xs font-bold text-text-primary uppercase tracking-widest">Strategic Intelligence Briefing</span>
+                <span className={cn("ml-auto text-2xs font-mono px-2 py-0.5 rounded border",
+                    riskLevel === "CRITICAL" ? "text-red-400 bg-red-500/10 border-red-500/20" :
+                    riskLevel === "HIGH" ? "text-amber-400 bg-amber-500/10 border-amber-500/20" :
+                    riskLevel === "ELEVATED" ? "text-yellow-400 bg-yellow-500/10 border-yellow-500/20" :
+                    "text-teal-400 bg-teal-500/10 border-teal-500/20"
+                )}>{riskLevel} RISK ENVIRONMENT</span>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 divide-y lg:divide-y-0 lg:divide-x divide-border">
+
+                {/* Panel A: Top Priority Stories */}
+                <div className="p-5">
+                    <p className="text-2xs font-mono text-teal-400 uppercase tracking-wider mb-4 flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-teal-400 inline-block" />
+                        Top Priority Stories
+                    </p>
+                    <div className="space-y-4">
+                        {top3.map((a, i) => {
+                            const { storyName, whatHappened, whyItMatters } = buildStoryBrief(a);
+                            return (
+                                <div key={a.id}>
+                                    <a href={a.url} target="_blank" rel="noreferrer"
+                                        className="text-sm font-bold text-text-primary hover:text-teal-400 transition-colors leading-snug block mb-1.5">
+                                        {storyName}
+                                    </a>
+                                    <p className="text-xs text-text-secondary leading-relaxed">
+                                        <span className="font-semibold text-text-primary">What happened:</span>{" "}
+                                        {whatHappened}
+                                    </p>
+                                    <p className="text-xs text-text-muted leading-relaxed mt-1">
+                                        <span className="font-semibold text-text-secondary">Why it matters:</span>{" "}
+                                        {whyItMatters}
+                                    </p>
+                                    {i < top3.length - 1 && <div className="mt-3.5 border-t border-border" />}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Panel B: Additional Stories to Track */}
+                <div className="p-5">
+                    <p className="text-2xs font-mono text-amber-400 uppercase tracking-wider mb-4 flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
+                        Additional Stories to Track
+                    </p>
+                    {additional.length > 0 ? (
+                        <div className="space-y-3">
+                            {additional.map(a => {
+                                const { storyName, whatHappened } = buildStoryBrief(a);
+                                const sev = severityFromScore(a.importance_score);
+                                return (
+                                    <div key={a.id} className="flex items-start gap-2.5">
+                                        <span className={cn("text-2xs font-mono px-1.5 py-0.5 rounded flex-shrink-0 mt-0.5 border", SEV[sev].pill)}>
+                                            {SEV[sev].label}
+                                        </span>
+                                        <div className="min-w-0">
+                                            <a href={a.url} target="_blank" rel="noreferrer"
+                                                className="text-xs font-semibold text-text-primary hover:text-teal-400 transition-colors leading-snug block">
+                                                {storyName}
+                                            </a>
+                                            <p className="text-2xs text-text-muted mt-0.5 line-clamp-2">{whatHappened}</p>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <p className="text-xs text-text-muted italic">No additional stories above threshold today.</p>
+                    )}
+                </div>
+            </div>
+
+            {/* Bottom row */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 divide-y lg:divide-y-0 lg:divide-x divide-border border-t border-border">
+
+                {/* Panel C: Risk and Narrative Map */}
+                <div className="p-5">
+                    <p className="text-2xs font-mono text-violet-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-violet-400 inline-block" />
+                        Risk and Narrative Map
+                    </p>
+                    <p className="text-xs text-text-secondary leading-relaxed">{riskNarrative}</p>
+                </div>
+
+                {/* Panel D: Department-wise Relevance Matrix */}
+                <div className="p-5">
+                    <p className="text-2xs font-mono text-sky-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-sky-400 inline-block" />
+                        Department-wise Relevance Matrix
+                    </p>
+                    <div className="space-y-2">
+                        {deptRows.slice(0, 6).map(row => (
+                            <div key={row.sector} className="flex items-start gap-2">
+                                <span className="text-xs flex-shrink-0 mt-0.5">{row.icon}</span>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="text-xs font-medium text-text-primary">{row.dept}</span>
+                                        <span className={cn("text-2xs font-mono px-1.5 py-0.5 rounded border flex-shrink-0", postureColor(row.posture))}>
+                                            {row.posture}
+                                        </span>
+                                    </div>
+                                    <p className="text-2xs text-text-muted mt-0.5 truncate">{row.topTitle}</p>
+                                </div>
+                                <span className="text-2xs text-text-muted font-mono flex-shrink-0">{row.count}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // ─── Auto-generate summary from articles ─────────────────────────────────────
 
 function buildSummaryFromArticles(articles: Article[], sectorMap: Record<string, Article[]>, date: string): ComputedSummary {
@@ -173,53 +411,44 @@ function buildSummaryFromArticles(articles: Article[], sectorMap: Record<string,
     const negHigh = sorted.filter(a => a.sentiment?.toUpperCase() === "NEGATIVE" && (a.importance_score || 0) >= 6);
     const dateLabel = fmtDate(date);
 
-    // Executive Summary
-    const execLines = top5
-        .filter(a => a.summary)
-        .map((a, i) => `${i + 1}. ${a.title_en || a.title}: ${(a.summary || "").slice(0, 160).trim()}${(a.summary || "").length > 160 ? "..." : ""}`);
-    const executive_summary = execLines.length > 0
-        ? `Situation summary for ${dateLabel}. ${articles.length} articles monitored across ${Object.values(sectorMap).filter(v => v.length > 0).length} active governance domains.\n\n${execLines.join("\n\n")}`
+    // Executive Summary — lead with key finding, not article count
+    const topStory = top5[0] ? buildStoryBrief(top5[0]) : null;
+    const negCount = negHigh.length;
+    const activeSectors = ODISHA_SECTORS.filter(s => (sectorMap[s.key] || []).length > 0).length;
+    const executive_summary = topStory
+        ? `${articles.length} articles monitored across ${activeSectors} active domains on ${dateLabel}. Lead story: ${topStory.storyName}. ${topStory.whatHappened}${negCount > 0 ? ` ${negCount} high-concern development${negCount > 1 ? "s" : ""} detected.` : " No critical-severity developments detected."}`
         : `${articles.length} articles collected for ${dateLabel}. No high-importance developments detected.`;
 
-    // Key Developments — one line per active sector
-    const devLines: string[] = [];
-    for (const s of ODISHA_SECTORS) {
-        const arts = sectorMap[s.key];
-        if (arts.length === 0) continue;
-        const topArt = [...arts].sort((a, b) => (b.importance_score || 0) - (a.importance_score || 0))[0];
-        devLines.push(`${s.icon} ${s.label} (${arts.length} articles): ${topArt.title_en || topArt.title}`);
-    }
-    const key_developments = devLines.length > 0
-        ? devLines.join("\n")
-        : "No sector-specific developments identified for this date.";
+    // Key Developments — "What happened / Why it matters" per top story
+    const briefs = top5.filter(a => a.summary || a.title_en || a.title).slice(0, 5).map(a => {
+        const { storyName, whatHappened, whyItMatters } = buildStoryBrief(a);
+        return `**${storyName}** What happened: ${whatHappened} Why it matters: ${whyItMatters}`;
+    });
+    const key_developments = briefs.length > 0
+        ? briefs.join("\n\n")
+        : "No significant developments identified for this date.";
 
     // Emerging Threats
-    const threatLines = negHigh
-        .slice(0, 5)
-        .map(a => `• ${a.title_en || a.title}${a.summary ? ` — ${a.summary.slice(0, 120)}...` : ""}`);
+    const threatLines = negHigh.slice(0, 5).map(a => {
+        const { storyName, whatHappened } = buildStoryBrief(a);
+        return `• **${storyName}**: ${whatHappened}`;
+    });
     const emerging_threats = threatLines.length > 0
-        ? `${negHigh.length} high-importance negative developments detected:\n\n${threatLines.join("\n\n")}`
-        : "No significant emerging threats identified. Situation appears stable across monitored domains.";
+        ? `${negHigh.length} high-importance adverse development${negHigh.length > 1 ? "s" : ""} detected:\n\n${threatLines.join("\n\n")}`
+        : "No significant adverse developments identified. Situation appears stable.";
 
-    // Watch List — top entities from articles
+    // Watch List — top entities with context
     const entityCount: Record<string, number> = {};
     for (const a of articles) {
-        const all = [
-            ...(a.entities?.people || []),
-            ...(a.entities?.orgs || []),
-            ...(a.entities?.locations || []),
-        ];
-        for (const e of all) {
-            entityCount[e] = (entityCount[e] || 0) + 1;
+        for (const e of [...(a.entities?.people || []), ...(a.entities?.orgs || []), ...(a.entities?.locations || [])]) {
+            if (e && e.length > 2) entityCount[e] = (entityCount[e] || 0) + 1;
         }
     }
-    const topEntities = Object.entries(entityCount)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10)
+    const topEntities = Object.entries(entityCount).sort((a, b) => b[1] - a[1]).slice(0, 10)
         .map(([name, count]) => `• ${name} (${count} mention${count > 1 ? "s" : ""})`);
     const watch_list = topEntities.length > 0
-        ? `Key entities appearing in today's coverage:\n\n${topEntities.join("\n")}`
-        : "No prominent entities identified in today's articles.";
+        ? `Key figures and organisations in today's coverage:\n\n${topEntities.join("\n")}`
+        : "No prominent entities identified.";
 
     return { executive_summary, key_developments, emerging_threats, watch_list };
 }
@@ -847,73 +1076,134 @@ function PoliticalAnalysisSection({ articles }: { articles: Article[] }) {
 
                 return (
                     <div className="space-y-3">
-                        {/* Key Insight Block */}
+                            {/* Key Insight Block */}
                         <div className="rounded-lg border border-slate-700/30 bg-slate-900/60 px-5 py-4">
                             <p className="text-2xs font-mono text-teal-400/70 uppercase tracking-wider mb-3">📋 Today&apos;s Political Landscape — Key Insights</p>
-                            <div className="space-y-2.5">
-                                {/* Govt coverage insight */}
-                                <div className="flex items-start gap-2">
-                                    <span className={cn("w-2 h-2 rounded-full flex-shrink-0 mt-1.5", govtTone.color === "text-emerald-400" ? "bg-emerald-500" : govtTone.color === "text-amber-400" ? "bg-amber-500" : govtTone.color === "text-red-400" ? "bg-red-500" : "bg-slate-500")} />
-                                    <p className="text-sm text-slate-300 leading-relaxed">
-                                        <span className="font-semibold text-slate-100">Government coverage</span> is{" "}
-                                        <span className={govtTone.color}>{govtTone.label.toLowerCase()}</span>{" "}
-                                        ({gs.pos} positive, {gs.neg} critical across {govtArts.length} article{govtArts.length !== 1 ? "s" : ""}{srcSet.size > 0 ? ` from ${srcSet.size} source${srcSet.size !== 1 ? "s" : ""}` : ""}).
-                                        {gs.neg === 0 && gs.pos > 0 && " No critical coverage of the government detected today."}
-                                    </p>
-                                </div>
+                            <div className="space-y-3">
 
-                                {/* Critical issues */}
-                                {criticalTitles.length > 0 && (
-                                    <div className="flex items-start gap-2">
-                                        <span className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5 bg-red-500" />
-                                        <p className="text-sm text-slate-300 leading-relaxed">
-                                            <span className="font-semibold text-red-400">Issues requiring attention:</span>{" "}
-                                            {criticalTitles.map((t, i) => (
-                                                <span key={i}>{i > 0 ? "; " : ""}<span className="text-slate-200 italic">{t.length > 90 ? t.slice(0, 90) + "…" : t}</span></span>
-                                            ))}.
-                                        </p>
+                                {/* CM / Govt Actions today */}
+                                {(() => {
+                                    const cmArts = govtArts.filter(a => {
+                                        const t = (a.title_en || a.title || "").toLowerCase();
+                                        return t.includes("cm") || t.includes("chief minister") || t.includes("mohan majhi") || t.includes("mohan c. majhi");
+                                    }).sort((a, b) => (b.importance_score || 0) - (a.importance_score || 0)).slice(0, 3);
+
+                                    if (cmArts.length === 0 && govtArts.length === 0) return null;
+                                    const displayArts = cmArts.length > 0 ? cmArts : govtArts.slice(0, 2);
+                                    return (
+                                        <div className="flex items-start gap-2.5">
+                                            <span className="text-base flex-shrink-0">🏛️</span>
+                                            <div>
+                                                <p className="text-xs font-semibold text-slate-200 mb-1">CM &amp; Government Actions</p>
+                                                <div className="space-y-1.5">
+                                                    {displayArts.map(a => (
+                                                        <a key={a.id} href={a.url} target="_blank" rel="noreferrer"
+                                                            className="flex items-start gap-2 group">
+                                                            <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5",
+                                                                (a.sentiment || "").toLowerCase() === "positive" ? "bg-emerald-400" :
+                                                                (a.sentiment || "").toLowerCase() === "negative" ? "bg-red-400" : "bg-teal-400"
+                                                            )} />
+                                                            <span className="text-sm text-slate-300 group-hover:text-teal-300 transition-colors leading-snug">{cleanTitle(a.title_en || a.title || "")}</span>
+                                                        </a>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
+                                {/* Opposition & Critical Discourse */}
+                                {(() => {
+                                    const oppArts = [
+                                        ...discourseArts.filter(a => (a.sentiment || "").toLowerCase() === "negative"),
+                                        ...focusArts.filter(a => {
+                                            const t = (a.title_en || a.title || "").toLowerCase();
+                                            return t.includes("bjd") || t.includes("congress") || t.includes("opposition") || t.includes("demand") || t.includes("protest");
+                                        })
+                                    ].sort((a, b) => (b.importance_score || 0) - (a.importance_score || 0))
+                                    .filter((a, i, arr) => arr.findIndex(x => x.id === a.id) === i)
+                                    .slice(0, 3);
+
+                                    if (oppArts.length === 0) return (
+                                        <div className="flex items-start gap-2.5">
+                                            <span className="text-base flex-shrink-0">🗣️</span>
+                                            <p className="text-sm text-slate-400">No significant opposition activity or legislative flashpoints reported today.</p>
+                                        </div>
+                                    );
+                                    return (
+                                        <div className="flex items-start gap-2.5">
+                                            <span className="text-base flex-shrink-0">🗣️</span>
+                                            <div>
+                                                <p className="text-xs font-semibold text-slate-200 mb-1">Opposition &amp; Political Flashpoints</p>
+                                                <div className="space-y-1.5">
+                                                    {oppArts.map(a => (
+                                                        <a key={a.id} href={a.url} target="_blank" rel="noreferrer"
+                                                            className="flex items-start gap-2 group">
+                                                            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5 bg-red-400" />
+                                                            <span className="text-sm text-slate-300 group-hover:text-amber-300 transition-colors leading-snug">{cleanTitle(a.title_en || a.title || "")}</span>
+                                                        </a>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
+                                {/* Achievements & Positive Policy */}
+                                {topAchievements.length > 0 && (
+                                    <div className="flex items-start gap-2.5">
+                                        <span className="text-base flex-shrink-0">✅</span>
+                                        <div>
+                                            <p className="text-xs font-semibold text-slate-200 mb-1">Policy &amp; Welfare Highlights</p>
+                                            <div className="space-y-1.5">
+                                                {topAchievements.map(a => (
+                                                    <a key={a.id} href={a.url} target="_blank" rel="noreferrer"
+                                                        className="flex items-start gap-2 group">
+                                                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5 bg-emerald-400" />
+                                                        <span className="text-sm text-slate-300 group-hover:text-emerald-300 transition-colors leading-snug">{cleanTitle(a.title_en || a.title || "")}</span>
+                                                    </a>
+                                                ))}
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
 
-                                {/* Positive achievement */}
-                                {positiveTitle && (
-                                    <div className="flex items-start gap-2">
-                                        <span className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5 bg-emerald-500" />
-                                        <p className="text-sm text-slate-300 leading-relaxed">
-                                            <span className="font-semibold text-emerald-400">Notable positive:</span>{" "}
-                                            <span className="text-slate-200 italic">{positiveTitle.length > 100 ? positiveTitle.slice(0, 100) + "…" : positiveTitle}</span>
-                                        </p>
-                                    </div>
-                                )}
+                                {/* Media Narrative Framing */}
+                                {(() => {
+                                    // Derive the dominant narrative framing from most-repeated keywords/topics
+                                    const allPolitical = [...govtArts, ...discourseArts];
+                                    const wordFreq: Record<string, number> = {};
+                                    for (const a of allPolitical) {
+                                        for (const kw of (a.keywords || [])) {
+                                            const k = kw.toLowerCase().trim();
+                                            if (k.length > 3 && !["odisha", "india", "state", "news", "today"].includes(k))
+                                                wordFreq[k] = (wordFreq[k] || 0) + 1;
+                                        }
+                                    }
+                                    const topTopics = Object.entries(wordFreq).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([kw]) => kw);
+                                    if (topTopics.length === 0 && topEntities.length === 0) return null;
+                                    return (
+                                        <div className="flex items-start gap-2.5">
+                                            <span className="text-base flex-shrink-0">📰</span>
+                                            <div>
+                                                <p className="text-xs font-semibold text-slate-200 mb-1">Media Narrative Framing</p>
+                                                <p className="text-sm text-slate-400 leading-relaxed">
+                                                    {topTopics.length > 0 && (
+                                                        <>Top themes in political coverage: {topTopics.map((t, i) => (
+                                                            <span key={t}>{i > 0 ? ", " : ""}<span className="text-teal-300">{t}</span></span>
+                                                        ))}. </>
+                                                    )}
+                                                    {topEntities.length > 0 && (
+                                                        <>Key figures: {topEntities.slice(0, 3).map((e, i) => (
+                                                            <span key={e.name}>{i > 0 ? ", " : ""}<span className="text-violet-300">{e.name}</span> ({e.count}×)</span>
+                                                        ))}.</>
+                                                    )}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
 
-                                {/* Discourse insight */}
-                                {discourseArts.length > 0 && (
-                                    <div className="flex items-start gap-2">
-                                        <span className={cn("w-2 h-2 rounded-full flex-shrink-0 mt-1.5", ds.negPct >= 50 ? "bg-red-400" : "bg-slate-500")} />
-                                        <p className="text-sm text-slate-300 leading-relaxed">
-                                            <span className="font-semibold text-slate-100">Political discourse</span>{" "}
-                                            ({discourseArts.length} article{discourseArts.length !== 1 ? "s" : ""}) is{" "}
-                                            {ds.negPct >= 60 ? <span className="text-red-400">predominantly critical</span>
-                                                : ds.negPct >= 40 ? <span className="text-amber-400">mixed with significant criticism</span>
-                                                : ds.posPct >= 50 ? <span className="text-emerald-400">broadly constructive</span>
-                                                : <span className="text-slate-400">largely neutral / procedural</span>}.
-                                            {discNeg.length > 0 && <span className="text-slate-400"> Key flashpoints: <span className="text-slate-300 italic">{discNeg.map(a => (a.title_en || a.title).split("|")[0].trim().slice(0, 70)).join("; ")}</span>.</span>}
-                                        </p>
-                                    </div>
-                                )}
-
-                                {/* Key people/orgs */}
-                                {topEntities.length > 0 && (
-                                    <div className="flex items-start gap-2">
-                                        <span className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5 bg-violet-500" />
-                                        <p className="text-sm text-slate-300 leading-relaxed">
-                                            <span className="font-semibold text-slate-100">Most mentioned:</span>{" "}
-                                            {topEntities.map((e, i) => (
-                                                <span key={e.name}>{i > 0 ? ", " : ""}<span className="text-violet-300">{e.name}</span> ({e.count}×)</span>
-                                            ))}.
-                                        </p>
-                                    </div>
-                                )}
                             </div>
                         </div>
                     </div>
@@ -1836,6 +2126,15 @@ export default function DailyIntelPage() {
                             </div>
                         );
                     })()}
+
+                    {/* ── Strategic Intelligence Briefing ── */}
+                    <StrategicBriefingSection
+                        articles={articles}
+                        sectorMap={sectorMap}
+                        narrative={intelData?.narrative || null}
+                        riskLevel={riskLevel}
+                        critCount={critCount}
+                    />
 
                     {/* ── 2-COLUMN NEWSPAPER LAYOUT ── */}
                     <div className="grid grid-cols-1 xl:grid-cols-5 gap-4 items-start">
