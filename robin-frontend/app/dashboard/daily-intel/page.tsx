@@ -2090,6 +2090,15 @@ export default function DailyIntelPage() {
                         </div>
                     </div>
 
+                    {/* ── Strategic Intelligence Briefing ── */}
+                    <StrategicBriefingSection
+                        articles={articles}
+                        sectorMap={sectorMap}
+                        narrative={intelData?.narrative || null}
+                        riskLevel={riskLevel}
+                        critCount={critCount}
+                    />
+
                     {/* Source Activity Strip */}
                     {articles.length > 0 && (() => {
                         const sourceCounts: Record<string, { count: number; neg: number; pos: number }> = {};
@@ -2126,15 +2135,6 @@ export default function DailyIntelPage() {
                             </div>
                         );
                     })()}
-
-                    {/* ── Strategic Intelligence Briefing ── */}
-                    <StrategicBriefingSection
-                        articles={articles}
-                        sectorMap={sectorMap}
-                        narrative={intelData?.narrative || null}
-                        riskLevel={riskLevel}
-                        critCount={critCount}
-                    />
 
                     {/* ── 2-COLUMN NEWSPAPER LAYOUT ── */}
                     <div className="grid grid-cols-1 xl:grid-cols-5 gap-4 items-start">
