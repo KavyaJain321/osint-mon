@@ -310,17 +310,14 @@ function StrategicBriefingSection({ articles, sectorMap, narrative, riskLevel, c
                             const { storyName, whatHappened, whyItMatters } = buildStoryBrief(a);
                             return (
                                 <div key={a.id}>
-                                    <a href={a.url} target="_blank" rel="noreferrer"
-                                        className="text-sm font-bold text-text-primary hover:text-teal-400 transition-colors leading-snug block mb-1.5">
-                                        {storyName}
-                                    </a>
-                                    <p className="text-xs text-text-secondary leading-relaxed">
-                                        <span className="font-semibold text-text-primary">What happened:</span>{" "}
-                                        {whatHappened}
-                                    </p>
-                                    <p className="text-xs text-text-muted leading-relaxed mt-1">
-                                        <span className="font-semibold text-text-secondary">Why it matters:</span>{" "}
-                                        {whyItMatters}
+                                    <p className="text-sm text-text-secondary leading-relaxed">
+                                        <a href={a.url} target="_blank" rel="noreferrer"
+                                            className="font-bold text-text-primary hover:text-teal-400 transition-colors">
+                                            {storyName}
+                                        </a>{" "}
+                                        <span className="font-semibold">What happened:</span> {whatHappened}.{" "}
+                                        <span className="font-semibold">Why it matters:</span>{" "}
+                                        <span className="text-text-muted">{whyItMatters}</span>
                                     </p>
                                     {i < top3.length - 1 && <div className="mt-3.5 border-t border-border" />}
                                 </div>
@@ -380,22 +377,42 @@ function StrategicBriefingSection({ articles, sectorMap, narrative, riskLevel, c
                         <span className="w-1.5 h-1.5 rounded-full bg-sky-400 inline-block" />
                         Department-wise Relevance Matrix
                     </p>
-                    <div className="space-y-2">
-                        {deptRows.slice(0, 6).map(row => (
-                            <div key={row.sector} className="flex items-start gap-2">
-                                <span className="text-xs flex-shrink-0 mt-0.5">{row.icon}</span>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="text-xs font-medium text-text-primary">{row.dept}</span>
-                                        <span className={cn("text-2xs font-mono px-1.5 py-0.5 rounded border flex-shrink-0", postureColor(row.posture))}>
-                                            {row.posture}
-                                        </span>
-                                    </div>
-                                    <p className="text-2xs text-text-muted mt-0.5 truncate">{row.topTitle}</p>
-                                </div>
-                                <span className="text-2xs text-text-muted font-mono flex-shrink-0">{row.count}</span>
-                            </div>
-                        ))}
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-xs border-collapse">
+                            <thead>
+                                <tr className="border-b border-border">
+                                    <th className="text-left text-2xs font-mono text-text-muted pb-2 pr-3">Story / Issue</th>
+                                    <th className="text-left text-2xs font-mono text-text-muted pb-2 pr-3">Relevant Department(s)</th>
+                                    <th className="text-left text-2xs font-mono text-text-muted pb-2 pr-3">Time-sensitivity</th>
+                                    <th className="text-left text-2xs font-mono text-text-muted pb-2 pr-3">Risk Type</th>
+                                    <th className="text-left text-2xs font-mono text-text-muted pb-2">Suggested Posture</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border/50">
+                                {deptRows.slice(0, 6).map(row => {
+                                    const topScore = [...(sectorMap[ODISHA_SECTORS.find(s => s.label === row.sector)?.key || ''] || [])]
+                                        .sort((a, b) => (b.importance_score || 0) - (a.importance_score || 0))[0]?.importance_score || 0;
+                                    const timeSens = topScore >= 8 ? "High" : topScore >= 6 ? "Medium" : "Low";
+                                    const timeSensColor = timeSens === "High" ? "text-red-400" : timeSens === "Medium" ? "text-amber-400" : "text-slate-400";
+                                    return (
+                                        <tr key={row.sector}>
+                                            <td className="py-2 pr-3 text-text-primary font-medium align-top leading-snug max-w-[140px]">
+                                                <span className="mr-1">{row.icon}</span>
+                                                <span className="line-clamp-2">{row.topTitle}</span>
+                                            </td>
+                                            <td className="py-2 pr-3 text-text-secondary align-top leading-snug">{row.dept}</td>
+                                            <td className={cn("py-2 pr-3 font-semibold align-top", timeSensColor)}>{timeSens}</td>
+                                            <td className="py-2 pr-3 text-text-muted align-top leading-snug">{row.riskType}</td>
+                                            <td className="py-2 align-top">
+                                                <span className={cn("text-2xs font-mono px-1.5 py-0.5 rounded border whitespace-nowrap", postureColor(row.posture))}>
+                                                    {row.posture === "Escalate" ? "Escalate" : row.posture === "Investigate" ? "Investigate and take action" : "Monitor closely"}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -2026,51 +2043,12 @@ export default function DailyIntelPage() {
                                 </div>
                                 <h1 className="text-lg font-bold text-text-primary mb-0.5">Daily Situation Report — {fmtDate(date)}</h1>
                                 <p className="text-xs text-text-secondary mb-3">Prepared by ROBIN Monitor System · Last refreshed {lastRefreshed.toLocaleTimeString("en-IN")}</p>
-                                {/* Article velocity — articles per hour today */}
-                                {articles.length > 0 && (() => {
-                                    const hourlyData = Array.from({ length: 24 }, (_, h) => {
-                                        const label = `${String(h).padStart(2, '0')}:00`;
-                                        const count = articles.filter(a => {
-                                            const ts = a.published_at || (a as unknown as { timestamp?: string }).timestamp || '';
-                                            if (!ts) return false;
-                                            return new Date(ts).getHours() === h;
-                                        }).length;
-                                        return { hour: label, count };
-                                    }).filter(d => d.count > 0);
-                                    if (hourlyData.length === 0) return null;
-                                    return (
-                                        <div className="mt-2">
-                                            <p className="text-xs text-slate-400 mb-2 font-mono">ARTICLE FLOW — {articles.length} articles in last 24h</p>
-                                            <ResponsiveContainer width="100%" height={60}>
-                                                <BarChart data={hourlyData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-                                                    <Bar dataKey="count" fill="var(--color-emerald)" radius={[2, 2, 0, 0]} />
-                                                    <XAxis dataKey="hour" tick={{ fill: 'var(--color-text-muted)', fontSize: 8 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
-                                                    <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '4px', fontSize: '11px' }} formatter={(v: unknown) => [`${v} articles`, 'Count']} />
-                                                </BarChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                    );
-                                })()}
-                                {/* Top entities at a glance */}
-                                {articles.length > 0 && (() => {
-                                    const entityCounts: Record<string, number> = {};
-                                    for (const a of articles) {
-                                        for (const e of [...(a.entities?.people || []), ...(a.entities?.orgs || [])]) {
-                                            entityCounts[e] = (entityCounts[e] || 0) + 1;
-                                        }
-                                    }
-                                    const top = Object.entries(entityCounts).sort((a, b) => b[1] - a[1]).slice(0, 6);
-                                    if (top.length === 0) return null;
-                                    return (
-                                        <div className="mt-3 flex flex-wrap gap-1.5">
-                                            {top.map(([name, count]) => (
-                                                <span key={name} className="text-[10px] font-mono bg-overlay text-text-secondary px-2 py-0.5 rounded border border-border">
-                                                    {name} <span className="text-text-muted">{count}×</span>
-                                                </span>
-                                            ))}
-                                        </div>
-                                    );
-                                })()}
+                                {/* Executive summary — top story digest */}
+                                {articles.length > 0 && (
+                                    <p className="text-sm text-text-secondary leading-relaxed">
+                                        {computedSummary.executive_summary}
+                                    </p>
+                                )}
                             </div>
                             <div className="flex flex-col gap-2 flex-shrink-0 min-w-[160px]">
                                 <div className="grid grid-cols-2 gap-2">
