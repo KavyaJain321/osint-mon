@@ -505,7 +505,9 @@ export default function StrategicMonitor() {
         return () => clearInterval(interval);
     }, []);
 
-    // Filtered and sorted timeline feed
+    // Filtered and sorted timeline feed — capped at 15 items for the Overview.
+    // The full feed is available on the dedicated Activity Feed page.
+    const FEED_LIMIT = 15;
     const filteredFeed = useMemo(() => {
         if (!data) return [];
         let feed = selectedKeyword
@@ -516,7 +518,10 @@ export default function StrategicMonitor() {
         else if (sevFilter === "high") feed = feed.filter(f => f.severity === "high" || f.severity === "critical");
         else if (sevFilter === "location") feed = feed.filter(f => f.riskIndicators?.length > 0 || f.matchedKeywords.some(k => k.includes("Odisha") || k.includes("India")));
 
-        return feed.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        // Sort by timestamp desc, then cap to FEED_LIMIT so Overview stays focused
+        return feed
+            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+            .slice(0, FEED_LIMIT);
     }, [data, selectedKeyword, sevFilter]);
 
     if (isLoading || !data) {
@@ -662,7 +667,9 @@ export default function StrategicMonitor() {
                                 <button onClick={() => setSelectedKeyword(null)} className="ml-1 hover:text-white"><X size={9} /></button>
                             </span>
                         )}
-                        <span className="ml-auto text-[10px] font-mono text-slate-600">{filteredFeed.length} ITEMS</span>
+                        <span className="ml-auto text-[10px] font-mono text-slate-600">
+                            {filteredFeed.length}{filteredFeed.length >= FEED_LIMIT ? "+" : ""} ITEMS
+                        </span>
                     </div>
 
                     {/* Timeline list */}
@@ -788,6 +795,15 @@ export default function StrategicMonitor() {
                                         </div>
                                     );
                                 })}
+                            </div>
+                        )}
+
+                        {/* View all link — shown when feed is capped */}
+                        {filteredFeed.length >= FEED_LIMIT && (
+                            <div className="flex items-center justify-center py-4 border-t border-slate-800/40">
+                                <Link href="/dashboard/activity" className="flex items-center gap-1.5 text-[11px] font-mono text-teal-500 hover:text-teal-300 transition-colors">
+                                    View all articles in Activity Feed <ChevronRight size={12} />
+                                </Link>
                             </div>
                         )}
                     </div>

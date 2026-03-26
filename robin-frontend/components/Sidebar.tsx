@@ -45,58 +45,42 @@ interface NavSection {
 
 const sections: NavSection[] = [
     {
-        id: "command",
-        label: "Command Center",
+        // Core intelligence workflow — what a journalist uses every day
+        id: "intelligence",
+        label: "Intelligence",
         items: [
             { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
             { href: "/dashboard/daily-intel", label: "Daily Report", icon: ClipboardList },
-        ],
-    },
-    {
-        id: "investigate",
-        label: "Investigate",
-        collapsible: true,
-        defaultOpen: true,
-        items: [
             { href: "/dashboard/intelligence", label: "Analysis", icon: Zap },
             { href: "/dashboard/entities", label: "Entities", icon: Users },
         ],
     },
     {
-        id: "feed",
-        label: "Content Feed",
+        // Live monitoring — feed + alerts together (both are "what's happening now")
+        id: "monitor",
+        label: "Monitor",
         items: [
-            { href: "/dashboard/activity", label: "Activity Feed", icon: Newspaper },
-        ],
-    },
-    {
-        id: "alerts",
-        label: "Alerts",
-        items: [
+            { href: "/dashboard/activity", label: "Content Feed", icon: Newspaper },
             { href: "/dashboard/signals", label: "Signals & Alerts", icon: Bell },
         ],
     },
     {
-        id: "reports",
-        label: "Reports",
+        // Work products — reports + source management
+        id: "workspace",
+        label: "Workspace",
         items: [
             { href: "/dashboard/reports", label: "Reports & Analytics", icon: BarChart3 },
-        ],
-    },
-    {
-        id: "sources",
-        label: "Sources",
-        items: [
-            { href: "/dashboard/sources", label: "Source Management", icon: Database },
-        ],
-    },
-    {
-        id: "setup",
-        label: "Setup",
-        collapsible: true,
-        defaultOpen: true,
-        items: [
+            { href: "/dashboard/sources", label: "Sources", icon: Database },
             { href: "/dashboard/briefs", label: "Situation Brief", icon: FileText },
+        ],
+    },
+    {
+        // Tools & admin — collapsible to keep sidebar clean
+        id: "tools",
+        label: "Tools",
+        collapsible: true,
+        defaultOpen: false,
+        items: [
             { href: "/dashboard/chat", label: "Ask ROBIN", icon: MessageSquare },
             { href: "/dashboard/admin", label: "Admin Panel", icon: Shield },
             { href: "/dashboard/admin/briefs", label: "Brief Review", icon: Settings },

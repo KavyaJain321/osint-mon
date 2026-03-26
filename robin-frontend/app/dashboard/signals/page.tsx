@@ -25,11 +25,24 @@ const SEVERITY_CONFIG: Record<string, { badge: string; border: string; dot: stri
 export default function AlertCommandCenter() {
     const { data: intel, isLoading } = useIntelligenceData();
     const intelData = intel as { signals?: IntelligenceSignal[] } | undefined;
-    // Normalize unknown severities (e.g. "watch") to "low" fallback
-    const allSignals = (intelData?.signals || []).map(s => ({
-        ...s,
-        severity: SEVERITY_CONFIG[s.severity] ? s.severity : 'watch',
-    }));
+    // Normalize unknown severities (e.g. "watch") to "low" fallback,
+    // then deduplicate by title — keep only the most-recent signal per unique title.
+    // This prevents 20 identical "Article volume spike detected X%" entries.
+    const allSignals = useMemo(() => {
+        const normalized = (intelData?.signals || []).map(s => ({
+            ...s,
+            severity: SEVERITY_CONFIG[s.severity] ? s.severity : 'watch',
+        }));
+        const seen = new Map<string, typeof normalized[number]>();
+        for (const s of normalized) {
+            const key = s.title?.trim().toLowerCase() ?? s.id;
+            const existing = seen.get(key);
+            if (!existing || new Date(s.created_at) > new Date(existing.created_at)) {
+                seen.set(key, s);
+            }
+        }
+        return Array.from(seen.values());
+    }, [intelData]);
 
     const [filter, setFilter] = useState<string>("all");
     const [expandedId, setExpandedId] = useState<string | null>(null);

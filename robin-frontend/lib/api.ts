@@ -278,9 +278,18 @@ export const dailyIntelApi = {
     criticalArticles: (date: string, limit = 10) =>
         apiFetch(`/api/articles?min_score=7&limit=${limit}&date=${date}`),
 
-    /** All articles for a date (for sector analysis) */
-    articles: (date: string, limit = 100) =>
-        apiFetch(`/api/articles?limit=${limit}&from_date=${date}T00:00:00.000Z&to_date=${date}T23:59:59.999Z`),
+    /** All articles for a date (for sector analysis).
+     * When date is today, uses a rolling 24-hour window so early-morning
+     * loads don't return 0 articles (midnight→now has very few items). */
+    articles: (date: string, limit = 100) => {
+        const todayStr = new Date().toISOString().split("T")[0];
+        if (date === todayStr) {
+            const from = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+            const to   = new Date().toISOString();
+            return apiFetch(`/api/articles?limit=${limit}&from_date=${from}&to_date=${to}`);
+        }
+        return apiFetch(`/api/articles?limit=${limit}&from_date=${date}T00:00:00.000Z&to_date=${date}T23:59:59.999Z`);
+    },
 
     /** Intelligence brief: situation summary, entity watch, signals */
     intel: () => getCachedIntelligence(),
