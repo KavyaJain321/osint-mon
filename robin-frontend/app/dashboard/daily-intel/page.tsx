@@ -175,17 +175,19 @@ function cleanTitle(raw: string): string {
         .trim();
 }
 
-/** Returns the best available English title for display. Odia-only titles
- *  are suppressed — the backend translation endpoint populates title_en. */
-function getTitle(a: Article): string {
-    const en = (a.title_en || "").trim();
-    const raw = (a.title || "").trim();
-    // Has a proper English title → use it
-    if (en && /[a-zA-Z]/.test(en)) return cleanTitle(en);
-    // Raw title is Latin (English source) → use it
+/** Core title resolver — works with any article-like object.
+ *  Prefers title_en (English). Suppresses Odia/Devanagari-only text. */
+function bestTitle(title_en: string | undefined, title: string | undefined): string {
+    const en = (title_en || "").trim();
+    const raw = (title || "").trim();
+    if (en && /[a-zA-Z]/.test(en) && !/[\u0B00-\u0B7F\u0900-\u097F]/.test(en)) return cleanTitle(en);
     if (raw && /[a-zA-Z]/.test(raw) && !/[\u0B00-\u0B7F\u0900-\u097F]/.test(raw)) return cleanTitle(raw);
-    // Odia/Devanagari only — show placeholder while translation is pending
-    return en || "[ Translation pending ]";
+    return en ? cleanTitle(en) : "[ Translation pending ]";
+}
+
+/** Convenience wrapper for full Article objects. */
+function getTitle(a: Article): string {
+    return bestTitle(a.title_en, a.title);
 }
 
 function buildStoryBrief(a: Article): { storyName: string; whatHappened: string; whyItMatters: string } {
@@ -289,7 +291,7 @@ function StrategicBriefingSection({ articles, sectorMap, narrative, riskLevel, c
         const top = [...arts].sort((a, b) => (b.importance_score || 0) - (a.importance_score || 0))[0];
         const d = SECTOR_DEPT[s.key];
         const posture = getSuggestedPosture(arts);
-        return { sector: s.label, icon: s.icon, dept: d.dept, riskType: d.riskType, posture, count: arts.length, topTitle: cleanTitle(top.title_en || top.title || "") };
+        return { sector: s.label, icon: s.icon, dept: d.dept, riskType: d.riskType, posture, count: arts.length, topTitle: bestTitle(top.title_en, top.title) };
     }).filter(Boolean) as { sector: string; icon: string; dept: string; riskType: string; posture: string; count: number; topTitle: string }[];
 
     const postureColor = (p: string) => p === "Escalate" ? "text-red-400 bg-red-500/10 border-red-500/20" : p === "Investigate" ? "text-amber-400 bg-amber-500/10 border-amber-500/20" : "text-teal-400 bg-teal-500/10 border-teal-500/20";
@@ -759,7 +761,7 @@ function TopNewsSection({ articles, reviewedIds, onReview, kwMap }: {
                                     <div className="flex items-start justify-between gap-3 mb-1.5">
                                         <h3 className={cn("text-sm font-medium leading-snug", reviewed ? "text-slate-500 line-through" : "text-slate-100")}>
                                             {isHot && <span className="inline-flex items-center mr-1.5 text-2xs font-bold text-red-400 bg-red-500/10 border border-red-500/20 px-1 py-0 rounded">🔥 HOT</span>}
-                                            {article.title_en || article.title}
+                                            {bestTitle(article.title_en, article.title)}
                                         </h3>
                                         <div className="flex items-center gap-1.5 flex-shrink-0 mt-0.5">
                                             <span className={cn("text-2xs font-mono px-1.5 py-0.5 rounded", s.pill)}>{s.label}</span>
@@ -891,8 +893,8 @@ function PoliticalAnalysisSection({ articles }: { articles: Article[] }) {
             {/* ── Political Brief ── */}
             {(govtArts.length > 0 || discourseArts.length > 0) && (() => {
                 const srcSet = new Set([...govtArts, ...discourseArts].map(a => a.source_name).filter(Boolean));
-                const topCritical = topFocus[0] ? (topFocus[0].title_en || topFocus[0].title) : null;
-                const topPos = topAchievements[0] ? (topAchievements[0].title_en || topAchievements[0].title) : null;
+                const topCritical = topFocus[0] ? bestTitle(topFocus[0].title_en, topFocus[0].title) : null;
+                const topPos = topAchievements[0] ? bestTitle(topAchievements[0].title_en, topAchievements[0].title) : null;
                 const discNegTop = discourseArts
                     .filter(a => (a.sentiment || "").toLowerCase() === "negative")
                     .sort((a, b) => (b.importance_score || 0) - (a.importance_score || 0))[0];
@@ -924,7 +926,7 @@ function PoliticalAnalysisSection({ articles }: { articles: Article[] }) {
                                     {ds.negPct >= 50 ? "heated and contentious" : ds.negPct >= 30 ? "mixed with visible friction" : "largely procedural"}
                                 </span>
                                 {discNegTop && (
-                                    <>, with flashpoints around <span className="text-slate-300 italic">&ldquo;{(discNegTop.title_en || discNegTop.title).slice(0, 65)}…&rdquo;</span></>
+                                    <>, with flashpoints around <span className="text-slate-300 italic">&ldquo;{bestTitle(discNegTop.title_en, discNegTop.title).slice(0, 65)}…&rdquo;</span></>
                                 )}.{" "}</>
                             )}
                             {topEnt && (
@@ -984,9 +986,9 @@ function PoliticalAnalysisSection({ articles }: { articles: Article[] }) {
                         const topPos = posArts[0];
 
                         const parts: string[] = [];
-                        if (topPos) parts.push(`Government and CM coverage today is led by positive reporting on <em>${cleanTitle(topPos.title_en || topPos.title || "")}</em>`);
-                        if (cmAction && cmAction.id !== topPos?.id) parts.push(`with notable activity around <em>${cleanTitle(cmAction.title_en || cmAction.title || "")}</em>`);
-                        if (topCritical) parts.push(`Media criticism focuses on <em>${cleanTitle(topCritical.title_en || topCritical.title || "")}</em>${topCritical.source_name ? ` (${topCritical.source_name})` : ""}`);
+                        if (topPos) parts.push(`Government and CM coverage today is led by positive reporting on <em>${getTitle(topPos)}</em>`);
+                        if (cmAction && cmAction.id !== topPos?.id) parts.push(`with notable activity around <em>${getTitle(cmAction)}</em>`);
+                        if (topCritical) parts.push(`Media criticism focuses on <em>${getTitle(topCritical)}</em>${topCritical.source_name ? ` (${topCritical.source_name})` : ""}`);
                         if (gs.negPct >= 50) parts.push(`with ${gs.negPct}% of articles carrying adverse framing — suggesting reputational pressure`);
                         else if (gs.posPct >= 50) parts.push(`with ${gs.posPct}% positive framing — broadly favourable coverage today`);
 
@@ -1101,9 +1103,9 @@ function PoliticalAnalysisSection({ articles }: { articles: Article[] }) {
 
                                 const parts: string[] = [];
                                 if (adjournedCount >= 2) parts.push(`Assembly proceedings were significantly disrupted today — ${adjournedCount} reports indicate adjournments or chaos`);
-                                else if (topNeg) parts.push(`Legislative discourse is contentious, led by <em>${cleanTitle(topNeg.title_en || topNeg.title || "")}</em>`);
+                                else if (topNeg) parts.push(`Legislative discourse is contentious, led by <em>${getTitle(topNeg)}</em>`);
                                 if (demandsCount > 0) parts.push(`Opposition raised ${demandsCount} demand${demandsCount > 1 ? "s" : ""} or protest${demandsCount > 1 ? "s" : ""} in today's session`);
-                                if (topPos) parts.push(`On the positive side, <em>${cleanTitle(topPos.title_en || topPos.title || "")}</em> was highlighted`);
+                                if (topPos) parts.push(`On the positive side, <em>${getTitle(topPos)}</em> was highlighted`);
                                 if (topDiscEnt.length > 0) parts.push(`Key figures: ${topDiscEnt.join(", ")}`);
 
                                 if (parts.length === 0) return null;
@@ -1165,7 +1167,7 @@ function PoliticalAnalysisSection({ articles }: { articles: Article[] }) {
 
                 // Extract key themes from titles of top articles
                 const criticalTitles = topFocus.slice(0, 3).map(a => a.title_en || a.title);
-                const positiveTitle = topAchievements[0] ? (topAchievements[0].title_en || topAchievements[0].title) : null;
+                const positiveTitle = topAchievements[0] ? bestTitle(topAchievements[0].title_en, topAchievements[0].title) : null;
 
                 // Top negative discourse items
                 const discNeg = discourseArts.filter(a => (a.sentiment || "").toLowerCase() === "negative").slice(0, 2);
@@ -1860,13 +1862,13 @@ function MediaToneSection({ sentiment, articles }: {
                             {topNeg && (
                                 <> — most prominently{" "}
                                 <span className="text-slate-200 italic">
-                                    &ldquo;{(topNeg.title_en || topNeg.title).length > 80 ? (topNeg.title_en || topNeg.title).slice(0, 80) + "…" : (topNeg.title_en || topNeg.title)}&rdquo;
+                                    &ldquo;{getTitle(topNeg).slice(0, 80)}{getTitle(topNeg).length > 80 ? "…" : ""}&rdquo;
                                 </span></>
                             )}.{" "}
                             {topPosArt ? (
                                 <>The {sentiment.positive_pct}% positive coverage is led by{" "}
                                 <span className="text-emerald-300 italic">
-                                    &ldquo;{(topPosArt.title_en || topPosArt.title).length > 65 ? (topPosArt.title_en || topPosArt.title).slice(0, 65) + "…" : (topPosArt.title_en || topPosArt.title)}&rdquo;
+                                    &ldquo;{getTitle(topPosArt).slice(0, 65)}{getTitle(topPosArt).length > 65 ? "…" : ""}&rdquo;
                                 </span>.{" "}</>
                             ) : (
                                 <>Positive coverage is low at {sentiment.positive_pct}%.{" "}</>
