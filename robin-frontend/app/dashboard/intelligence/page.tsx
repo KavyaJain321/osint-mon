@@ -174,31 +174,33 @@ export default function IntelligenceBriefPage() {
     const ps = POSTURE_STYLES[p.color] || POSTURE_STYLES.green;
 
     return (
-        <div className="h-[calc(100vh-48px)] overflow-y-auto custom-scrollbar" style={{ background: "#080a0e" }}>
-            <div className="max-w-[1400px] mx-auto px-4 py-4 space-y-4">
+        <div className="h-[calc(100vh-48px)] overflow-y-auto overflow-x-hidden custom-scrollbar" style={{ background: "#080a0e" }}>
+            <div className="w-full max-w-[1400px] mx-auto px-4 py-4 space-y-4">
 
                 {/* ═══════════════════════════════════════════════════════
                     SECTION 1: POSTURE HEADER — The 5-second answer
                    ═══════════════════════════════════════════════════════ */}
                 <div className={`rounded-lg border ${ps.border} ${ps.bg} shadow-lg ${ps.glow} p-4`}>
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3 min-w-0">
+                        {/* Left: level badge + mission title */}
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-shrink-0">
                                 <Shield size={18} className={ps.text} />
                                 <span className={`text-lg font-bold font-mono tracking-wider ${ps.text}`}>
                                     {p.level}
                                 </span>
                             </div>
                             {brief.mission && (
-                                <div className="flex items-center gap-2 pl-4 border-l border-slate-700/50">
-                                    <span className="text-[10px] font-mono text-slate-500 tracking-wider">MONITORING BRIEF</span>
-                                    <span className="text-sm font-medium text-slate-200 truncate max-w-[400px]">
+                                <div className="flex items-center gap-2 pl-3 border-l border-slate-700/50 min-w-0">
+                                    <span className="text-[10px] font-mono text-slate-500 tracking-wider flex-shrink-0">MONITORING BRIEF</span>
+                                    <span className="text-sm font-medium text-slate-200 truncate">
                                         {brief.mission.title}
                                     </span>
                                 </div>
                             )}
                         </div>
-                        <div className="flex items-center gap-5">
+                        {/* Right: metrics — always visible, never squashed */}
+                        <div className="flex items-center gap-4 flex-shrink-0">
                             <div className="text-right">
                                 <div className="text-[10px] font-mono text-slate-500">THREAT INDEX</div>
                                 <div className={`text-xl font-bold font-mono ${ps.text}`}>{p.threat_score}</div>
@@ -244,7 +246,7 @@ export default function IntelligenceBriefPage() {
                         {!showFullNarrative ? (
                             <div className="space-y-4">
                                 {/* Executive Summary */}
-                                <div className="text-[13px] text-slate-200 leading-relaxed prose prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0 max-w-none [&_table]:w-full [&_table]:text-left [&_table]:border-collapse [&_table]:my-3 [&_th]:border-b [&_th]:border-slate-800/80 [&_th]:p-2 [&_th]:text-slate-300 [&_th]:bg-slate-900/50 [&_th]:font-semibold [&_td]:border-b [&_td]:border-slate-800/50 [&_td]:p-2 [&_td]:align-top [&_tr:last-child_td]:border-0 overflow-x-auto">
+                                <div className="text-[13px] text-slate-200 leading-relaxed prose prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0 max-w-none [&_table]:min-w-full [&_table]:text-left [&_table]:border-collapse [&_table]:my-3 [&_th]:border-b [&_th]:border-slate-800/80 [&_th]:p-2 [&_th]:text-slate-300 [&_th]:bg-slate-900/50 [&_th]:font-semibold [&_td]:border-b [&_td]:border-slate-800/50 [&_td]:p-2 [&_td]:align-top [&_tr:last-child_td]:border-0 [&_table]:block [&_table]:overflow-x-auto">
                                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{brief.situation_summary.executive_summary || ''}</ReactMarkdown>
                                 </div>
 
@@ -252,7 +254,7 @@ export default function IntelligenceBriefPage() {
                                 {brief.situation_summary.key_developments && (
                                     <div>
                                         <h4 className="text-[10px] font-mono text-amber-500/70 tracking-wider mb-2">KEY DEVELOPMENTS</h4>
-                                        <div className="text-[12px] text-slate-400 leading-relaxed prose prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0 max-w-none [&_table]:w-full [&_table]:text-left [&_table]:border-collapse [&_table]:my-3 [&_th]:border-b [&_th]:border-slate-800/80 [&_th]:p-2 [&_th]:text-slate-300 [&_th]:bg-slate-900/50 [&_th]:font-semibold [&_td]:border-b [&_td]:border-slate-800/50 [&_td]:p-2 [&_td]:align-top [&_tr:last-child_td]:border-0 overflow-x-auto">
+                                        <div className="text-[12px] text-slate-400 leading-relaxed prose prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0 max-w-none [&_table]:min-w-full [&_table]:text-left [&_table]:border-collapse [&_table]:my-3 [&_th]:border-b [&_th]:border-slate-800/80 [&_th]:p-2 [&_th]:text-slate-300 [&_th]:bg-slate-900/50 [&_th]:font-semibold [&_td]:border-b [&_td]:border-slate-800/50 [&_td]:p-2 [&_td]:align-top [&_tr:last-child_td]:border-0 [&_table]:block [&_table]:overflow-x-auto">
                                             <ReactMarkdown remarkPlugins={[remarkGfm]}>{brief.situation_summary.key_developments}</ReactMarkdown>
                                         </div>
                                     </div>
@@ -262,7 +264,7 @@ export default function IntelligenceBriefPage() {
                                 {brief.situation_summary.watch_list && (
                                     <div className="border-t border-slate-800/40 pt-3">
                                         <h4 className="text-[10px] font-mono text-sky-500/70 tracking-wider mb-2">WATCH LIST — NEXT 7 DAYS</h4>
-                                        <div className="text-[12px] text-slate-400 leading-relaxed prose prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0 max-w-none [&_table]:w-full [&_table]:text-left [&_table]:border-collapse [&_table]:my-3 [&_th]:border-b [&_th]:border-slate-800/80 [&_th]:p-2 [&_th]:text-slate-300 [&_th]:bg-slate-900/50 [&_th]:font-semibold [&_td]:border-b [&_td]:border-slate-800/50 [&_td]:p-2 [&_td]:align-top [&_tr:last-child_td]:border-0 overflow-x-auto">
+                                        <div className="text-[12px] text-slate-400 leading-relaxed prose prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0 max-w-none [&_table]:min-w-full [&_table]:text-left [&_table]:border-collapse [&_table]:my-3 [&_th]:border-b [&_th]:border-slate-800/80 [&_th]:p-2 [&_th]:text-slate-300 [&_th]:bg-slate-900/50 [&_th]:font-semibold [&_td]:border-b [&_td]:border-slate-800/50 [&_td]:p-2 [&_td]:align-top [&_tr:last-child_td]:border-0 [&_table]:block [&_table]:overflow-x-auto">
                                             <ReactMarkdown remarkPlugins={[remarkGfm]}>{brief.situation_summary.watch_list}</ReactMarkdown>
                                         </div>
                                     </div>
@@ -279,7 +281,7 @@ export default function IntelligenceBriefPage() {
                                 ].filter(s => s.content).map(section => (
                                     <div key={section.label}>
                                         <h4 className={`text-[10px] font-mono ${section.color} tracking-wider mb-2`}>{section.label}</h4>
-                                        <div className="text-[12px] text-slate-400 leading-relaxed prose prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0 max-w-none [&_table]:w-full [&_table]:text-left [&_table]:border-collapse [&_table]:my-3 [&_th]:border-b [&_th]:border-slate-800/80 [&_th]:p-2 [&_th]:text-slate-300 [&_th]:bg-slate-900/50 [&_th]:font-semibold [&_td]:border-b [&_td]:border-slate-800/50 [&_td]:p-2 [&_td]:align-top [&_tr:last-child_td]:border-0 overflow-x-auto">
+                                        <div className="text-[12px] text-slate-400 leading-relaxed prose prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0 max-w-none [&_table]:min-w-full [&_table]:text-left [&_table]:border-collapse [&_table]:my-3 [&_th]:border-b [&_th]:border-slate-800/80 [&_th]:p-2 [&_th]:text-slate-300 [&_th]:bg-slate-900/50 [&_th]:font-semibold [&_td]:border-b [&_td]:border-slate-800/50 [&_td]:p-2 [&_td]:align-top [&_tr:last-child_td]:border-0 [&_table]:block [&_table]:overflow-x-auto">
                                             <ReactMarkdown remarkPlugins={[remarkGfm]}>{section.content || ''}</ReactMarkdown>
                                         </div>
                                     </div>
