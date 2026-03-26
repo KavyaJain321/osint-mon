@@ -80,6 +80,9 @@ app.get('/health', async (_req, res) => {
     res.status(health.status === 'ok' ? 200 : 503).json(health);
 });
 
+// ── Ping (keep-alive for cron-job.org — minimal response to stay under 16KB limit) ──
+app.get('/ping', (_req, res) => res.send('ok'));
+
 // ── Dev Dashboard (HTML pages only in development) ───────────
 if (!config.isProduction) {
     app.get('/dashboard', (_req, res) => res.sendFile(path.join(__dirname, '..', 'test-dashboard.html')));
