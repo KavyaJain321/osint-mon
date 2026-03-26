@@ -160,7 +160,7 @@ export default function IntelligenceBriefPage() {
 
     if (isLoading || !data) {
         return (
-            <div className="h-[calc(100vh-48px)] flex items-center justify-center" style={{ background: "#080a0e" }}>
+            <div className="h-[calc(100vh-48px)] flex items-center justify-center bg-base">
                 <div className="text-center space-y-3">
                     <div className="w-8 h-8 border-2 border-teal-500/30 border-t-teal-500 rounded-full animate-spin mx-auto" />
                     <p className="text-xs text-slate-500 font-mono tracking-wider">COMPILING SITUATION BRIEF...</p>
@@ -174,7 +174,7 @@ export default function IntelligenceBriefPage() {
     const ps = POSTURE_STYLES[p.color] || POSTURE_STYLES.green;
 
     return (
-        <div className="h-[calc(100vh-48px)] overflow-y-auto overflow-x-hidden custom-scrollbar" style={{ background: "#080a0e" }}>
+        <div className="h-[calc(100vh-48px)] overflow-y-auto overflow-x-hidden custom-scrollbar bg-base">
             <div className="w-full max-w-[1400px] mx-auto px-4 py-4 space-y-4">
 
                 {/* ═══════════════════════════════════════════════════════
@@ -224,7 +224,7 @@ export default function IntelligenceBriefPage() {
                     SECTION 2: SITUATION SUMMARY — The daily narrative
                    ═══════════════════════════════════════════════════════ */}
                 {brief.situation_summary?.executive_summary && (
-                    <div className="rounded-lg border border-slate-800/60 bg-[#0c0e14] p-5">
+                    <div className="rounded-lg border border-border bg-surface p-5">
                         <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
                                 <Radio size={14} className="text-teal-500" />
@@ -262,7 +262,7 @@ export default function IntelligenceBriefPage() {
 
                                 {/* Watch List */}
                                 {brief.situation_summary.watch_list && (
-                                    <div className="border-t border-slate-800/40 pt-3">
+                                    <div className="border-t border-border pt-3">
                                         <h4 className="text-[10px] font-mono text-sky-500/70 tracking-wider mb-2">WATCH LIST — NEXT 7 DAYS</h4>
                                         <div className="text-[12px] text-slate-400 leading-relaxed prose prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0 max-w-none [&_table]:min-w-full [&_table]:text-left [&_table]:border-collapse [&_table]:my-3 [&_th]:border-b [&_th]:border-slate-800/80 [&_th]:p-2 [&_th]:text-slate-300 [&_th]:bg-slate-900/50 [&_th]:font-semibold [&_td]:border-b [&_td]:border-slate-800/50 [&_td]:p-2 [&_td]:align-top [&_tr:last-child_td]:border-0 [&_table]:block [&_table]:overflow-x-auto">
                                             <ReactMarkdown remarkPlugins={[remarkGfm]}>{brief.situation_summary.watch_list}</ReactMarkdown>
@@ -305,7 +305,7 @@ export default function IntelligenceBriefPage() {
                         </div>
 
                         {brief.developments.length === 0 ? (
-                            <div className="rounded-lg border border-slate-800/40 bg-[#0c0e14] p-6 text-center">
+                            <div className="rounded-lg border border-border bg-surface p-6 text-center">
                                 <p className="text-xs text-slate-600 font-mono">No developments detected. Run batch analysis after scraping articles.</p>
                             </div>
                         ) : brief.developments.map((dev, i) => {
@@ -314,7 +314,7 @@ export default function IntelligenceBriefPage() {
                             const sentColor = dev.dominant_sentiment === "negative" ? "text-red-400" : dev.dominant_sentiment === "positive" ? "text-emerald-400" : "text-slate-400";
 
                             return (
-                                <div key={i} className="rounded-lg border border-slate-800/40 bg-[#0c0e14] overflow-hidden hover:border-slate-700/60 transition-colors">
+                                <div key={i} className="rounded-lg border border-border bg-surface overflow-hidden hover:border-slate-700/60 transition-colors">
                                     <button
                                         onClick={() => setExpandedDev(isExpanded ? null : `${i}`)}
                                         className="w-full text-left p-3 hover:bg-white/[0.01] transition-colors"
@@ -405,7 +405,7 @@ export default function IntelligenceBriefPage() {
                             <Users size={14} className="text-violet-500" />
                             <span className="text-[11px] font-mono text-slate-500 tracking-wider">ENTITY WATCHLIST</span>
                         </div>
-                        <div className="rounded-lg border border-slate-800/40 bg-[#0c0e14] overflow-hidden">
+                        <div className="rounded-lg border border-border bg-surface overflow-hidden">
                             <div className="overflow-y-auto max-h-[600px] custom-scrollbar">
                                 {brief.entity_watchlist.length === 0 ? (
                                     <div className="p-6 text-center">
@@ -464,7 +464,7 @@ export default function IntelligenceBriefPage() {
                         </div>
 
                         {brief.active_signals.length === 0 ? (
-                            <div className="rounded-lg border border-slate-800/40 bg-[#0c0e14] p-6 text-center">
+                            <div className="rounded-lg border border-border bg-surface p-6 text-center">
                                 <p className="text-xs text-slate-600 font-mono">No active signals. Run batch analysis to detect patterns.</p>
                             </div>
                         ) : brief.active_signals.slice(0, 8).map((signal) => {
@@ -473,7 +473,7 @@ export default function IntelligenceBriefPage() {
                             const confPct = Math.round(signal.confidence * 100);
 
                             return (
-                                <div key={signal.id} className="rounded-lg border border-slate-800/40 bg-[#0c0e14] overflow-hidden">
+                                <div key={signal.id} className="rounded-lg border border-border bg-surface overflow-hidden">
                                     <button
                                         onClick={() => setExpandedSignal(isExpanded ? null : signal.id)}
                                         className="w-full text-left p-3 hover:bg-white/[0.01] transition-colors"
@@ -539,7 +539,7 @@ export default function IntelligenceBriefPage() {
                     {/* ── RIGHT: Government Actions ── */}
                     <div className="space-y-4">
                         {brief.recommended_actions.length > 0 ? (
-                            <div className="rounded-lg border border-slate-800/40 bg-[#0c0e14] p-4">
+                            <div className="rounded-lg border border-border bg-surface p-4">
                                 <div className="flex items-center gap-2 mb-3">
                                     <Zap size={14} className="text-amber-500" />
                                     <span className="text-[11px] font-mono text-slate-500 tracking-wider">PENDING GOVERNMENT ACTIONS</span>
@@ -556,7 +556,7 @@ export default function IntelligenceBriefPage() {
                                 </div>
                             </div>
                         ) : (
-                            <div className="rounded-lg border border-slate-800/40 bg-[#0c0e14] p-4">
+                            <div className="rounded-lg border border-border bg-surface p-4">
                                 <div className="flex items-center gap-2 mb-2">
                                     <Zap size={14} className="text-amber-500" />
                                     <span className="text-[11px] font-mono text-slate-500 tracking-wider">PENDING GOVERNMENT ACTIONS</span>
@@ -588,7 +588,7 @@ export default function IntelligenceBriefPage() {
                     return (
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                             {/* ── Law & Order Situation ── */}
-                            <div className="rounded-lg border border-slate-800/40 bg-[#0c0e14] p-4">
+                            <div className="rounded-lg border border-border bg-surface p-4">
                                 <div className="flex items-center gap-2 mb-3">
                                     <AlertCircle size={14} className="text-red-500/80" />
                                     <span className="text-[11px] font-mono text-slate-500 tracking-wider">LAW & ORDER SITUATION</span>
@@ -633,7 +633,7 @@ export default function IntelligenceBriefPage() {
                             {/* ── Positive Developments + Media Pressure ── */}
                             <div className="space-y-4">
                                 {/* Positive Developments */}
-                                <div className="rounded-lg border border-slate-800/40 bg-[#0c0e14] p-4">
+                                <div className="rounded-lg border border-border bg-surface p-4">
                                     <div className="flex items-center gap-2 mb-3">
                                         <CheckCircle2 size={14} className="text-teal-500" />
                                         <span className="text-[11px] font-mono text-slate-500 tracking-wider">POSITIVE DEVELOPMENTS</span>
@@ -656,7 +656,7 @@ export default function IntelligenceBriefPage() {
                                 </div>
 
                                 {/* Media Pressure Points */}
-                                <div className="rounded-lg border border-slate-800/40 bg-[#0c0e14] p-4">
+                                <div className="rounded-lg border border-border bg-surface p-4">
                                     <div className="flex items-center gap-2 mb-3">
                                         <Radio size={14} className="text-violet-500" />
                                         <span className="text-[11px] font-mono text-slate-500 tracking-wider">MEDIA PRESSURE POINTS</span>
