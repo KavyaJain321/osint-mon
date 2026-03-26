@@ -175,9 +175,21 @@ function cleanTitle(raw: string): string {
         .trim();
 }
 
+/** Returns the best available English title for display. Odia-only titles
+ *  are suppressed — the backend translation endpoint populates title_en. */
+function getTitle(a: Article): string {
+    const en = (a.title_en || "").trim();
+    const raw = (a.title || "").trim();
+    // Has a proper English title → use it
+    if (en && /[a-zA-Z]/.test(en)) return cleanTitle(en);
+    // Raw title is Latin (English source) → use it
+    if (raw && /[a-zA-Z]/.test(raw) && !/[\u0B00-\u0B7F\u0900-\u097F]/.test(raw)) return cleanTitle(raw);
+    // Odia/Devanagari only — show placeholder while translation is pending
+    return en || "[ Translation pending ]";
+}
+
 function buildStoryBrief(a: Article): { storyName: string; whatHappened: string; whyItMatters: string } {
-    const rawTitle = a.title_en || a.title || "";
-    const storyName = cleanTitle(rawTitle);
+    const storyName = getTitle(a);
     const summary = (a.summary || "").trim();
 
     // Split summary into "what happened" (first sentence) and "why it matters" (rest)
@@ -246,7 +258,7 @@ function StrategicBriefingSection({ articles, sectorMap, narrative, riskLevel, c
     critCount: number;
 }) {
     const sorted = [...articles].sort((a, b) => (b.importance_score || 0) - (a.importance_score || 0));
-    const priorityStories = sorted.filter(a => !cleanTitle(a.title_en || a.title || "").startsWith("[VIDEO]")).slice(0, 5);
+    const priorityStories = sorted.filter(a => !getTitle(a).startsWith("[VIDEO]")).slice(0, 5);
     const top3 = priorityStories.slice(0, 3);
     const additional = priorityStories.slice(3, 6);
 
@@ -505,7 +517,7 @@ function buildReportHTML(
     const critRows = [...criticalArts, ...highArts].slice(0, 10).map((a, i) => `
         <tr style="background:${i % 2 === 0 ? "#fff" : "#f9fafb"}">
           <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-weight:600;color:${(a.importance_score || 0) >= 9 ? "#dc2626" : "#d97706"}">${(a.importance_score || 0) >= 9 ? "CRITICAL" : "HIGH"}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:13px">${a.title_en || a.title}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:13px">${getTitle(a)}</td>
           <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${a.importance_score}/10</td>
           <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;color:${a.sentiment?.toUpperCase() === "NEGATIVE" ? "#dc2626" : a.sentiment?.toUpperCase() === "POSITIVE" ? "#16a34a" : "#6b7280"}">${a.sentiment || "–"}</td>
           <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:11px;color:#6b7280">${a.source_name || "–"}</td>
@@ -653,7 +665,7 @@ ${keywords.filter(k => !k.paused).map(k =>
         .slice(0, 30)
         .map((a, i) => `<tr style="background:${i % 2 === 0 ? "#fff" : "#f9fafb"}">
           <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;color:#9ca3af;font-size:11px">${i + 1}</td>
-          <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:12px">${a.title_en || a.title}</td>
+          <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:12px">${getTitle(a)}</td>
           <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;color:#6b7280">${a.source_name || "–"}</td>
           <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700;color:${(a.importance_score || 0) >= 9 ? "#dc2626" : (a.importance_score || 0) >= 7 ? "#d97706" : "#374151"}">${a.importance_score || "–"}</td>
           <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;color:${a.sentiment?.toUpperCase() === "NEGATIVE" ? "#dc2626" : a.sentiment?.toUpperCase() === "POSITIVE" ? "#16a34a" : "#6b7280"};font-size:11px">${a.sentiment || "–"}</td>
@@ -999,7 +1011,7 @@ function PoliticalAnalysisSection({ articles }: { articles: Article[] }) {
                                             (a.importance_score || 0) >= 8 ? "bg-red-500" : "bg-amber-500"
                                         )} />
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-xs text-slate-300 leading-snug group-hover:text-teal-300 transition-colors line-clamp-2">{a.title_en || a.title}</p>
+                                            <p className="text-xs text-slate-300 leading-snug group-hover:text-teal-300 transition-colors line-clamp-2">{getTitle(a)}</p>
                                             <div className="flex items-center gap-2 mt-0.5 text-2xs">
                                                 {a.source_name && <span className="text-slate-500">{a.source_name}</span>}
                                                 {a.importance_score && <span className="text-amber-500/70">Priority {a.importance_score}/10</span>}
@@ -1019,7 +1031,7 @@ function PoliticalAnalysisSection({ articles }: { articles: Article[] }) {
                                 {topAchievements.map(a => (
                                     <a key={a.id} href={a.url} target="_blank" rel="noreferrer" className="flex items-start gap-2 group">
                                         <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5 bg-emerald-500" />
-                                        <p className="text-xs text-slate-400 leading-snug group-hover:text-emerald-300 transition-colors line-clamp-2">{a.title_en || a.title}</p>
+                                        <p className="text-xs text-slate-400 leading-snug group-hover:text-emerald-300 transition-colors line-clamp-2">{getTitle(a)}</p>
                                     </a>
                                 ))}
                             </div>
@@ -1117,7 +1129,7 @@ function PoliticalAnalysisSection({ articles }: { articles: Article[] }) {
                                                 (a.sentiment || "").toLowerCase() === "positive" ? "bg-emerald-400" : "bg-slate-500"
                                             )} />
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-xs text-slate-300 leading-snug group-hover:text-teal-300 transition-colors line-clamp-2">{a.title_en || a.title}</p>
+                                                <p className="text-xs text-slate-300 leading-snug group-hover:text-teal-300 transition-colors line-clamp-2">{getTitle(a)}</p>
                                                 <div className="flex items-center gap-2 mt-0.5 text-2xs">
                                                     {a.source_name && <span className="text-slate-500">{a.source_name}</span>}
                                                     <span className={cn(
@@ -1190,7 +1202,7 @@ function PoliticalAnalysisSection({ articles }: { articles: Article[] }) {
                                                                 (a.sentiment || "").toLowerCase() === "positive" ? "bg-emerald-400" :
                                                                 (a.sentiment || "").toLowerCase() === "negative" ? "bg-red-400" : "bg-teal-400"
                                                             )} />
-                                                            <span className="text-sm text-slate-300 group-hover:text-teal-300 transition-colors leading-snug">{cleanTitle(a.title_en || a.title || "")}</span>
+                                                            <span className="text-sm text-slate-300 group-hover:text-teal-300 transition-colors leading-snug">{getTitle(a)}</span>
                                                         </a>
                                                     ))}
                                                 </div>
@@ -1227,7 +1239,7 @@ function PoliticalAnalysisSection({ articles }: { articles: Article[] }) {
                                                         <a key={a.id} href={a.url} target="_blank" rel="noreferrer"
                                                             className="flex items-start gap-2 group">
                                                             <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5 bg-red-400" />
-                                                            <span className="text-sm text-slate-300 group-hover:text-amber-300 transition-colors leading-snug">{cleanTitle(a.title_en || a.title || "")}</span>
+                                                            <span className="text-sm text-slate-300 group-hover:text-amber-300 transition-colors leading-snug">{getTitle(a)}</span>
                                                         </a>
                                                     ))}
                                                 </div>
@@ -1247,7 +1259,7 @@ function PoliticalAnalysisSection({ articles }: { articles: Article[] }) {
                                                     <a key={a.id} href={a.url} target="_blank" rel="noreferrer"
                                                         className="flex items-start gap-2 group">
                                                         <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5 bg-emerald-400" />
-                                                        <span className="text-sm text-slate-300 group-hover:text-emerald-300 transition-colors leading-snug">{cleanTitle(a.title_en || a.title || "")}</span>
+                                                        <span className="text-sm text-slate-300 group-hover:text-emerald-300 transition-colors leading-snug">{getTitle(a)}</span>
                                                     </a>
                                                 ))}
                                             </div>
@@ -1374,7 +1386,7 @@ function SectorPulseSection({ sectorMap }: { sectorMap: Record<string, Article[]
                                         (a.importance_score || 0) >= 6 ? "bg-amber-400" : "bg-slate-600"
                                     )} />
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-xs text-slate-200 leading-snug group-hover:text-teal-300 transition-colors line-clamp-2">{a.title_en || a.title}</p>
+                                        <p className="text-xs text-slate-200 leading-snug group-hover:text-teal-300 transition-colors line-clamp-2">{getTitle(a)}</p>
                                         {a.summary && <p className="text-2xs text-slate-500 mt-1 line-clamp-1">{a.summary}</p>}
                                         <div className="flex items-center gap-2 mt-1.5 text-2xs">
                                             {a.source_name && <span className="bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">{a.source_name}</span>}
@@ -1486,7 +1498,7 @@ function WatchTopicsSection({ keywords, selectedTopics, onToggle }: {
                             <div className="border-t border-slate-700/30 divide-y divide-slate-700/20 bg-slate-900/40">
                                 {(kw.articles || []).slice(0, 3).map(a => (
                                     <div key={a.id} className="px-5 py-2.5">
-                                        <p className="text-xs text-slate-300 line-clamp-2">{a.title_en || a.title}</p>
+                                        <p className="text-xs text-slate-300 line-clamp-2">{cleanTitle(a.title_en || a.title || "")}</p>
                                         <div className="flex gap-2 mt-1 text-2xs text-slate-500">
                                             <span className={sentimentColor(a.sentiment)}>{a.sentiment}</span>
                                             <span>· {a.importance}/10</span>
@@ -1735,7 +1747,7 @@ function EntityIntelSection({ articles, externalEntities }: { articles: Article[
                                                         a.sentiment?.toUpperCase() === "NEGATIVE" ? "bg-red-400" :
                                                         a.sentiment?.toUpperCase() === "POSITIVE" ? "bg-emerald-400" : "bg-slate-600"
                                                     )} />
-                                                    <span className="text-2xs text-slate-400 group-hover:text-teal-300 transition-colors line-clamp-2">{a.title_en || a.title}</span>
+                                                    <span className="text-2xs text-slate-400 group-hover:text-teal-300 transition-colors line-clamp-2">{getTitle(a)}</span>
                                                     <ExternalLink size={8} className="text-slate-600 group-hover:text-teal-400 flex-shrink-0 mt-1" />
                                                 </a>
                                             ))}
@@ -1884,7 +1896,7 @@ function MediaToneSection({ sentiment, articles }: {
                                 <a key={a.id} href={a.url} target="_blank" rel="noreferrer" className="flex items-start gap-2 group">
                                     <span className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0 mt-1.5" />
                                     <div>
-                                        <p className="text-xs text-slate-300 leading-snug group-hover:text-red-300 transition-colors line-clamp-2">{a.title_en || a.title}</p>
+                                        <p className="text-xs text-slate-300 leading-snug group-hover:text-red-300 transition-colors line-clamp-2">{getTitle(a)}</p>
                                         <div className="flex gap-2 mt-0.5 text-2xs text-slate-500">
                                             {a.source_name && <span>{a.source_name}</span>}
                                             {a.importance_score && <span className="text-amber-500/70">Priority {a.importance_score}/10</span>}
@@ -1908,7 +1920,7 @@ function MediaToneSection({ sentiment, articles }: {
                                 <a key={a.id} href={a.url} target="_blank" rel="noreferrer" className="flex items-start gap-2 group">
                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0 mt-1.5" />
                                     <div>
-                                        <p className="text-xs text-slate-300 leading-snug group-hover:text-emerald-300 transition-colors line-clamp-2">{a.title_en || a.title}</p>
+                                        <p className="text-xs text-slate-300 leading-snug group-hover:text-emerald-300 transition-colors line-clamp-2">{getTitle(a)}</p>
                                         {a.source_name && <p className="text-2xs text-slate-500 mt-0.5">{a.source_name}</p>}
                                     </div>
                                 </a>
@@ -1975,6 +1987,18 @@ export default function DailyIntelPage() {
 
     const [reviewedIds, setReviewedIds] = useState<Set<string>>(new Set());
     const [selectedTopics, setSelectedTopics] = useState<Set<string>>(new Set());
+
+    // Trigger backend title translation once per session so Odia titles get English versions.
+    // Uses raw fetch (not apiFetch) to avoid the 401→login-redirect side-effect.
+    useEffect(() => {
+        const token = typeof window !== "undefined" ? localStorage.getItem("robin_token") : null;
+        if (!token) return;
+        const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+        fetch(`${base}/api/admin/migrate/translate-titles`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        }).catch(() => { /* silently ignore */ });
+    }, []);
 
     useEffect(() => {
         setLoading(true);
