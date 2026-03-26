@@ -14,6 +14,7 @@ import { config as _config } from '../config.js';
 import { getPipelineProgress } from '../lib/pipeline-tracker.js';
 import puppeteer from 'puppeteer-core';
 import { generateMediaReportHtml } from '../lib/pdf-template.js';
+import { translateMissingTitles } from '../ai/title-translator.js';
 
 /**
  * Get browser instance for PDF generation.
@@ -3037,6 +3038,20 @@ router.get('/newspaper/jobs', async (req, res) => {
             counts,
             jobs: jobs || [],
         });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// POST /translate-titles — fire-and-forget batch title translation (no auth, dev only)
+router.post('/translate-titles', async (req, res) => {
+    try {
+        const { count } = await supabase
+            .from('articles')
+            .select('id', { count: 'exact', head: true })
+            .is('title_en', null);
+        res.json({ message: `Translation started for ${count ?? 0} articles. Refresh in ~30s.`, total_to_translate: count ?? 0 });
+        translateMissingTitles().catch(e => log.ai.error('[TitleTranslator] dev-test trigger failed', { error: e.message }));
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

@@ -92,6 +92,9 @@ export const testApi = {
     /** Force re-translate all keywords to English */
     translateKeywords: () => apiFetch(`/api/test/keywords/translate`, { method: "POST" }),
 
+    /** Trigger batch translation of all articles missing English titles (no auth required) */
+    translateTitles: () => apiFetch(`/api/test/translate-titles`, { method: "POST" }),
+
     /** Trigger scrape (optional sourceId) */
     scrape: (sourceId?: string) =>
         apiFetch(`/api/test/scrape`, {

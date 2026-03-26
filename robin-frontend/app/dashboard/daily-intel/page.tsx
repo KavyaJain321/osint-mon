@@ -182,7 +182,7 @@ function bestTitle(title_en: string | undefined, title: string | undefined): str
     const raw = (title || "").trim();
     if (en && /[a-zA-Z]/.test(en) && !/[\u0B00-\u0B7F\u0900-\u097F]/.test(en)) return cleanTitle(en);
     if (raw && /[a-zA-Z]/.test(raw) && !/[\u0B00-\u0B7F\u0900-\u097F]/.test(raw)) return cleanTitle(raw);
-    return en ? cleanTitle(en) : "[ Translation pending ]";
+    return "[ Translation pending ]";
 }
 
 /** Convenience wrapper for full Article objects. */
@@ -512,7 +512,7 @@ function buildReportHTML(
           <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-weight:600">${s.icon} ${s.label}</td>
           <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${arts.length}</td>
           <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;color:${negPct > 50 ? "#dc2626" : negPct > 25 ? "#d97706" : "#16a34a"}">${negPct > 50 ? "Adverse" : negPct > 25 ? "Mixed" : "Favourable"}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#6b7280">${top.title.slice(0, 80)}${top.title.length > 80 ? "..." : ""}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#6b7280">${bestTitle(top.title_en, top.title).slice(0, 80)}${bestTitle(top.title_en, top.title).length > 80 ? "..." : ""}</td>
         </tr>`;
     }).filter(Boolean).join("");
 
@@ -1500,7 +1500,7 @@ function WatchTopicsSection({ keywords, selectedTopics, onToggle }: {
                             <div className="border-t border-slate-700/30 divide-y divide-slate-700/20 bg-slate-900/40">
                                 {(kw.articles || []).slice(0, 3).map(a => (
                                     <div key={a.id} className="px-5 py-2.5">
-                                        <p className="text-xs text-slate-300 line-clamp-2">{cleanTitle(a.title_en || a.title || "")}</p>
+                                        <p className="text-xs text-slate-300 line-clamp-2">{bestTitle(a.title_en, a.title)}</p>
                                         <div className="flex gap-2 mt-1 text-2xs text-slate-500">
                                             <span className={sentimentColor(a.sentiment)}>{a.sentiment}</span>
                                             <span>· {a.importance}/10</span>
@@ -1991,14 +1991,12 @@ export default function DailyIntelPage() {
     const [selectedTopics, setSelectedTopics] = useState<Set<string>>(new Set());
 
     // Trigger backend title translation once per session so Odia titles get English versions.
-    // Uses raw fetch (not apiFetch) to avoid the 401→login-redirect side-effect.
+    // Uses the no-auth /api/test/translate-titles endpoint (dev-only, no SUPER_ADMIN required).
     useEffect(() => {
-        const token = typeof window !== "undefined" ? localStorage.getItem("robin_token") : null;
-        if (!token) return;
         const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-        fetch(`${base}/api/admin/migrate/translate-titles`, {
+        fetch(`${base}/api/test/translate-titles`, {
             method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            headers: { "Content-Type": "application/json" },
         }).catch(() => { /* silently ignore */ });
     }, []);
 
