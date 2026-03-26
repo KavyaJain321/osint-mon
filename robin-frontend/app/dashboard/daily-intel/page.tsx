@@ -8,6 +8,7 @@ import {
     Radio, ArrowUpRight, ArrowDownRight,
     ChevronUp, Loader2, Landmark,
 } from "lucide-react";
+import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { dailyIntelApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
@@ -1688,11 +1689,11 @@ export default function DailyIntelPage() {
         <div className="flex flex-col h-full overflow-hidden">
 
             {/* ── Command Bar ── */}
-            <div className="flex-shrink-0 px-6 py-3 border-b border-slate-700/50 bg-slate-900/80 backdrop-blur">
+            <div className="flex-shrink-0 px-6 py-3 border-b border-border bg-surface backdrop-blur">
                 <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <div className={cn("w-2.5 h-2.5 rounded-full animate-pulse", riskStyle.dot)} />
-                        <span className="text-xs font-mono uppercase tracking-wider text-slate-400">Daily Situation Report</span>
+                        <span className="text-xs font-mono uppercase tracking-wider text-text-secondary">Daily Situation Report</span>
                         <span className="text-slate-700">|</span>
                         <span className={cn("text-xs font-semibold font-mono px-2 py-0.5 rounded border", riskStyle.bg, riskStyle.text)}>
                             {riskLevel} RISK
@@ -1704,7 +1705,7 @@ export default function DailyIntelPage() {
                             value={date}
                             max={todayStr()}
                             onChange={e => setDate(e.target.value)}
-                            className="text-xs bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-slate-300 focus:outline-none focus:border-teal-500/50 transition-colors"
+                            className="text-xs bg-raised border border-border rounded px-2 py-1.5 text-text-primary focus:outline-none focus:border-teal-500/50 transition-colors"
                         />
                         <button onClick={() => setRefreshKey(k => k + 1)} title="Refresh" className="p-1.5 text-slate-500 hover:text-slate-200 hover:bg-slate-800 rounded transition-colors">
                             <RefreshCw size={14} />
@@ -1730,18 +1731,56 @@ export default function DailyIntelPage() {
                         <div className="flex items-start justify-between gap-4">
                             <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-2xs font-mono text-slate-500 uppercase tracking-widest">Government of Odisha · Information Wing</span>
-                                    <span className="text-2xs bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded">FOR OFFICIAL USE ONLY</span>
+                                    <span className="text-2xs font-mono text-text-muted uppercase tracking-widest">Government of Odisha · Information Wing</span>
+                                    <span className="text-2xs bg-overlay text-text-muted px-1.5 py-0.5 rounded">FOR OFFICIAL USE ONLY</span>
                                 </div>
-                                <h1 className="text-lg font-bold text-slate-100 mb-0.5">Daily Situation Report — {fmtDate(date)}</h1>
-                                <p className="text-xs text-slate-400 mb-3">Prepared by ROBIN Monitor System · Last refreshed {lastRefreshed.toLocaleTimeString("en-IN")}</p>
-                                <div className="text-sm text-slate-300 leading-relaxed [&>p]:mb-3 [&>ul]:list-disc [&>ul]:ml-5 [&>ul>li]:mb-1 [&>h3]:text-slate-100 [&>h3]:font-bold [&>h3]:mt-4 [&>h3]:mb-2">
-                                    {intelData?.narrative?.executive_summary ? (
-                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{intelData.narrative.executive_summary}</ReactMarkdown>
-                                    ) : (
-                                        <p className="line-clamp-3">{computedSummary.executive_summary.split("\n\n")[0]}</p>
-                                    )}
-                                </div>
+                                <h1 className="text-lg font-bold text-text-primary mb-0.5">Daily Situation Report — {fmtDate(date)}</h1>
+                                <p className="text-xs text-text-secondary mb-3">Prepared by ROBIN Monitor System · Last refreshed {lastRefreshed.toLocaleTimeString("en-IN")}</p>
+                                {/* Article velocity — articles per hour today */}
+                                {articles.length > 0 && (() => {
+                                    const hourlyData = Array.from({ length: 24 }, (_, h) => {
+                                        const label = `${String(h).padStart(2, '0')}:00`;
+                                        const count = articles.filter(a => {
+                                            const ts = a.published_at || (a as unknown as { timestamp?: string }).timestamp || '';
+                                            if (!ts) return false;
+                                            return new Date(ts).getHours() === h;
+                                        }).length;
+                                        return { hour: label, count };
+                                    }).filter(d => d.count > 0);
+                                    if (hourlyData.length === 0) return null;
+                                    return (
+                                        <div className="mt-2">
+                                            <p className="text-xs text-slate-400 mb-2 font-mono">ARTICLE FLOW — {articles.length} articles in last 24h</p>
+                                            <ResponsiveContainer width="100%" height={60}>
+                                                <BarChart data={hourlyData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+                                                    <Bar dataKey="count" fill="var(--color-emerald)" radius={[2, 2, 0, 0]} />
+                                                    <XAxis dataKey="hour" tick={{ fill: 'var(--color-text-muted)', fontSize: 8 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+                                                    <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '4px', fontSize: '11px' }} formatter={(v: unknown) => [`${v} articles`, 'Count']} />
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    );
+                                })()}
+                                {/* Top entities at a glance */}
+                                {articles.length > 0 && (() => {
+                                    const entityCounts: Record<string, number> = {};
+                                    for (const a of articles) {
+                                        for (const e of [...(a.entities?.people || []), ...(a.entities?.orgs || [])]) {
+                                            entityCounts[e] = (entityCounts[e] || 0) + 1;
+                                        }
+                                    }
+                                    const top = Object.entries(entityCounts).sort((a, b) => b[1] - a[1]).slice(0, 6);
+                                    if (top.length === 0) return null;
+                                    return (
+                                        <div className="mt-3 flex flex-wrap gap-1.5">
+                                            {top.map(([name, count]) => (
+                                                <span key={name} className="text-[10px] font-mono bg-overlay text-text-secondary px-2 py-0.5 rounded border border-border">
+                                                    {name} <span className="text-text-muted">{count}×</span>
+                                                </span>
+                                            ))}
+                                        </div>
+                                    );
+                                })()}
                             </div>
                             <div className="flex flex-col gap-2 flex-shrink-0 min-w-[160px]">
                                 <div className="grid grid-cols-2 gap-2">
@@ -1761,141 +1800,130 @@ export default function DailyIntelPage() {
                         </div>
                     </div>
 
-                    {/* ── AI Strategic Briefing ── */}
-                    {intelData?.narrative && (intelData.narrative.key_developments || intelData.narrative.emerging_threats) && (
-                        <div className="space-y-4 pt-2">
-                            <div className="flex items-center gap-3 px-1 mb-2">
-                                <span className="text-xl">📑</span>
-                                <h2 className="text-lg font-bold text-slate-100 uppercase tracking-wide">Daily Media Brief</h2>
-                            </div>
-                            
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                {intelData.narrative.key_developments && (
-                                    <div className="rounded-xl border border-teal-500/20 bg-teal-500/5 p-5">
-                                        <h3 className="text-sm font-bold text-teal-400 mb-3 flex items-center gap-2">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-teal-400"></span>
-                                            Top Priority Stories
-                                        </h3>
-                                        <div className="text-sm text-slate-300 leading-relaxed [&>p]:mb-3 [&>ul]:list-disc [&>ul]:ml-5 [&>ul>li]:mb-1.5 [&>h3]:text-teal-300 [&>h3]:font-bold [&>h3]:mt-4 [&>h3]:mb-2">
-                                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{intelData.narrative.key_developments}</ReactMarkdown>
-                                        </div>
-                                    </div>
-                                )}
-                                
-                                {intelData.narrative.emerging_threats && (
-                                    <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-5">
-                                        <h3 className="text-sm font-bold text-amber-400 mb-3 flex items-center gap-2">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                                            Additional Stories to Track
-                                        </h3>
-                                        <div className="text-sm text-slate-300 leading-relaxed [&>p]:mb-3 [&>ul]:list-disc [&>ul]:ml-5 [&>ul>li]:mb-1.5 [&>h3]:text-amber-300 [&>h3]:font-bold [&>h3]:mt-4 [&>h3]:mb-2">
-                                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{intelData.narrative.emerging_threats}</ReactMarkdown>
-                                        </div>
-                                    </div>
-                                )}
-                                
-                                {intelData.narrative.entity_movements && (
-                                    <div className="rounded-xl border border-violet-500/20 bg-violet-500/5 p-5">
-                                        <h3 className="text-sm font-bold text-violet-400 mb-3 flex items-center gap-2">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
-                                            Risk and Narrative Map
-                                        </h3>
-                                        <div className="text-sm text-slate-300 leading-relaxed [&>p]:mb-3 [&>ul]:list-disc [&>ul]:ml-5 [&>ul>li]:mb-1.5 [&>h3]:text-violet-300 [&>h3]:font-bold [&>h3]:mt-4 [&>h3]:mb-2">
-                                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{intelData.narrative.entity_movements}</ReactMarkdown>
-                                        </div>
-                                    </div>
-                                )}
-                                
-                                {intelData.narrative.watch_list && (
-                                    <div className="rounded-xl border border-slate-600/30 bg-slate-800/50 p-5">
-                                        <h3 className="text-sm font-bold text-slate-300 mb-3 flex items-center gap-2">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
-                                            Department-wise Relevance Matrix
-                                        </h3>
-                                        <div className="text-sm text-slate-300 leading-relaxed [&_p]:mb-3 [&_ul]:list-disc [&_ul]:ml-5 [&_ul>li]:mb-1.5 [&_h3]:text-slate-200 [&_h3]:font-bold [&_h3]:mt-4 [&_h3]:mb-2 [&_table]:w-full [&_table]:text-left [&_table]:border-collapse [&_table]:my-3 [&_th]:border-b [&_th]:border-slate-700/50 [&_th]:p-3 [&_th]:text-slate-400 [&_th]:bg-slate-800/20 [&_th]:font-semibold [&_td]:border-b [&_td]:border-slate-700/30 [&_td]:p-3 [&_td]:align-top [&_tr:last-child_td]:border-0 overflow-x-auto">
-                                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{intelData.narrative.watch_list}</ReactMarkdown>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Top News — always show Top 10 HOT articles of the day */}
-                    <SectionCard
-                        title="Today's Hot News"
-                        icon={<TrendingUp size={15} />}
-                        badge={
-                            <span className={cn(
-                                "text-2xs px-1.5 py-0.5 rounded font-mono ml-1",
-                                articles.length > 0 ? "bg-amber-500/20 text-amber-400" : "bg-slate-700 text-slate-500"
-                            )}>
-                                Top {Math.min(10, articles.length)} stories
-                            </span>
+                    {/* Source Activity Strip */}
+                    {articles.length > 0 && (() => {
+                        const sourceCounts: Record<string, { count: number; neg: number; pos: number }> = {};
+                        for (const a of articles) {
+                            const src = a.source_name || 'Unknown';
+                            if (!sourceCounts[src]) sourceCounts[src] = { count: 0, neg: 0, pos: 0 };
+                            sourceCounts[src].count++;
+                            if ((a.sentiment || '').toUpperCase() === 'NEGATIVE') sourceCounts[src].neg++;
+                            if ((a.sentiment || '').toUpperCase() === 'POSITIVE') sourceCounts[src].pos++;
                         }
-                    >
-                        <TopNewsSection
-                            articles={articles}
-                            reviewedIds={reviewedIds}
-                            onReview={id => setReviewedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; })}
-                            kwMap={Object.fromEntries(keywords.map(k => [k.keyword, k.keyword_en || k.keyword]))}
-                        />
-                    </SectionCard>
+                        const top = Object.entries(sourceCounts).sort((a, b) => b[1].count - a[1].count).slice(0, 5);
+                        return (
+                            <div className="rounded-xl border border-border bg-surface px-4 py-3">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Radio size={13} className="text-text-secondary" />
+                                    <span className="text-xs font-mono text-text-muted uppercase tracking-wider">Top Active Sources</span>
+                                </div>
+                                <div className="space-y-2">
+                                    {top.map(([src, data]) => {
+                                        const negPct = data.count > 0 ? Math.round((data.neg / data.count) * 100) : 0;
+                                        return (
+                                            <div key={src} className="flex items-center gap-3">
+                                                <span className="text-xs text-text-primary font-medium w-40 truncate">{src}</span>
+                                                <div className="flex gap-px h-3 flex-1 rounded overflow-hidden bg-overlay">
+                                                    {data.neg > 0 && <div className="bg-rose/70" style={{ width: `${(data.neg / data.count) * 100}%` }} />}
+                                                    {data.pos > 0 && <div className="bg-emerald/70" style={{ width: `${(data.pos / data.count) * 100}%` }} />}
+                                                    {(data.count - data.neg - data.pos) > 0 && <div className="bg-text-muted/30" style={{ width: `${((data.count - data.neg - data.pos) / data.count) * 100}%` }} />}
+                                                </div>
+                                                <span className="text-[10px] font-mono text-text-muted w-16 text-right">{data.count} art · {negPct}% neg</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        );
+                    })()}
 
-                    {/* Political Analysis */}
-                    <SectionCard
-                        title="Political Analysis"
-                        icon={<Landmark size={15} />}
-                        badge={(() => {
-                            const matchKw = (a: Article, kws: string[]) => {
-                                const text = [(a.title_en || a.title), a.summary, ...(a.keywords || [])].filter(Boolean).join(" ").toLowerCase();
-                                return kws.some(kw => text.includes(kw));
-                            };
-                            const polCount = articles.filter(a => matchKw(a, GOVT_KW) || matchKw(a, DISCOURSE_KW)).length;
-                            return <span className={cn("text-2xs px-1.5 py-0.5 rounded font-mono ml-1",
-                                polCount > 0 ? "bg-violet-500/20 text-violet-400" : "bg-slate-700 text-slate-500"
-                            )}>{polCount} articles</span>;
-                        })()}
-                    >
-                        <PoliticalAnalysisSection articles={articles} />
-                    </SectionCard>
+                    {/* ── 2-COLUMN NEWSPAPER LAYOUT ── */}
+                    <div className="grid grid-cols-1 xl:grid-cols-5 gap-4 items-start">
 
-                    {/* Sector Pulse */}
-                    <SectionCard title="Sector Pulse" icon={<Activity size={15} />}
-                        badge={<span className="text-2xs text-slate-500 ml-1">Odisha Governance Domains</span>}>
-                        <SectorPulseSection sectorMap={sectorMap} />
-                    </SectionCard>
+                        {/* ── LEFT COLUMN: Main news content (3/5 width) ── */}
+                        <div className="xl:col-span-3 space-y-4">
+                            {/* Top News — always open, prominent */}
+                            <div className="bg-surface border border-border rounded-xl overflow-hidden">
+                                <div className="flex items-center justify-between px-5 py-3 border-b border-border">
+                                    <div className="flex items-center gap-2">
+                                        <TrendingUp size={14} className="text-amber-400" />
+                                        <span className="text-xs font-semibold text-text-primary uppercase tracking-wide">Today&apos;s Top Stories</span>
+                                        <span className={cn("text-2xs px-1.5 py-0.5 rounded font-mono",
+                                            articles.length > 0 ? "bg-amber-500/20 text-amber-400" : "bg-overlay text-text-muted"
+                                        )}>
+                                            Top {Math.min(10, articles.length)} of {articles.length}
+                                        </span>
+                                    </div>
+                                    <span className="text-2xs text-text-muted font-mono">Ranked by importance</span>
+                                </div>
+                                <TopNewsSection
+                                    articles={articles}
+                                    reviewedIds={reviewedIds}
+                                    onReview={id => setReviewedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; })}
+                                    kwMap={Object.fromEntries(keywords.map(k => [k.keyword, k.keyword_en || k.keyword]))}
+                                />
+                            </div>
 
-                    {/* Early Warning */}
-                    <SectionCard title="Early Warning Signals" icon={<Zap size={15} />}
-                        badge={signals.filter(s => s.severity === "critical" || s.severity === "high").length > 0
-                            ? <span className="text-2xs bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded font-mono ml-1 animate-pulse">{signals.filter(s => s.severity === "critical" || s.severity === "high").length} active</span>
-                            : undefined}>
-                        <EarlyWarningSection signals={signals} />
-                    </SectionCard>
+                            {/* Political Analysis */}
+                            <SectionCard
+                                title="Political Analysis"
+                                icon={<Landmark size={15} />}
+                                badge={(() => {
+                                    const matchKw = (a: Article, kws: string[]) => {
+                                        const text = [(a.title_en || a.title), a.summary, ...(a.keywords || [])].filter(Boolean).join(" ").toLowerCase();
+                                        return kws.some(kw => text.includes(kw));
+                                    };
+                                    const polCount = articles.filter(a => matchKw(a, GOVT_KW) || matchKw(a, DISCOURSE_KW)).length;
+                                    return <span className={cn("text-2xs px-1.5 py-0.5 rounded font-mono ml-1",
+                                        polCount > 0 ? "bg-violet-500/20 text-violet-400" : "bg-slate-700 text-slate-500"
+                                    )}>{polCount} articles</span>;
+                                })()}
+                            >
+                                <PoliticalAnalysisSection articles={articles} />
+                            </SectionCard>
 
-                    {/* Watch Topics */}
-                    <SectionCard title="Watch Topics" icon={<Eye size={15} />}
-                        badge={<span className="text-2xs bg-teal-500/15 text-teal-400 px-1.5 py-0.5 rounded font-mono ml-1">{selectedTopics.size} selected</span>}>
-                        <WatchTopicsSection keywords={keywords} selectedTopics={selectedTopics} onToggle={kw => setSelectedTopics(prev => { const n = new Set(prev); n.has(kw) ? n.delete(kw) : n.add(kw); return n; })} />
-                    </SectionCard>
+                            {/* Media Tone — collapsed by default */}
+                            <SectionCard title="Media Tone Analysis" icon={<Radio size={15} />}
+                                badge={<span className="text-2xs text-slate-500 ml-1">How Odisha is covered today</span>}
+                                defaultOpen={false}>
+                                <MediaToneSection sentiment={sentimentData} articles={articles} />
+                            </SectionCard>
+                        </div>
 
-                    {/* Entity Analysis Network */}
-                    <SectionCard
-                        title="Entity Analysis Network"
-                        icon={<Users size={15} />}
-                        badge={<span className="text-2xs text-slate-500 ml-1">Connections & relationships</span>}
-                        defaultOpen={false}
-                    >
-                        <EntityIntelSection articles={articles} externalEntities={entities} />
-                    </SectionCard>
+                        {/* ── RIGHT COLUMN: Quick overview panels (2/5 width) ── */}
+                        <div className="xl:col-span-2 space-y-4">
+                            {/* Sector Pulse — compact chips, always visible */}
+                            <SectionCard title="Sector Pulse" icon={<Activity size={15} />}
+                                badge={<span className="text-2xs text-slate-500 ml-1">Odisha Governance Domains</span>}>
+                                <SectorPulseSection sectorMap={sectorMap} />
+                            </SectionCard>
 
-                    {/* Media Tone */}
-                    <SectionCard title="Media Tone Analysis" icon={<Radio size={15} />}
-                        badge={<span className="text-2xs text-slate-500 ml-1">How Odisha is covered today</span>}
-                        defaultOpen={false}>
-                        <MediaToneSection sentiment={sentimentData} articles={articles} />
-                    </SectionCard>
+                            {/* Early Warning */}
+                            <SectionCard title="Early Warning Signals" icon={<Zap size={15} />}
+                                badge={signals.filter(s => s.severity === "critical" || s.severity === "high").length > 0
+                                    ? <span className="text-2xs bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded font-mono ml-1 animate-pulse">{signals.filter(s => s.severity === "critical" || s.severity === "high").length} active</span>
+                                    : undefined}>
+                                <EarlyWarningSection signals={signals} />
+                            </SectionCard>
+
+                            {/* Watch Topics */}
+                            <SectionCard title="Watch Topics" icon={<Eye size={15} />}
+                                badge={<span className="text-2xs bg-teal-500/15 text-teal-400 px-1.5 py-0.5 rounded font-mono ml-1">{selectedTopics.size} selected</span>}>
+                                <WatchTopicsSection keywords={keywords} selectedTopics={selectedTopics} onToggle={kw => setSelectedTopics(prev => { const n = new Set(prev); n.has(kw) ? n.delete(kw) : n.add(kw); return n; })} />
+                            </SectionCard>
+
+                            {/* Entity Analysis Network — collapsed */}
+                            <SectionCard
+                                title="Entity Network"
+                                icon={<Users size={15} />}
+                                badge={<span className="text-2xs text-slate-500 ml-1">Connections & relationships</span>}
+                                defaultOpen={false}
+                            >
+                                <EntityIntelSection articles={articles} externalEntities={entities} />
+                            </SectionCard>
+                        </div>
+
+                    </div>{/* end 2-col grid */}
 
                     <div className="h-8" />
                 </div>
