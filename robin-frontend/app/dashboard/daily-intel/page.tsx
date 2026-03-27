@@ -1541,9 +1541,9 @@ function buildEntityNetwork(articles: Article[]): EntityNode[] {
     for (const article of articles) {
         if (!article.entities) continue;
         const allInArticle: { name: string; type: string }[] = [
-            ...(article.entities.people || []).map(n => ({ name: n, type: "person" })),
-            ...(article.entities.orgs || []).map(n => ({ name: n, type: "org" })),
-            ...(article.entities.locations || []).map(n => ({ name: n, type: "location" })),
+            ...(article.entities.people || []).filter(n => n && typeof n === "string").map(n => ({ name: n, type: "person" })),
+            ...(article.entities.orgs || []).filter(n => n && typeof n === "string").map(n => ({ name: n, type: "org" })),
+            ...(article.entities.locations || []).filter(n => n && typeof n === "string").map(n => ({ name: n, type: "location" })),
         ];
 
         for (const e of allInArticle) {
@@ -1583,13 +1583,13 @@ function EntityIntelSection({ articles, externalEntities }: { articles: Article[
 
     // Enrich article-based nodes with external profile data
     const enrichedFromArticles = articleNetwork.map(node => {
-        const ext = externalEntities.find(e => e.name.toLowerCase() === node.name.toLowerCase());
+        const ext = externalEntities.find(e => typeof e.name === "string" && e.name.toLowerCase() === node.name.toLowerCase());
         return { ...node, risk_tags: ext?.risk_tags || [], relevance_reason: ext?.relevance_reason };
     });
 
     // Fallback: if article.entities aren't populated (not joined in API), use externalEntities directly
     // and try to find related articles by text-matching entity name in title/summary
-    const enriched = enrichedFromArticles.length > 0 ? enrichedFromArticles : externalEntities.map(ext => {
+    const enriched = enrichedFromArticles.length > 0 ? enrichedFromArticles : externalEntities.filter(e => typeof e.name === "string" && e.name).map(ext => {
         const nameLC = ext.name.toLowerCase();
         const relatedArticles = articles.filter(a =>
             a.title?.toLowerCase().includes(nameLC) ||
@@ -1601,6 +1601,7 @@ function EntityIntelSection({ articles, externalEntities }: { articles: Article[
         const coMap: Record<string, { name: string; type: string; count: number }> = {};
         for (const a of relatedArticles) {
             for (const other of externalEntities) {
+                if (!other.name || typeof other.name !== "string") continue;
                 if (other.name === ext.name) continue;
                 const otherLC = other.name.toLowerCase();
                 if (a.title?.toLowerCase().includes(otherLC) || a.summary?.toLowerCase().includes(otherLC)) {
