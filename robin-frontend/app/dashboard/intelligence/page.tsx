@@ -14,6 +14,15 @@ import {
 import { useIntelligenceBrief } from "@/lib/hooks/useIntelligence";
 import { cleanSnippet } from "@/lib/utils";
 
+function safeTitle(title_en?: string | null, title?: string): string {
+    const en = (title_en || "").trim();
+    const raw = (title || "").trim();
+    const NON_LATIN = /[\u0B00-\u0B7F\u0900-\u097F]/;
+    if (en && /[a-zA-Z]/.test(en) && !NON_LATIN.test(en)) return en;
+    if (raw && /[a-zA-Z]/.test(raw) && !NON_LATIN.test(raw)) return raw;
+    return "[ Translation pending ]";
+}
+
 /* ── Types ─────────────────────────────────────────────── */
 interface PostureData {
     level: string; color: string; threat_score: number;
@@ -492,7 +501,7 @@ export default function IntelligenceBriefPage() {
                                                                 [{art.importance}]
                                                             </span>
                                                             <a href={art.url} target="_blank" rel="noopener" className="text-[11px] text-slate-300 hover:text-teal-300 transition-colors flex-1 leading-snug">
-                                                                {art.title_en || art.title}
+                                                                {safeTitle(art.title_en, art.title)}
                                                                 <ExternalLink size={9} className="inline ml-1 opacity-40" />
                                                             </a>
                                                             <span className="text-[9px] font-mono text-slate-600 shrink-0">{art.timestamp ? timeAgo(art.timestamp) : ""}</span>
