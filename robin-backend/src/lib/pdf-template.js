@@ -228,7 +228,7 @@ body { font-family:'Inter', sans-serif; margin:0; padding:0; background:white; c
 <div style="min-height:100vh;background:linear-gradient(135deg,#0a0c12 0%,#0f172a 40%,#1e293b 100%);display:flex;flex-direction:column;justify-content:center;align-items:center;color:white;text-align:center;padding:60px 40px;">
   <div style="width:70px;height:70px;border-radius:16px;background:linear-gradient(135deg,#0d9488,#0f766e);display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800;box-shadow:0 20px 60px rgba(13,148,136,0.3);margin-bottom:30px;">R</div>
   <h1 style="font-size:42px;font-weight:800;letter-spacing:-1px;margin-bottom:8px;">${clientName} Media Analysis Report</h1>
-  <p style="font-size:18px;color:rgba(255,255,255,0.5);margin-bottom:40px;">Daily OSINT Monitoring — ${clientName}</p>
+  <p style="font-size:18px;color:rgba(255,255,255,0.5);margin-bottom:40px;">Daily Media Monitoring — ${clientName}</p>
   <div style="width:80px;height:3px;background:linear-gradient(90deg,#0d9488,#f59e0b);border-radius:2px;margin-bottom:40px;"></div>
   <h3 style="font-size:22px;font-weight:600;color:#0d9488;margin-bottom:8px;">${clientName}</h3>
   <p style="color:rgba(255,255,255,0.4);font-size:14px;">Media Monitoring & Situation Analysis</p>

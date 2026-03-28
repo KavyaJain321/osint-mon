@@ -174,7 +174,7 @@ router.get('/:id/download', async (req, res) => {
         const filename = `ROBIN_Report_${data.title.replace(/[^a-z0-9]/gi, '_').substring(0, 60)}.txt`;
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-        res.send(`ROBIN OSINT Intelligence Report\n${'='.repeat(50)}\nTitle: ${data.title}\nPeriod: ${data.date_from} to ${data.date_to}\nGenerated: ${data.created_at}\n\n${data.content}`);
+        res.send(`ROBIN Media Analysis Report\n${'='.repeat(50)}\nTitle: ${data.title}\nPeriod: ${data.date_from} to ${data.date_to}\nGenerated: ${data.created_at}\n\n${data.content}`);
     } catch (error) {
         log.api.error('GET /reports/:id/download failed', { error: error.message });
         res.status(500).json({ error: 'Failed to download report' });
