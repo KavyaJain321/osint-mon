@@ -96,6 +96,8 @@ interface GeoHotspot {
     theme?: string;
     severity?: string;
     articles_count?: number;
+    event_count?: number;
+    key_issue?: string;
 }
 
 interface EarlyWarning {
@@ -103,6 +105,8 @@ interface EarlyWarning {
     type?: string;
     confidence?: string;
     recommended_action?: string;
+    implication?: string;
+    timeframe?: string;
 }
 
 interface RecommendedAction {
@@ -474,7 +478,7 @@ function StrategicBriefingSection({ articles, sectorMap, narrative, riskLevel, c
                                         </div>
                                         {/* Headline */}
                                         <p className="text-sm font-semibold text-text-primary leading-snug mb-1.5">
-                                            {dev.headline || "Intelligence Development"}
+                                            {dev.headline || "Key Development"}
                                         </p>
                                         {/* What happened */}
                                         {dev.what_happened && (
@@ -860,6 +864,7 @@ function buildReportHTML(
     signals: Signal[],
     sentiment: { positive_pct: number; negative_pct: number; neutral_pct: number; total: number } | null,
     riskLevel: string,
+    narrative: NarrativeData | null = null,
 ): string {
     const dateLabel = fmtDate(date);
     const criticalArts = articles.filter(a => (a.importance_score || 0) >= 9);
@@ -899,6 +904,160 @@ function buildReportHTML(
 
     const now = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
 
+    // ── Narrative helpers ──────────────────────────────────────────────────────
+    const narr = narrative;
+
+    // Executive summary bullets
+    const execBullets: string[] = narr?.executive_summary
+        ? narr.executive_summary
+            .split(/\n\n+/)
+            .map(b => b.replace(/^[•\-]\s*/, "").trim())
+            .filter(Boolean)
+            .slice(0, 6)
+        : [];
+
+    // Key developments (structured array)
+    const keyDevs: KeyDevelopment[] = Array.isArray(narr?.key_developments)
+        ? (narr!.key_developments as KeyDevelopment[]).slice(0, 8)
+        : [];
+
+    // Risk heatmap (structured object)
+    const riskHM = (narr?.risk_heatmap && typeof narr.risk_heatmap === "object" && !Array.isArray(narr.risk_heatmap))
+        ? narr.risk_heatmap as { critical?: RiskHeatmapItem[]; high?: RiskHeatmapItem[]; moderate?: RiskHeatmapItem[]; low?: RiskHeatmapItem[] }
+        : null;
+
+    // Recommended actions
+    const recActions: RecommendedAction[] = Array.isArray(narr?.recommended_actions)
+        ? (narr!.recommended_actions as RecommendedAction[]).slice(0, 8)
+        : [];
+
+    // Early warning signals from narrative
+    const earlyWarnings: EarlyWarning[] = Array.isArray(narr?.early_warning_signals)
+        ? (narr!.early_warning_signals as EarlyWarning[]).slice(0, 6)
+        : [];
+
+    // Geographic hotspots
+    const geoHotspots: GeoHotspot[] = Array.isArray(narr?.geographic_hotspots)
+        ? (narr!.geographic_hotspots as GeoHotspot[]).slice(0, 8)
+        : [];
+
+    // Stakeholder impact
+    const stakeholders = (narr?.stakeholder_impact && typeof narr.stakeholder_impact === "object")
+        ? narr.stakeholder_impact as Record<string, string>
+        : null;
+
+    // ── HTML helpers ──────────────────────────────────────────────────────────
+    const sevColor = (s?: string) => {
+        const sl = (s || "").toLowerCase();
+        return sl === "critical" ? "#dc2626" : sl === "high" ? "#d97706" : sl === "moderate" ? "#ca8a04" : "#16a34a";
+    };
+    const urgColor = (u?: string) => {
+        const ul = (u || "").toLowerCase();
+        return ul === "immediate" || ul === "critical" ? "#dc2626" : ul === "high" ? "#d97706" : "#6b7280";
+    };
+
+    // Section 1: Executive Summary
+    const execSummaryHTML = execBullets.length > 0
+        ? `<ul style="list-style:none;padding:0;margin:0">
+            ${execBullets.map(b => `
+            <li style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid #f3f4f6;font-size:13px;color:#374151;line-height:1.7">
+              <span style="color:#6b7280;flex-shrink:0;margin-top:3px">●</span>
+              <span>${b}</span>
+            </li>`).join("")}
+           </ul>`
+        : `<p style="font-size:13px;color:#374151;line-height:1.7;white-space:pre-wrap">${summary.executive_summary}</p>`;
+
+    // Section 2: Key Developments
+    const keyDevsHTML = keyDevs.length > 0
+        ? keyDevs.map((d, i) => `
+          <div style="border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;margin-bottom:10px;background:${i % 2 === 0 ? "#fff" : "#f9fafb"}">
+            <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px">
+              ${d.theme ? `<span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:4px;padding:2px 8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap">${d.theme}</span>` : ""}
+              ${d.severity ? `<span style="background:${sevColor(d.severity)}18;color:${sevColor(d.severity)};border:1px solid ${sevColor(d.severity)}44;border-radius:4px;padding:2px 8px;font-size:10px;font-weight:700;text-transform:uppercase;white-space:nowrap">${d.severity.toUpperCase()}</span>` : ""}
+              ${d.department ? `<span style="background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;border-radius:4px;padding:2px 8px;font-size:10px;font-weight:600;white-space:nowrap">${d.department}</span>` : ""}
+            </div>
+            <p style="font-size:13px;font-weight:700;color:#111827;margin:0 0 6px">${d.headline || "Development"}</p>
+            ${d.what_happened ? `<p style="font-size:12px;color:#374151;margin:0 0 4px;line-height:1.6"><strong>What happened:</strong> ${d.what_happened}</p>` : ""}
+            ${d.so_what ? `<p style="font-size:12px;color:#92400e;background:#fffbeb;border-left:3px solid #f59e0b;padding:6px 10px;margin:6px 0 0;border-radius:0 4px 4px 0;line-height:1.6"><strong>So what:</strong> ${d.so_what}</p>` : ""}
+            ${(d.locations || []).length > 0 ? `<p style="font-size:11px;color:#6b7280;margin:6px 0 0">📍 ${(d.locations || []).join(", ")}</p>` : ""}
+          </div>`).join("")
+        : `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:14px">
+            <p style="font-size:13px;color:#374151;line-height:1.8;white-space:pre-wrap">${summary.key_developments}</p>
+           </div>`;
+
+    // Section 3: Risk Heatmap
+    const riskHeatmapHTML = riskHM
+        ? (["critical", "high", "moderate", "low"] as const).map(level => {
+            const items: RiskHeatmapItem[] = (riskHM as Record<string, RiskHeatmapItem[]>)[level] || [];
+            if (!items.length) return "";
+            const bg = level === "critical" ? "#fef2f2" : level === "high" ? "#fffbeb" : level === "moderate" ? "#fefce8" : "#f0fdf4";
+            const border = level === "critical" ? "#fecaca" : level === "high" ? "#fed7aa" : level === "moderate" ? "#fef08a" : "#bbf7d0";
+            const col = level === "critical" ? "#dc2626" : level === "high" ? "#d97706" : level === "moderate" ? "#ca8a04" : "#16a34a";
+            return `
+              <div style="background:${bg};border:1px solid ${border};border-radius:6px;padding:10px 14px;margin-bottom:8px">
+                <div style="font-size:10px;font-weight:800;color:${col};text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">${level} risk</div>
+                ${items.map(item => `
+                <div style="padding:5px 0;border-bottom:1px solid ${border}">
+                  <p style="font-size:12px;font-weight:600;color:#111827;margin:0 0 2px">${item.issue || ""}</p>
+                  ${item.why ? `<p style="font-size:11px;color:#374151;margin:0 0 2px">${item.why}</p>` : ""}
+                  ${item.so_what ? `<p style="font-size:11px;color:${col};margin:0;font-style:italic">${item.so_what}</p>` : ""}
+                </div>`).join("")}
+              </div>`;
+          }).join("")
+        : `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:14px">
+            <p style="font-size:13px;color:#374151;line-height:1.8;white-space:pre-wrap">${summary.emerging_threats}</p>
+           </div>`;
+
+    // Section 4: Recommended Actions
+    const recActionsHTML = recActions.length > 0
+        ? recActions.map(a => `
+          <div style="border:1px solid #e5e7eb;border-radius:6px;padding:10px 14px;margin-bottom:8px;display:flex;gap:12px;align-items:flex-start">
+            <div style="flex:1">
+              <div style="display:flex;gap:6px;align-items:center;margin-bottom:5px">
+                ${a.department ? `<span style="font-size:10px;font-weight:700;color:#1d4ed8;background:#eff6ff;border:1px solid #bfdbfe;border-radius:3px;padding:1px 7px">${a.department}</span>` : ""}
+                ${a.urgency ? `<span style="font-size:10px;font-weight:700;color:${urgColor(a.urgency)};background:${urgColor(a.urgency)}18;border:1px solid ${urgColor(a.urgency)}44;border-radius:3px;padding:1px 7px;text-transform:uppercase">${a.urgency}</span>` : ""}
+              </div>
+              <p style="font-size:13px;font-weight:600;color:#111827;margin:0 0 3px">${a.action || ""}</p>
+              ${a.rationale ? `<p style="font-size:12px;color:#6b7280;margin:0;line-height:1.5">${a.rationale}</p>` : ""}
+            </div>
+          </div>`).join("")
+        : "<p style='color:#6b7280;font-size:13px'>No recommended actions generated for this date.</p>";
+
+    // Section 5: Geographic Hotspots
+    const geoHTML = geoHotspots.length > 0
+        ? `<div style="display:flex;flex-wrap:wrap;gap:8px;margin:10px 0">
+            ${geoHotspots.map(g => `
+            <span style="background:${sevColor(g.severity)}0f;border:1px solid ${sevColor(g.severity)}44;border-radius:20px;padding:4px 12px;font-size:12px;color:${sevColor(g.severity)};font-weight:600">
+              📍 ${g.location}${g.event_count ? ` <span style="font-weight:400;color:#6b7280">(${g.event_count} events)</span>` : ""}
+            </span>`).join("")}
+           </div>
+           ${geoHotspots.some(g => g.key_issue) ? `<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:10px">
+             <thead><tr><th style="background:#1f2937;color:#fff;padding:7px 10px;text-align:left;font-size:11px;text-transform:uppercase">Location</th><th style="background:#1f2937;color:#fff;padding:7px 10px;text-align:left;font-size:11px;text-transform:uppercase">Key Issue</th><th style="background:#1f2937;color:#fff;padding:7px 10px;text-align:left;font-size:11px;text-transform:uppercase">Risk</th></tr></thead>
+             <tbody>${geoHotspots.filter(g => g.key_issue).map((g, i) => `<tr style="background:${i % 2 === 0 ? "#fff" : "#f9fafb"}"><td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-weight:600">${g.location}</td><td style="padding:7px 10px;border-bottom:1px solid #e5e7eb">${g.key_issue}</td><td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;color:${sevColor(g.severity)};font-weight:700;text-transform:uppercase">${g.severity || "–"}</td></tr>`).join("")}</tbody>
+           </table>` : ""}`
+        : "<p style='color:#6b7280;font-size:13px'>Geographic data not available for this date.</p>";
+
+    // Section 6: Stakeholder Impact
+    const stakeholderHTML = stakeholders && Object.keys(stakeholders).length > 0
+        ? `<table style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead><tr><th style="background:#1f2937;color:#fff;padding:7px 10px;text-align:left;font-size:11px;text-transform:uppercase">Stakeholder</th><th style="background:#1f2937;color:#fff;padding:7px 10px;text-align:left;font-size:11px;text-transform:uppercase">Impact</th></tr></thead>
+            <tbody>${Object.entries(stakeholders).map(([k, v], i) => `<tr style="background:${i % 2 === 0 ? "#fff" : "#f9fafb"}"><td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-weight:600;color:#374151">${k}</td><td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;color:#6b7280">${v}</td></tr>`).join("")}</tbody>
+           </table>`
+        : "<p style='color:#6b7280;font-size:13px'>Stakeholder impact data not available.</p>";
+
+    // Early Warning Signals (combined: narrative + signals db)
+    const earlyWarningHTML = earlyWarnings.length > 0
+        ? earlyWarnings.map(w => `
+          <div style="border-left:4px solid #d97706;padding:10px 14px;margin-bottom:10px;background:#fffbeb;border-radius:0 6px 6px 0">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+              <span style="font-weight:700;font-size:13px;color:#92400e">⚠ ${w.signal || w.type || "Signal"}</span>
+              ${w.confidence ? `<span style="font-size:10px;color:#6b7280;background:#f3f4f6;border-radius:3px;padding:1px 6px">Confidence: ${w.confidence}</span>` : ""}
+            </div>
+            ${w.implication ? `<p style="font-size:12px;color:#374151;margin:0;line-height:1.5">${w.implication}</p>` : ""}
+            ${w.timeframe ? `<p style="font-size:11px;color:#6b7280;margin:4px 0 0">Timeframe: ${w.timeframe}</p>` : ""}
+          </div>`).join("") + signalRows
+        : signalRows || "<p style='color:#16a34a'>✓ No active warning signals. Situation stable.</p>";
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -920,9 +1079,6 @@ function buildReportHTML(
   .metric { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; text-align: center; }
   .metric .value { font-size: 28px; font-weight: 800; }
   .metric .label { font-size: 11px; color: #6b7280; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.05em; }
-  .summary-block { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 14px; margin-bottom: 14px; }
-  .summary-block .label { font-size: 10px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; margin-bottom: 8px; }
-  .summary-block .content { font-size: 13px; color: #374151; line-height: 1.8; white-space: pre-wrap; }
   .sentiment-bar { height: 10px; border-radius: 5px; overflow: hidden; display: flex; margin: 8px 0 4px; }
   .header-band { background: #111827; color: #fff; padding: 20px 30px; margin: -30px -30px 24px; }
   .header-band .subtitle { color: #9ca3af; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px; }
@@ -931,6 +1087,7 @@ function buildReportHTML(
   .risk-badge { display: inline-block; padding: 3px 12px; border-radius: 4px; font-size: 13px; font-weight: 700; margin-top: 8px; background: ${riskColor}22; color: ${riskColor}; border: 1px solid ${riskColor}44; }
   .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af; display: flex; justify-content: space-between; }
   .page-break { page-break-before: always; }
+  .ai-badge { display:inline-block;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:3px;font-size:9px;font-weight:700;padding:1px 5px;vertical-align:middle;margin-left:6px;text-transform:uppercase;letter-spacing:.05em }
 </style>
 </head>
 <body>
@@ -952,31 +1109,32 @@ function buildReportHTML(
   <div class="metric"><div class="value" style="color:#16a34a">${keywords.filter(k => !k.paused).length}</div><div class="label">Active Topics</div></div>
 </div>
 
-<!-- SITUATION SUMMARY -->
-<h2>1. Situation Summary</h2>
+<!-- SECTION 1: EXECUTIVE SUMMARY -->
+<h2>1. Executive Summary${narr ? '<span class="ai-badge">AI Synthesised</span>' : ""}</h2>
+${execSummaryHTML}
 
-<div class="summary-block">
-  <div class="label">Executive Summary</div>
-  <div class="content">${summary.executive_summary}</div>
-</div>
+<!-- SECTION 2: KEY DEVELOPMENTS -->
+<h2>2. Key Developments${narr ? '<span class="ai-badge">AI Synthesised</span>' : ""}</h2>
+${keyDevsHTML}
 
-<div class="summary-block">
-  <div class="label">Key Developments by Sector</div>
-  <div class="content">${summary.key_developments}</div>
-</div>
+<!-- SECTION 3: RISK ASSESSMENT -->
+<h2>3. Risk Assessment${narr ? '<span class="ai-badge">AI Synthesised</span>' : ""}</h2>
+${riskHeatmapHTML}
 
-<div class="summary-block">
-  <div class="label">Emerging Threats</div>
-  <div class="content">${summary.emerging_threats}</div>
-</div>
+<!-- SECTION 4: RECOMMENDED ACTIONS -->
+<h2 class="page-break">4. Recommended Actions${narr ? '<span class="ai-badge">AI Synthesised</span>' : ""}</h2>
+${recActionsHTML}
 
-<div class="summary-block">
-  <div class="label">Watch List</div>
-  <div class="content">${summary.watch_list}</div>
-</div>
+<!-- SECTION 5: GEOGRAPHIC HOTSPOTS -->
+<h2>5. Geographic Hotspots</h2>
+${geoHTML}
 
-<!-- SENTIMENT ANALYSIS -->
-<h2>2. Media Sentiment Analysis</h2>
+<!-- SECTION 6: STAKEHOLDER IMPACT -->
+<h2>6. Stakeholder Impact</h2>
+${stakeholderHTML}
+
+<!-- SECTION 7: MEDIA SENTIMENT -->
+<h2>7. Media Sentiment Analysis</h2>
 ${sentiment ? `
 <div class="metric-grid">
   <div class="metric"><div class="value" style="color:#16a34a">${sentiment.positive_pct}%</div><div class="label">Positive</div></div>
@@ -989,31 +1147,31 @@ ${sentiment ? `
   <div style="width:${sentiment.neutral_pct}%;background:#d1d5db"></div>
   <div style="width:${sentiment.negative_pct}%;background:#dc2626"></div>
 </div>
-<p style="font-size:11px;color:#9ca3af">Green = Positive · Grey = Neutral · Red = Negative</p>
+<p style="font-size:11px;color:#9ca3af;margin-top:4px">Green = Positive · Grey = Neutral · Red = Negative</p>
 ` : "<p>Sentiment data not available.</p>"}
 
-<!-- SECTOR PULSE -->
-<h2>3. Sector-wise Coverage</h2>
+<!-- SECTION 8: SECTOR COVERAGE -->
+<h2>8. Sector-wise Coverage</h2>
 ${sectorRows ? `
 <table>
   <thead><tr><th>Sector</th><th>Articles</th><th>Tone</th><th>Top Development</th></tr></thead>
   <tbody>${sectorRows}</tbody>
 </table>` : "<p>No sector data available.</p>"}
 
-<!-- CRITICAL ALERTS -->
-<h2 class="page-break">4. Critical & High Priority Articles</h2>
+<!-- SECTION 9: CRITICAL ARTICLES -->
+<h2 class="page-break">9. Critical & High Priority Articles</h2>
 ${critRows ? `
 <table>
   <thead><tr><th>Level</th><th>Headline</th><th>Score</th><th>Sentiment</th><th>Source</th></tr></thead>
   <tbody>${critRows}</tbody>
 </table>` : "<p>No critical or high-priority articles detected for this date.</p>"}
 
-<!-- EARLY WARNINGS -->
-<h2>5. Early Warning Signals</h2>
-${signalRows || "<p style='color:#16a34a'>✓ No active warning signals. Situation stable.</p>"}
+<!-- SECTION 10: EARLY WARNINGS -->
+<h2>10. Early Warning Signals</h2>
+${earlyWarningHTML}
 
-<!-- WATCH TOPICS -->
-<h2>6. Active Watch Topics</h2>
+<!-- SECTION 11: WATCH TOPICS -->
+<h2>11. Active Watch Topics</h2>
 <div style="display:flex;flex-wrap:wrap;gap:8px;margin:12px 0">
 ${keywords.filter(k => !k.paused).map(k =>
     `<span style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;padding:4px 10px;font-size:12px">
@@ -1022,8 +1180,8 @@ ${keywords.filter(k => !k.paused).map(k =>
 ).join("")}
 </div>
 
-<!-- ARTICLE APPENDIX -->
-<h2 class="page-break">7. Full Article List (Top 30 by Importance)</h2>
+<!-- SECTION 12: ARTICLE APPENDIX -->
+<h2 class="page-break">12. Full Article List (Top 30 by Importance)</h2>
 <table>
   <thead><tr><th>#</th><th>Headline</th><th>Source</th><th>Score</th><th>Sentiment</th><th>Time</th></tr></thead>
   <tbody>
@@ -2428,7 +2586,8 @@ export default function DailyIntelPage() {
         try {
             const html = buildReportHTML(
                 date, articles, sectorMap, computedSummary,
-                keywords, signals, sentimentData, riskLevel.toUpperCase()
+                keywords, signals, sentimentData, riskLevel.toUpperCase(),
+                intelData?.narrative || null
             );
             const win = window.open("", "_blank");
             if (win) {

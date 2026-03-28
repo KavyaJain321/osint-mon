@@ -44,9 +44,9 @@ interface NavSection {
 
 const sections: NavSection[] = [
     {
-        // Core intelligence workflow — what a journalist uses every day
-        id: "intelligence",
-        label: "Intelligence",
+        // Core analysis workflow — what a journalist uses every day
+        id: "briefings",
+        label: "Briefings",
         items: [
             { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
             { href: "/dashboard/daily-intel", label: "Daily Report", icon: ClipboardList },
