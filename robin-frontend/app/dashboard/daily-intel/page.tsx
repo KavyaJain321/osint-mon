@@ -238,18 +238,29 @@ function cleanTitle(raw: string): string {
 }
 
 /** Core title resolver — works with any article-like object.
- *  Prefers title_en (English). Suppresses Odia/Devanagari-only text. */
-function bestTitle(title_en: string | undefined, title: string | undefined): string {
+ *  Prefers title_en (English). Falls back to summary (AI-generated, always English)
+ *  before giving up with "[ Translation pending ]". */
+function bestTitle(title_en: string | undefined, title: string | undefined, summary?: string): string {
+    const NON_LATIN = /[\u0B00-\u0B7F\u0900-\u097F]/;
     const en = (title_en || "").trim();
     const raw = (title || "").trim();
-    if (en && /[a-zA-Z]/.test(en) && !/[\u0B00-\u0B7F\u0900-\u097F]/.test(en)) return cleanTitle(en);
-    if (raw && /[a-zA-Z]/.test(raw) && !/[\u0B00-\u0B7F\u0900-\u097F]/.test(raw)) return cleanTitle(raw);
+    if (en && /[a-zA-Z]/.test(en) && !NON_LATIN.test(en)) return cleanTitle(en);
+    if (raw && /[a-zA-Z]/.test(raw) && !NON_LATIN.test(raw)) return cleanTitle(raw);
+    // Last resort: use the AI-generated summary (always in English)
+    if (summary) {
+        const s = summary.trim();
+        if (s && /[a-zA-Z]/.test(s) && !NON_LATIN.test(s)) {
+            // Extract first sentence, capped at 85 chars
+            const firstSentence = s.match(/^.{10,}?[.!?](?=\s|$)/)?.[0]?.trim() || s;
+            return firstSentence.length > 85 ? firstSentence.slice(0, 82) + "…" : firstSentence;
+        }
+    }
     return "[ Translation pending ]";
 }
 
 /** Convenience wrapper for full Article objects. */
 function getTitle(a: Article): string {
-    return bestTitle(a.title_en, a.title);
+    return bestTitle(a.title_en, a.title, a.summary);
 }
 
 function buildStoryBrief(a: Article): { storyName: string; whatHappened: string; whyItMatters: string } {
@@ -377,7 +388,7 @@ function StrategicBriefingSection({ articles, sectorMap, narrative, riskLevel, c
         const top = [...arts].sort((a, b) => (b.importance_score || 0) - (a.importance_score || 0))[0];
         const d = SECTOR_DEPT[s.key];
         const posture = getSuggestedPosture(arts);
-        return { sector: s.label, icon: s.icon, dept: d.dept, riskType: d.riskType, posture, count: arts.length, topTitle: bestTitle(top.title_en, top.title) };
+        return { sector: s.label, icon: s.icon, dept: d.dept, riskType: d.riskType, posture, count: arts.length, topTitle: bestTitle(top.title_en, top.title, top.summary) };
     }).filter(Boolean) as { sector: string; icon: string; dept: string; riskType: string; posture: string; count: number; topTitle: string }[];
 
     const postureColor = (p: string) =>
@@ -866,7 +877,7 @@ function buildReportHTML(
           <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-weight:600">${s.icon} ${s.label}</td>
           <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${arts.length}</td>
           <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;color:${negPct > 50 ? "#dc2626" : negPct > 25 ? "#d97706" : "#16a34a"}">${negPct > 50 ? "Adverse" : negPct > 25 ? "Mixed" : "Favourable"}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#6b7280">${bestTitle(top.title_en, top.title).slice(0, 80)}${bestTitle(top.title_en, top.title).length > 80 ? "..." : ""}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#6b7280">${bestTitle(top.title_en, top.title, top.summary).slice(0, 80)}${bestTitle(top.title_en, top.title, top.summary).length > 80 ? "..." : ""}</td>
         </tr>`;
     }).filter(Boolean).join("");
 
@@ -1115,7 +1126,7 @@ function TopNewsSection({ articles, reviewedIds, onReview, kwMap }: {
                                     <div className="flex items-start justify-between gap-3 mb-1.5">
                                         <h3 className={cn("text-sm font-medium leading-snug", reviewed ? "text-slate-500 line-through" : "text-slate-100")}>
                                             {isHot && <span className="inline-flex items-center mr-1.5 text-2xs font-bold text-red-400 bg-red-500/10 border border-red-500/20 px-1 py-0 rounded">🔥 HOT</span>}
-                                            {bestTitle(article.title_en, article.title)}
+                                            {bestTitle(article.title_en, article.title, article.summary)}
                                         </h3>
                                         <div className="flex items-center gap-1.5 flex-shrink-0 mt-0.5">
                                             <span className={cn("text-2xs font-mono px-1.5 py-0.5 rounded", s.pill)}>{s.label}</span>
@@ -1247,8 +1258,8 @@ function PoliticalAnalysisSection({ articles }: { articles: Article[] }) {
             {/* ── Political Brief ── */}
             {(govtArts.length > 0 || discourseArts.length > 0) && (() => {
                 const srcSet = new Set([...govtArts, ...discourseArts].map(a => a.source_name).filter(Boolean));
-                const topCritical = topFocus[0] ? bestTitle(topFocus[0].title_en, topFocus[0].title) : null;
-                const topPos = topAchievements[0] ? bestTitle(topAchievements[0].title_en, topAchievements[0].title) : null;
+                const topCritical = topFocus[0] ? bestTitle(topFocus[0].title_en, topFocus[0].title, topFocus[0].summary) : null;
+                const topPos = topAchievements[0] ? bestTitle(topAchievements[0].title_en, topAchievements[0].title, topAchievements[0].summary) : null;
                 const discNegTop = discourseArts
                     .filter(a => (a.sentiment || "").toLowerCase() === "negative")
                     .sort((a, b) => (b.importance_score || 0) - (a.importance_score || 0))[0];
@@ -1280,7 +1291,7 @@ function PoliticalAnalysisSection({ articles }: { articles: Article[] }) {
                                     {ds.negPct >= 50 ? "heated and contentious" : ds.negPct >= 30 ? "mixed with visible friction" : "largely procedural"}
                                 </span>
                                 {discNegTop && (
-                                    <>, with flashpoints around <span className="text-slate-300 italic">&ldquo;{bestTitle(discNegTop.title_en, discNegTop.title).slice(0, 65)}…&rdquo;</span></>
+                                    <>, with flashpoints around <span className="text-slate-300 italic">&ldquo;{bestTitle(discNegTop.title_en, discNegTop.title, discNegTop.summary).slice(0, 65)}…&rdquo;</span></>
                                 )}.{" "}</>
                             )}
                             {topEnt && (
@@ -1521,7 +1532,7 @@ function PoliticalAnalysisSection({ articles }: { articles: Article[] }) {
 
                 // Extract key themes from titles of top articles
                 const criticalTitles = topFocus.slice(0, 3).map(a => a.title_en || a.title);
-                const positiveTitle = topAchievements[0] ? bestTitle(topAchievements[0].title_en, topAchievements[0].title) : null;
+                const positiveTitle = topAchievements[0] ? bestTitle(topAchievements[0].title_en, topAchievements[0].title, topAchievements[0].summary) : null;
 
                 // Top negative discourse items
                 const discNeg = discourseArts.filter(a => (a.sentiment || "").toLowerCase() === "negative").slice(0, 2);
@@ -1854,7 +1865,7 @@ function WatchTopicsSection({ keywords, selectedTopics, onToggle }: {
                             <div className="border-t border-slate-700/30 divide-y divide-slate-700/20 bg-slate-900/40">
                                 {(kw.articles || []).slice(0, 3).map(a => (
                                     <div key={a.id} className="px-5 py-2.5">
-                                        <p className="text-xs text-slate-300 line-clamp-2">{bestTitle(a.title_en, a.title)}</p>
+                                        <p className="text-xs text-slate-300 line-clamp-2">{bestTitle(a.title_en, a.title, a.summary)}</p>
                                         <div className="flex gap-2 mt-1 text-2xs text-slate-500">
                                             <span className={sentimentColor(a.sentiment)}>{a.sentiment}</span>
                                             <span>· {a.importance}/10</span>

@@ -13,13 +13,21 @@ import { useQueryClient } from "@tanstack/react-query";
 import ContentDetail, { detectContentType, TYPE_ICONS, TYPE_GRADIENTS } from "@/components/dashboard/ContentDetail";
 import { InfoTooltip, PriorityTooltip } from "@/components/dashboard/InfoTooltip";
 
-/** Return an English-only title, suppressing Odia/Devanagari script. */
-function safeTitle(title_en?: string, title?: string): string {
+/** Return an English-only title, suppressing Odia/Devanagari script.
+ *  Falls back to AI-generated summary (always English) before giving up. */
+function safeTitle(title_en?: string, title?: string, summary?: string): string {
+    const NON_LATIN = /[\u0B00-\u0B7F\u0900-\u097F]/;
     const en = (title_en || "").trim();
     const raw = (title || "").trim();
-    const NON_LATIN = /[\u0B00-\u0B7F\u0900-\u097F]/;
     if (en && /[a-zA-Z]/.test(en) && !NON_LATIN.test(en)) return en;
     if (raw && /[a-zA-Z]/.test(raw) && !NON_LATIN.test(raw)) return raw;
+    if (summary) {
+        const s = summary.trim();
+        if (s && /[a-zA-Z]/.test(s) && !NON_LATIN.test(s)) {
+            const firstSentence = s.match(/^.{10,}?[.!?](?=\s|$)/)?.[0]?.trim() || s;
+            return firstSentence.length > 85 ? firstSentence.slice(0, 82) + "…" : firstSentence;
+        }
+    }
     return "[ Translation pending ]";
 }
 
@@ -314,7 +322,7 @@ export default function ContentFeedPage() {
                             </div>
                             <div className="p-4">
                                 <h2 className="text-base font-semibold text-text-primary group-hover:text-accent-bright transition-colors mb-2 leading-snug">
-                                    {safeTitle(hero.title_en, hero.title)}
+                                    {safeTitle(hero.title_en, hero.title, hero.summary)}
                                 </h2>
                                 {hero.analysis?.summary && (
                                     <p className="text-xs text-text-secondary line-clamp-2 mb-3">{cleanSnippet(hero.analysis.summary, 200)}</p>
@@ -410,7 +418,7 @@ export default function ContentFeedPage() {
 
                                         <div className="p-3">
                                             <h3 className="text-sm font-medium text-text-primary group-hover:text-accent-bright transition-colors line-clamp-2 mb-2 leading-snug">
-                                                {safeTitle(article.title_en, article.title)}
+                                                {safeTitle(article.title_en, article.title, article.summary)}
                                             </h3>
                                             {article.type_metadata?.english_summary ? (
                                                 <p className="text-xs text-indigo-300 italic line-clamp-2 mb-3 bg-indigo-500/10 p-1.5 rounded border-l-2 border-indigo-500">
@@ -470,7 +478,7 @@ export default function ContentFeedPage() {
                                         )}
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm text-text-primary group-hover:text-accent-bright transition-colors truncate">
-                                                {safeTitle(article.title_en, article.title)}
+                                                {safeTitle(article.title_en, article.title, article.summary)}
                                             </p>
                                             {article.type_metadata?.english_summary ? (
                                                 <p className="text-xs text-indigo-300 italic truncate mt-0.5 font-medium">
