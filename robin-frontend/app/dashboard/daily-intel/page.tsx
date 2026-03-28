@@ -2508,12 +2508,33 @@ export default function DailyIntelPage() {
                                 </div>
                                 <h1 className="text-lg font-bold text-text-primary mb-0.5">Daily Situation Report — {fmtDate(date)}</h1>
                                 <p className="text-xs text-text-secondary mb-3">Prepared by ROBIN Monitor System · Last refreshed {lastRefreshed.toLocaleTimeString("en-IN")}</p>
-                                {/* Executive summary — top story digest */}
-                                {articles.length > 0 && (
-                                    <p className="text-sm text-text-secondary leading-relaxed">
-                                        {computedSummary.executive_summary}
-                                    </p>
-                                )}
+                                {/* Executive summary — LLM-generated when available, frontend fallback otherwise */}
+                                {articles.length > 0 && (() => {
+                                    const llmSummary = intelData?.narrative?.executive_summary;
+                                    if (llmSummary && llmSummary.trim()) {
+                                        // LLM version: bullet-point format "• ...\n\n• ..."
+                                        const bullets = llmSummary
+                                            .split(/\n\n+/)
+                                            .map(b => b.replace(/^[•\-]\s*/, "").trim())
+                                            .filter(Boolean)
+                                            .slice(0, 5);
+                                        return (
+                                            <ul className="space-y-1.5">
+                                                {bullets.map((b, i) => (
+                                                    <li key={i} className="flex items-start gap-2 text-sm text-text-secondary leading-relaxed">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-text-muted/50 flex-shrink-0 mt-2" />
+                                                        <span>{b}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        );
+                                    }
+                                    return (
+                                        <p className="text-sm text-text-secondary leading-relaxed">
+                                            {computedSummary.executive_summary}
+                                        </p>
+                                    );
+                                })()}
                             </div>
                             <div className="flex flex-col gap-2 flex-shrink-0 min-w-[160px]">
                                 <div className="grid grid-cols-2 gap-2">
