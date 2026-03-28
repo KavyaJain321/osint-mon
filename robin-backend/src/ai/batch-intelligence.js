@@ -116,10 +116,10 @@ async function processClientIntelligence(client) {
     const sevenDaysAgo = new Date(now - 7 * 86400000).toISOString();
     const fortyEightHoursAgo = new Date(now - 48 * 3600000).toISOString();
 
-    // Fetch the active brief topic to use as the analysis subject
+    // Fetch the active brief — pull ALL context fields for prompt injection
     const { data: activeBrief } = await supabase
         .from('client_briefs')
-        .select('title, problem_statement')
+        .select('title, problem_statement, risk_domains, entities_of_interest, geographic_focus, industry')
         .eq('client_id', client.id)
         .eq('status', 'active')
         .order('created_at', { ascending: false })
@@ -128,6 +128,17 @@ async function processClientIntelligence(client) {
 
     const briefTopic = activeBrief?.title || client.name;
     const briefContext = activeBrief?.problem_statement || client.industry;
+
+    // Full client profile — injected into Pass 7 + Pass 8 prompts
+    const briefProfile = {
+        client_name: client.name,
+        topic: briefTopic,
+        context: briefContext,
+        geographic_focus: activeBrief?.geographic_focus || 'Not specified',
+        risk_domains: Array.isArray(activeBrief?.risk_domains) ? activeBrief.risk_domains : [],
+        entities_of_interest: Array.isArray(activeBrief?.entities_of_interest) ? activeBrief.entities_of_interest : [],
+        client_industry: activeBrief?.industry || client.industry || 'General',
+    };
 
     // ── Collect raw data ──
     const { data: articles } = await supabase
@@ -203,8 +214,8 @@ async function processClientIntelligence(client) {
     await updatePipelineStage('intelligence', 'Pass 6/7 — Predictive Signals...', { pass: 6, total: 7 });
     const pass6 = await passPredictiveSignals(client, enrichedArticles, pass1, pass3, pass4, briefTopic, briefContext);
     await updatePipelineStage('intelligence', 'Pass 7/7 — Narrative Synthesis & Inference...', { pass: 7, total: 7 });
-    const pass7 = await passNarrativeSynthesis(client, pass1, pass2, pass3, pass4, pass5, pass6, enrichedArticles, briefTopic, briefContext);
-    const pass8 = await passInferenceChains(client, enrichedArticles, pass1, pass2, pass3, pass6, briefTopic, briefContext);
+    const pass7 = await passNarrativeSynthesis(client, pass1, pass2, pass3, pass4, pass5, pass6, enrichedArticles, briefTopic, briefContext, briefProfile);
+    const pass8 = await passInferenceChains(client, enrichedArticles, pass1, pass2, pass3, pass6, briefTopic, briefContext, briefProfile);
 
     // ── Save to narrative_patterns (legacy compatibility) ──
     const today = now.toISOString().split('T')[0];
@@ -1214,26 +1225,67 @@ ${signalSummaries}`
 // Multi-prompt Groq analysis for strategic intelligence
 // ────────────────────────────────────────────────────────────
 
-async function passNarrativeSynthesis(client, entityPass, threatPass, temporalPass, networkPass, sourcePass, signalPass, articles, briefTopic, briefContext) {
-    const briefing = {
-        period: 'Last 24-48 hours',
-        threatLevel: `${threatPass.riskLevel} (${threatPass.overall}/100)`,
-        dimensions: threatPass.dimensions,
-        activeThreats: threatPass.activeThreats.length,
-        topEntities: entityPass.topEntities.slice(0, 8).map(e => ({
-            name: e.name, influence: e.influence, trend: e.trend,
-            mentions: e.mentionCount, frame: e.dominantFrame,
-        })),
-        signals: signalPass.signals.map(s => ({
-            type: s.signal_type, severity: s.severity, title: s.title,
-        })),
-        recentArticles: articles.slice(0, 15).map(a => ({
-            title: a.title,
+async function passNarrativeSynthesis(client, entityPass, threatPass, temporalPass, networkPass, sourcePass, signalPass, articles, briefTopic, briefContext, briefProfile = {}) {
+
+    // ── Pre-cluster articles by narrative_frame (last 48h, top 40) ──
+    const fortyEightHoursAgo = Date.now() - 48 * 3600000;
+    const recent = articles
+        .filter(a => new Date(a.published_at || 0).getTime() > fortyEightHoursAgo)
+        .sort((a, b) => (b.analysis?.importance_score || 0) - (a.analysis?.importance_score || 0))
+        .slice(0, 40);
+
+    const frameGroups = {};
+    for (const a of recent) {
+        const frame = a.analysis?.narrative_frame || 'general';
+        if (!frameGroups[frame]) frameGroups[frame] = [];
+        frameGroups[frame].push({
+            title: a.title_en || a.title,
             source: a.sourceName,
+            source_tier: a.sourceTier || 2,
             sentiment: a.analysis?.sentiment || 'neutral',
-            summary: a.analysis?.summary || '',
+            importance: a.analysis?.importance_score || 5,
+            summary: (a.analysis?.summary || '').substring(0, 300),
+            locations: a.analysis?.entities?.locations || [],
+        });
+    }
+    // Keep top 4 per frame, sorted by importance
+    for (const frame of Object.keys(frameGroups)) {
+        frameGroups[frame] = frameGroups[frame].slice(0, 4);
+    }
+
+    // Source reliability summary for source_notes section
+    const sourceReliability = (sourcePass.sourceProfiles || []).slice(0, 5).map(s => ({
+        name: s.name, tier: s.tier, bias: s.biasDirection, reliability: s.reliabilityScore,
+    }));
+
+    const briefing = {
+        client_context: {
+            name: briefProfile.client_name || client.name,
+            geographic_scope: briefProfile.geographic_focus || 'Not specified',
+            risk_domains: briefProfile.risk_domains || [],
+            entities_of_interest: briefProfile.entities_of_interest || [],
+            mission: briefProfile.context || briefContext || 'General intelligence monitoring',
+        },
+        period: 'Last 24-48 hours',
+        threat_level: `${threatPass.riskLevel} (${threatPass.overall}/100)`,
+        threat_dimensions: threatPass.dimensions,
+        active_threats_count: threatPass.activeThreats.length,
+        clustered_articles: frameGroups,
+        top_entities: entityPass.topEntities.slice(0, 10).map(e => ({
+            name: e.name, influence: e.influence, trend: e.trend,
+            mentions: e.mentionCount, dominant_frame: e.dominantFrame,
         })),
+        signals: signalPass.signals.slice(0, 8).map(s => ({
+            type: s.signal_type, severity: s.severity,
+            title: s.title, description: s.description,
+        })),
+        source_notes_input: sourceReliability,
     };
+
+    const clientName = briefProfile.client_name || client.name;
+    const geoScope = briefProfile.geographic_focus || 'the monitored region';
+    const riskDomains = (briefProfile.risk_domains || []).join(', ') || 'General';
+    const entitiesOfInterest = (briefProfile.entities_of_interest || []).join(', ') || 'As identified in coverage';
 
     let narrative = '', forecast = '', actions = '';
 
@@ -1241,35 +1293,96 @@ async function passNarrativeSynthesis(client, entityPass, threatPass, temporalPa
         const resp = await groqChat([
             {
                 role: 'system',
-                content: `You are an open-source intelligence assistant for the Government of Odisha.
-Your task is to generate a concise daily briefing on the most important developments from the last 24 hours based strictly on the provided "recentArticles" and "signals".
-Act as a neutral, policy-focused analyst serving senior officials.
+                content: `You are an OSINT intelligence analyst preparing a daily situation brief.
 
-CRITICAL INSTRUCTIONS:
-- You MUST output ONLY valid JSON.
-- DO NOT echo the prompt instructions. Write ACTUAL news summaries.
-- Ensure the table in watch_list uses standard markdown format with NO introductory text before the table.`
+CLIENT: ${clientName}
+MONITORING SCOPE: ${geoScope}
+RISK DOMAINS: ${riskDomains}
+KEY ENTITIES TO WATCH: ${entitiesOfInterest}
+MISSION: ${briefProfile.context || briefContext || 'General intelligence monitoring'}
+
+You serve senior decision-makers who need clarity, risk awareness, and actionable intelligence — not a news dump.
+
+CRITICAL RULES:
+- Output ONLY valid JSON. No markdown wrapping, no code blocks.
+- Do NOT copy article headlines verbatim — rewrite in analytical language.
+- Every key_development MUST include a "so_what" implication specific to ${clientName}.
+- recommended_actions MUST name specific departments or teams — never "monitor" as a standalone action.
+- Be concise, factual, and neutral. No speculation beyond what evidence supports.
+- Focus on what CHANGED in the last 24-48 hours, not background context.
+- A "so_what" answers: what risk, opportunity, or required action does this create for ${clientName}?`
             },
             {
                 role: 'user',
-                content: `Write a structured intelligence brief using the data below. Focus ONLY on summarizing the recent articles and signals.
+                content: `Transform the raw intelligence data below into a structured situation brief.
+
+Follow this 9-step analytical process:
+1. CLUSTERING — Data is pre-grouped by narrative frame. Synthesize each cluster, merge overlapping reports.
+2. SIGNAL EXTRACTION — What is NEW or CHANGING vs stale/repetitive? Highlight 24-48h developments.
+3. SUMMARIZATION — 2-3 line analytical summary per cluster. Rewrite in neutral analytical language.
+4. RISK ASSESSMENT — Assign severity: Critical / High / Moderate / Low. Explain WHY for each.
+5. GEOGRAPHIC TAGGING — Extract districts, cities, regions. Identify hotspots and patterns.
+6. SENTIMENT & NARRATIVE — Detect public sentiment; identify emerging narratives or misinformation.
+7. EARLY WARNING — Flag weak signals that could escalate into larger issues.
+8. STAKEHOLDER IMPACT — Who is affected? Who is driving the narrative?
+9. ACTIONABLE INSIGHTS — 3-5 specific, department-named recommendations with urgency and rationale.
 
 INTELLIGENCE DATA:
 ${JSON.stringify(briefing)}
 
-JSON RESPONSE FORMAT:
+Respond in this EXACT JSON format (raw JSON only, no wrapping):
 {
-  "executive_summary": "• First major news event summary.\\n\\n• Second major news event summary.",
-  "key_developments": "**Headline 1**\\nWhat happened: Summary of actual event...\\nWhy it matters: Policy implications...\\n\\n**Headline 2**\\nWhat happened: Summary of actual event...\\nWhy it matters: Policy implications...",
-  "emerging_threats": "• Secondary news event 1\\n\\n• Secondary news event 2",
-  "entity_movements": "• Mentions of Entity X have increased due to Event Y.\\n\\n• Entity Z is trending.",
-  "watch_list": "| Story/Issue | Relevant department(s) | Time-sensitivity | Risk type | Suggested posture |\\n|---|---|---|---|---|\\n| Describe Issue 1 | Dept Name | High | Operational | Monitor closely |"
+  "executive_summary": "• [What changed + why it matters for ${clientName}]\\n\\n• [Second development]\\n\\n• [5 to 7 bullets total — each a complete insight, not just a headline]",
+
+  "risk_heatmap": {
+    "critical": [{"issue": "Short description", "why": "Reason for critical rating", "so_what": "Implication for ${clientName}"}],
+    "high": [{"issue": "...", "why": "...", "so_what": "..."}],
+    "moderate": [{"issue": "...", "why": "...", "so_what": "..."}],
+    "low": [{"issue": "...", "why": "...", "so_what": "..."}]
+  },
+
+  "key_developments": [
+    {
+      "theme": "Theme name (e.g. Law & Order, Health, Economy, Infrastructure)",
+      "headline": "Analytical headline — not copied from any article",
+      "what_happened": "2-3 sentence factual summary of the development",
+      "so_what": "Direct implication for ${clientName} — what risk, opportunity, or action this creates",
+      "department": "Specific department or team responsible for this domain",
+      "severity": "critical|high|moderate|low",
+      "locations": ["District or city names if mentioned"]
+    }
+  ],
+
+  "geographic_hotspots": "District and region level breakdown — which areas are most active, which are emerging concerns, geographic patterns and clustering of incidents",
+
+  "narrative_sentiment": "Overall public sentiment in media (positive/negative/polarized), dominant narratives being pushed, any misinformation or coordinated narrative patterns detected",
+
+  "early_warning_signals": [
+    {"signal": "Description of the weak signal", "risk": "How this could escalate", "timeframe": "Days / weeks"}
+  ],
+
+  "stakeholder_impact": {
+    "affected_groups": ["Specific group 1 (e.g. Farmers in Keonjhar)", "Group 2"],
+    "narrative_drivers": ["Actor or group driving the narrative", "Second actor"]
+  },
+
+  "recommended_actions": [
+    {"action": "Specific concrete action — not generic", "department": "Named department or team", "urgency": "Immediate|Within 48 hours|This week", "rationale": "Why this action is needed now based on evidence"}
+  ],
+
+  "source_notes": "Assessment of source reliability in today's coverage, conflicting reports between sources, known bias markers, cross-verification status of key claims",
+
+  "emerging_threats": "• [Secondary concern 1 — developing but not yet critical]\\n\\n• [Secondary concern 2]",
+
+  "entity_movements": "• [Entity 1 mention trend and reason]\\n\\n• [Entity 2]",
+
+  "watch_list": "| Story/Issue | Relevant Department | Time-sensitivity | Risk Type | Suggested Posture |\\n|---|---|---|---|---|\\n| [Issue 1] | [Dept] | High | [Type] | Monitor closely |"
 }`
             },
-        ], { temperature: 0.3, max_tokens: 3000, response_format: { type: "json_object" } });
+        ], { temperature: 0.3, max_tokens: 4000, response_format: { type: "json_object" } });
 
         const rawContent = resp.choices[0]?.message?.content || '{}';
-        
+
         let sections = {};
         try {
             sections = JSON.parse(rawContent);
@@ -1279,11 +1392,14 @@ JSON RESPONSE FORMAT:
             sections = JSON.parse(cleaned);
         }
 
-        // Use watch_list as forecast, key_developments as actions for backward compatibility
+        // Backward compat variables
         forecast = sections.watch_list || '';
-        actions = sections.key_developments || '';
+        actions = typeof sections.key_developments === 'string'
+            ? sections.key_developments
+            : (Array.isArray(sections.key_developments)
+                ? sections.key_developments.map(d => `**${d.headline}**\nWhat happened: ${d.what_happened}\nSo what: ${d.so_what}`).join('\n\n')
+                : '');
 
-        // Store the structured sections in the narrative for downstream use
         narrative = JSON.stringify({
             ...sections,
             risk_level: threatPass.riskLevel,
@@ -1295,8 +1411,15 @@ JSON RESPONSE FORMAT:
         const fallbackStr = `Risk level: ${threatPass.riskLevel}. ${threatPass.activeThreats.length} active threats. ${signalPass.signals.length} signals detected.`;
         narrative = JSON.stringify({
              executive_summary: fallbackStr,
-             key_developments: "Forecast unavailable — monitor active threats.",
-             emerging_threats: "1. Monitor active threats.\\n2. Prepare holding statements.\\n3. Brief leadership.",
+             key_developments: [],
+             risk_heatmap: { critical: [], high: [], moderate: [], low: [] },
+             geographic_hotspots: '',
+             narrative_sentiment: '',
+             early_warning_signals: [],
+             stakeholder_impact: { affected_groups: [], narrative_drivers: [] },
+             recommended_actions: [],
+             source_notes: '',
+             emerging_threats: "• Monitor active threats.",
              entity_movements: "",
              watch_list: "",
              risk_level: threatPass.riskLevel,
@@ -1316,7 +1439,7 @@ JSON RESPONSE FORMAT:
 // Connect signals, entities, and events into logical deductions
 // ────────────────────────────────────────────────────────────
 
-async function passInferenceChains(client, articles, entityPass, threatPass, temporalPass, signalPass, briefTopic, briefContext) {
+async function passInferenceChains(client, articles, entityPass, threatPass, temporalPass, signalPass, briefTopic, briefContext, briefProfile = {}) {
     const result = { chains: [] };
 
     // Need enough data to build meaningful chains
@@ -1357,8 +1480,12 @@ async function passInferenceChains(client, articles, entityPass, threatPass, tem
         const resp = await groqChat([
             {
                 role: 'system',
-                content: `You are a senior intelligence analyst performing inference chain analysis for: "${briefTopic || client.name}".
-Context: ${briefContext || client.industry}
+                content: `You are a senior intelligence analyst performing inference chain analysis.
+
+CLIENT: ${briefProfile.client_name || client.name}
+MONITORING SCOPE: ${briefProfile.geographic_focus || 'Not specified'}
+RISK DOMAINS: ${(briefProfile.risk_domains || []).join(', ') || 'General'}
+MISSION: ${briefProfile.context || briefContext || client.industry}
 
 Your job is to connect dots that others miss. Build DEDUCTIVE REASONING CHAINS that link separate signals, entities, and events into coherent conclusions.
 

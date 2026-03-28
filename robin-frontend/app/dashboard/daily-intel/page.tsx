@@ -73,6 +73,68 @@ interface ComputedSummary {
     watch_list: string;
 }
 
+// ─── Structured narrative types (new backend Pass 7 output) ───────────────────
+
+interface KeyDevelopment {
+    theme?: string;
+    headline?: string;
+    what_happened?: string;
+    so_what?: string;
+    department?: string;
+    severity?: string;
+    locations?: string[];
+}
+
+interface RiskHeatmapItem {
+    issue: string;
+    why?: string;
+    so_what?: string;
+}
+
+interface GeoHotspot {
+    location: string;
+    theme?: string;
+    severity?: string;
+    articles_count?: number;
+}
+
+interface EarlyWarning {
+    signal: string;
+    type?: string;
+    confidence?: string;
+    recommended_action?: string;
+}
+
+interface RecommendedAction {
+    action: string;
+    department?: string;
+    urgency?: string;
+    rationale?: string;
+}
+
+interface NarrativeData {
+    weekly_narrative?: string;
+    dominant_sentiment?: string;
+    emerging_themes?: string[];
+    executive_summary?: string;
+    key_developments?: string | KeyDevelopment[];
+    emerging_threats?: string;
+    entity_movements?: string;
+    watch_list?: string | string[];
+    risk_heatmap?: string | {
+        critical?: RiskHeatmapItem[];
+        high?: RiskHeatmapItem[];
+        moderate?: RiskHeatmapItem[];
+        low?: RiskHeatmapItem[];
+    };
+    geographic_hotspots?: GeoHotspot[];
+    early_warning_signals?: string | EarlyWarning[];
+    stakeholder_impact?: Record<string, string> | null;
+    recommended_actions?: string | RecommendedAction[];
+    source_notes?: string;
+    narrative_sentiment?: string;
+}
+
 // ─── Odisha Sectors ───────────────────────────────────────────────────────────
 
 const ODISHA_SECTORS = [
@@ -255,18 +317,43 @@ function getSuggestedPosture(articles: Article[]): string {
 function StrategicBriefingSection({ articles, sectorMap, narrative, riskLevel, critCount }: {
     articles: Article[];
     sectorMap: Record<string, Article[]>;
-    narrative: { executive_summary?: string; key_developments?: string; emerging_threats?: string } | null;
+    narrative: NarrativeData | null;
     riskLevel: string;
     critCount: number;
 }) {
     const sorted = [...articles].sort((a, b) => (b.importance_score || 0) - (a.importance_score || 0));
-    const priorityStories = sorted.filter(a => !getTitle(a).startsWith("[VIDEO]")).slice(0, 5);
+    const priorityStories = sorted.filter(a => !getTitle(a).startsWith("[VIDEO]")).slice(0, 6);
     const top3 = priorityStories.slice(0, 3);
     const additional = priorityStories.slice(3, 6);
 
-    // Risk & Narrative narrative — use API narrative if available, else compute
+    // ── Detect structured vs legacy format ──────────────────────────────────
+    const keyDevsArray = Array.isArray(narrative?.key_developments)
+        ? (narrative!.key_developments as KeyDevelopment[])
+        : null;
+
+    const riskHeatmapObj = (narrative?.risk_heatmap && typeof narrative.risk_heatmap === "object")
+        ? (narrative.risk_heatmap as { critical?: RiskHeatmapItem[]; high?: RiskHeatmapItem[]; moderate?: RiskHeatmapItem[]; low?: RiskHeatmapItem[] })
+        : null;
+
+    const geoHotspots = Array.isArray(narrative?.geographic_hotspots)
+        ? (narrative!.geographic_hotspots as GeoHotspot[])
+        : null;
+
+    const earlyWarningsArray = Array.isArray(narrative?.early_warning_signals)
+        ? (narrative!.early_warning_signals as EarlyWarning[])
+        : null;
+
+    const stakeholderImpact = (narrative?.stakeholder_impact && typeof narrative.stakeholder_impact === "object")
+        ? (narrative.stakeholder_impact as Record<string, string>)
+        : null;
+
+    const recommendedActionsArray = Array.isArray(narrative?.recommended_actions)
+        ? (narrative!.recommended_actions as RecommendedAction[])
+        : null;
+
+    // ── Fallback risk narrative (legacy / computed) ──────────────────────────
     const riskNarrative = narrative?.executive_summary
-        ? narrative.executive_summary.replace(/^Situation summary[\s\S]*?\n\n/, "").slice(0, 500)
+        ? narrative.executive_summary.replace(/^Situation summary[\s\S]*?\n\n/, "").slice(0, 600)
         : (() => {
             const negHigh = sorted.filter(a => (a.sentiment || "").toLowerCase() === "negative" && (a.importance_score || 0) >= 6);
             const topEntCount: Record<string, number> = {};
@@ -277,14 +364,13 @@ function StrategicBriefingSection({ articles, sectorMap, narrative, riskLevel, c
             }
             const topEnts = Object.entries(topEntCount).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([n]) => n);
             const activeSectors = ODISHA_SECTORS.filter(s => (sectorMap[s.key] || []).length > 0);
-
             return `Media monitoring across ${articles.length} articles identifies ${negHigh.length} high-concern ${negHigh.length === 1 ? "story" : "stories"} in today's coverage. `
                 + `Active governance domains: ${activeSectors.map(s => s.label).join(", ")}. `
                 + (topEnts.length > 0 ? `Key figures in focus: ${topEnts.join(", ")}. ` : "")
                 + (critCount > 0 ? `${critCount} critical-severity article${critCount > 1 ? "s" : ""} detected — immediate attention recommended.` : "No critical-severity articles. Situation broadly stable.");
         })();
 
-    // Department matrix from sectorMap
+    // ── Department matrix (legacy fallback for Panel D) ──────────────────────
     const deptRows = ODISHA_SECTORS.map(s => {
         const arts = sectorMap[s.key] || [];
         if (arts.length === 0) return null;
@@ -294,50 +380,142 @@ function StrategicBriefingSection({ articles, sectorMap, narrative, riskLevel, c
         return { sector: s.label, icon: s.icon, dept: d.dept, riskType: d.riskType, posture, count: arts.length, topTitle: bestTitle(top.title_en, top.title) };
     }).filter(Boolean) as { sector: string; icon: string; dept: string; riskType: string; posture: string; count: number; topTitle: string }[];
 
-    const postureColor = (p: string) => p === "Escalate" ? "text-red-400 bg-red-500/10 border-red-500/20" : p === "Investigate" ? "text-amber-400 bg-amber-500/10 border-amber-500/20" : "text-teal-400 bg-teal-500/10 border-teal-500/20";
+    const postureColor = (p: string) =>
+        p === "Escalate" ? "text-red-400 bg-red-500/10 border-red-500/20"
+        : p === "Investigate" ? "text-amber-400 bg-amber-500/10 border-amber-500/20"
+        : "text-teal-400 bg-teal-500/10 border-teal-500/20";
+
+    // ── Risk heatmap severity band styles ────────────────────────────────────
+    const riskBandStyle = {
+        critical: { title: "Critical", color: "text-red-400", bg: "bg-red-500/8 border-red-500/20", dot: "bg-red-500" },
+        high:     { title: "High",     color: "text-amber-400", bg: "bg-amber-500/8 border-amber-500/20", dot: "bg-amber-500" },
+        moderate: { title: "Moderate", color: "text-yellow-400", bg: "bg-yellow-500/8 border-yellow-500/20", dot: "bg-yellow-400" },
+        low:      { title: "Routine",  color: "text-emerald-400", bg: "bg-emerald-500/8 border-emerald-500/20", dot: "bg-emerald-500" },
+    };
+
+    // ── Urgency badge style ───────────────────────────────────────────────────
+    const urgencyStyle = (u?: string) => {
+        const l = (u || "").toLowerCase();
+        if (l === "immediate" || l === "critical") return "bg-red-500/20 text-red-300 border-red-500/30";
+        if (l === "high" || l === "urgent")        return "bg-amber-500/20 text-amber-300 border-amber-500/30";
+        if (l === "medium" || l === "moderate")    return "bg-yellow-500/20 text-yellow-300 border-yellow-500/30";
+        return "bg-slate-700/60 text-slate-400 border-slate-600/40";
+    };
+
+    const geoSeverityDot = (sev?: string) => {
+        const s = (sev || "").toLowerCase();
+        if (s === "critical") return "bg-red-500";
+        if (s === "high")     return "bg-amber-500";
+        if (s === "moderate" || s === "elevated") return "bg-yellow-400";
+        return "bg-emerald-500";
+    };
 
     if (articles.length === 0) return null;
 
     return (
         <div className="bg-surface border border-border rounded-xl overflow-hidden">
+
+            {/* ── Header ── */}
             <div className="px-5 py-3 border-b border-border flex items-center gap-2">
                 <span className="text-sm">📋</span>
                 <span className="text-xs font-bold text-text-primary uppercase tracking-widest">Strategic Intelligence Briefing</span>
                 <span className={cn("ml-auto text-2xs font-mono px-2 py-0.5 rounded border",
-                    riskLevel === "CRITICAL" ? "text-red-400 bg-red-500/10 border-red-500/20" :
-                    riskLevel === "HIGH" ? "text-amber-400 bg-amber-500/10 border-amber-500/20" :
-                    riskLevel === "ELEVATED" ? "text-yellow-400 bg-yellow-500/10 border-yellow-500/20" :
-                    "text-teal-400 bg-teal-500/10 border-teal-500/20"
+                    riskLevel === "CRITICAL" ? "text-red-400 bg-red-500/10 border-red-500/20"
+                    : riskLevel === "HIGH"     ? "text-amber-400 bg-amber-500/10 border-amber-500/20"
+                    : riskLevel === "ELEVATED" ? "text-yellow-400 bg-yellow-500/10 border-yellow-500/20"
+                    : "text-teal-400 bg-teal-500/10 border-teal-500/20"
                 )}>{riskLevel} RISK ENVIRONMENT</span>
             </div>
 
+            {/* ── Row 1: Key Developments | Additional Stories ── */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 divide-y lg:divide-y-0 lg:divide-x divide-border">
 
-                {/* Panel A: Top Priority Stories */}
+                {/* Panel A: Key Developments */}
                 <div className="p-5">
                     <p className="text-2xs font-mono text-teal-400 uppercase tracking-wider mb-4 flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-teal-400 inline-block" />
                         Top Priority Stories
                     </p>
-                    <div className="space-y-4">
-                        {top3.map((a, i) => {
-                            const { storyName, whatHappened, whyItMatters } = buildStoryBrief(a);
-                            return (
-                                <div key={a.id}>
-                                    <p className="text-sm text-text-secondary leading-relaxed">
-                                        <a href={a.url} target="_blank" rel="noreferrer"
-                                            className="font-bold text-text-primary hover:text-teal-400 transition-colors">
-                                            {storyName}
-                                        </a>{" "}
-                                        <span className="font-semibold">What happened:</span> {whatHappened}.{" "}
-                                        <span className="font-semibold">Why it matters:</span>{" "}
-                                        <span className="text-text-muted">{whyItMatters}</span>
-                                    </p>
-                                    {i < top3.length - 1 && <div className="mt-3.5 border-t border-border" />}
-                                </div>
-                            );
-                        })}
-                    </div>
+
+                    {keyDevsArray && keyDevsArray.length > 0 ? (
+                        /* Structured key developments from backend */
+                        <div className="space-y-4">
+                            {keyDevsArray.slice(0, 3).map((dev, i) => {
+                                const sevKey = (dev.severity || "routine").toLowerCase();
+                                const sevStyle = SEV[sevKey as keyof typeof SEV] || SEV.routine;
+                                return (
+                                    <div key={i} className={cn("rounded-lg border-l-2 pl-3 py-1", sevStyle.border)}>
+                                        {/* Theme + department + severity chips */}
+                                        <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                                            {dev.theme && (
+                                                <span className="text-2xs font-mono text-violet-400 bg-violet-500/10 border border-violet-500/20 px-1.5 py-0.5 rounded">
+                                                    {dev.theme}
+                                                </span>
+                                            )}
+                                            {dev.department && (
+                                                <span className="text-2xs text-text-muted bg-overlay border border-border px-1.5 py-0.5 rounded">
+                                                    {dev.department}
+                                                </span>
+                                            )}
+                                            <span className={cn("text-2xs font-mono px-1.5 py-0.5 rounded border ml-auto flex-shrink-0", sevStyle.pill)}>
+                                                {sevStyle.label}
+                                            </span>
+                                        </div>
+                                        {/* Headline */}
+                                        <p className="text-sm font-semibold text-text-primary leading-snug mb-1.5">
+                                            {dev.headline || "Intelligence Development"}
+                                        </p>
+                                        {/* What happened */}
+                                        {dev.what_happened && (
+                                            <p className="text-xs text-text-secondary leading-relaxed mb-1">
+                                                <span className="font-semibold text-text-primary">What happened: </span>
+                                                {dev.what_happened}
+                                            </p>
+                                        )}
+                                        {/* So what */}
+                                        {dev.so_what && (
+                                            <p className="text-xs leading-relaxed italic">
+                                                <span className="font-semibold not-italic text-amber-400">So what: </span>
+                                                <span className="text-text-muted">{dev.so_what}</span>
+                                            </p>
+                                        )}
+                                        {/* Locations */}
+                                        {dev.locations && dev.locations.length > 0 && (
+                                            <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                                                {dev.locations.map(loc => (
+                                                    <span key={loc} className="text-2xs text-teal-400/70 bg-teal-500/5 border border-teal-500/15 px-1.5 py-0.5 rounded">
+                                                        📍 {loc}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+                                        {i < Math.min(keyDevsArray.length, 3) - 1 && <div className="mt-3.5 border-t border-border" />}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        /* Legacy fallback: buildStoryBrief */
+                        <div className="space-y-4">
+                            {top3.map((a, i) => {
+                                const { storyName, whatHappened, whyItMatters } = buildStoryBrief(a);
+                                return (
+                                    <div key={a.id}>
+                                        <p className="text-sm text-text-secondary leading-relaxed">
+                                            <a href={a.url} target="_blank" rel="noreferrer"
+                                                className="font-bold text-text-primary hover:text-teal-400 transition-colors">
+                                                {storyName}
+                                            </a>{" "}
+                                            <span className="font-semibold">What happened:</span> {whatHappened}.{" "}
+                                            <span className="font-semibold">Why it matters:</span>{" "}
+                                            <span className="text-text-muted">{whyItMatters}</span>
+                                        </p>
+                                        {i < top3.length - 1 && <div className="mt-3.5 border-t border-border" />}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
 
                 {/* Panel B: Additional Stories to Track */}
@@ -346,7 +524,35 @@ function StrategicBriefingSection({ articles, sectorMap, narrative, riskLevel, c
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
                         Additional Stories to Track
                     </p>
-                    {additional.length > 0 ? (
+
+                    {/* If structured key_developments has >3 items, show items 4–6 */}
+                    {keyDevsArray && keyDevsArray.length > 3 ? (
+                        <div className="space-y-3">
+                            {keyDevsArray.slice(3, 6).map((dev, i) => {
+                                const sevKey = (dev.severity || "routine").toLowerCase();
+                                const sevStyle = SEV[sevKey as keyof typeof SEV] || SEV.routine;
+                                return (
+                                    <div key={i} className="flex items-start gap-2.5">
+                                        <span className={cn("text-2xs font-mono px-1.5 py-0.5 rounded flex-shrink-0 mt-0.5 border", sevStyle.pill)}>
+                                            {sevStyle.label}
+                                        </span>
+                                        <div className="min-w-0">
+                                            <p className="text-xs font-semibold text-text-primary leading-snug">
+                                                {dev.headline || "Development"}
+                                            </p>
+                                            {dev.what_happened && (
+                                                <p className="text-2xs text-text-muted mt-0.5 line-clamp-2">{dev.what_happened}</p>
+                                            )}
+                                            {dev.so_what && (
+                                                <p className="text-2xs text-amber-400/70 mt-0.5 italic line-clamp-2">{dev.so_what}</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : additional.length > 0 ? (
+                        /* Legacy fallback */
                         <div className="space-y-3">
                             {additional.map(a => {
                                 const { storyName, whatHappened } = buildStoryBrief(a);
@@ -373,63 +579,211 @@ function StrategicBriefingSection({ articles, sectorMap, narrative, riskLevel, c
                 </div>
             </div>
 
-            {/* Bottom row */}
+            {/* ── Geographic Hotspots strip (new — only if structured data) ── */}
+            {geoHotspots && geoHotspots.length > 0 && (
+                <div className="border-t border-border px-5 py-4">
+                    <p className="text-2xs font-mono text-teal-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-teal-400 inline-block" />
+                        Geographic Hotspots
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                        {geoHotspots.map((spot, i) => (
+                            <div key={i} className="flex items-center gap-1.5 bg-overlay border border-border rounded-lg px-3 py-1.5">
+                                <span className={cn("w-2 h-2 rounded-full flex-shrink-0", geoSeverityDot(spot.severity))} />
+                                <span className="text-xs font-semibold text-text-primary">{spot.location}</span>
+                                {spot.theme && (
+                                    <span className="text-2xs text-text-muted">· {spot.theme}</span>
+                                )}
+                                {spot.articles_count != null && (
+                                    <span className="text-2xs font-mono text-text-muted/60 ml-0.5">({spot.articles_count})</span>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* ── Row 2: Risk Heatmap | Recommended Actions (or legacy dept matrix) ── */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 divide-y lg:divide-y-0 lg:divide-x divide-border border-t border-border">
 
-                {/* Panel C: Risk and Narrative Map */}
+                {/* Panel C: Risk Heatmap */}
                 <div className="p-5">
                     <p className="text-2xs font-mono text-violet-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-violet-400 inline-block" />
-                        Risk and Narrative Map
+                        Risk Heatmap
                     </p>
-                    <p className="text-xs text-text-secondary leading-relaxed">{riskNarrative}</p>
+
+                    {riskHeatmapObj ? (
+                        /* Structured heatmap by severity band */
+                        <div className="space-y-2">
+                            {(["critical", "high", "moderate", "low"] as const).map(band => {
+                                const items = riskHeatmapObj[band] || [];
+                                if (items.length === 0) return null;
+                                const s = riskBandStyle[band];
+                                return (
+                                    <div key={band} className={cn("rounded-lg border px-3 py-2.5", s.bg)}>
+                                        <div className="flex items-center gap-1.5 mb-2">
+                                            <span className={cn("w-2 h-2 rounded-full flex-shrink-0", s.dot)} />
+                                            <span className={cn("text-2xs font-mono font-bold uppercase tracking-wider", s.color)}>{s.title}</span>
+                                            <span className={cn("text-2xs font-mono ml-auto", s.color)}>
+                                                {items.length} issue{items.length > 1 ? "s" : ""}
+                                            </span>
+                                        </div>
+                                        <div className="space-y-2">
+                                            {items.map((item, j) => (
+                                                <div key={j} className={j > 0 ? "pt-2 border-t border-border/50" : ""}>
+                                                    <p className="text-xs text-text-primary font-medium leading-snug">{item.issue}</p>
+                                                    {item.why && (
+                                                        <p className="text-2xs text-text-muted leading-snug mt-0.5">{item.why}</p>
+                                                    )}
+                                                    {item.so_what && (
+                                                        <p className="text-2xs text-amber-400/70 italic leading-snug mt-0.5">
+                                                            → {item.so_what}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        /* Fallback: risk narrative paragraph */
+                        <p className="text-xs text-text-secondary leading-relaxed">{riskNarrative}</p>
+                    )}
                 </div>
 
-                {/* Panel D: Department-wise Relevance Matrix */}
+                {/* Panel D: Recommended Actions or legacy Dept Matrix */}
                 <div className="p-5">
-                    <p className="text-2xs font-mono text-sky-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-sky-400 inline-block" />
-                        Department-wise Relevance Matrix
-                    </p>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-xs border-collapse">
-                            <thead>
-                                <tr className="border-b border-border">
-                                    <th className="text-left text-2xs font-mono text-text-muted pb-2 pr-3">Story / Issue</th>
-                                    <th className="text-left text-2xs font-mono text-text-muted pb-2 pr-3">Relevant Department(s)</th>
-                                    <th className="text-left text-2xs font-mono text-text-muted pb-2 pr-3">Time-sensitivity</th>
-                                    <th className="text-left text-2xs font-mono text-text-muted pb-2 pr-3">Risk Type</th>
-                                    <th className="text-left text-2xs font-mono text-text-muted pb-2">Suggested Posture</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-border/50">
-                                {deptRows.slice(0, 6).map(row => {
-                                    const topScore = [...(sectorMap[ODISHA_SECTORS.find(s => s.label === row.sector)?.key || ''] || [])]
-                                        .sort((a, b) => (b.importance_score || 0) - (a.importance_score || 0))[0]?.importance_score || 0;
-                                    const timeSens = topScore >= 8 ? "High" : topScore >= 6 ? "Medium" : "Low";
-                                    const timeSensColor = timeSens === "High" ? "text-red-400" : timeSens === "Medium" ? "text-amber-400" : "text-slate-400";
-                                    return (
-                                        <tr key={row.sector}>
-                                            <td className="py-2 pr-3 text-text-primary font-medium align-top leading-snug max-w-[140px]">
-                                                <span className="mr-1">{row.icon}</span>
-                                                <span className="line-clamp-2">{row.topTitle}</span>
-                                            </td>
-                                            <td className="py-2 pr-3 text-text-secondary align-top leading-snug">{row.dept}</td>
-                                            <td className={cn("py-2 pr-3 font-semibold align-top", timeSensColor)}>{timeSens}</td>
-                                            <td className="py-2 pr-3 text-text-muted align-top leading-snug">{row.riskType}</td>
-                                            <td className="py-2 align-top">
-                                                <span className={cn("text-2xs font-mono px-1.5 py-0.5 rounded border whitespace-nowrap", postureColor(row.posture))}>
-                                                    {row.posture === "Escalate" ? "Escalate" : row.posture === "Investigate" ? "Investigate and take action" : "Monitor closely"}
+                    {recommendedActionsArray && recommendedActionsArray.length > 0 ? (
+                        <>
+                            <p className="text-2xs font-mono text-sky-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-sky-400 inline-block" />
+                                Recommended Actions
+                            </p>
+                            <div className="space-y-2.5">
+                                {recommendedActionsArray.slice(0, 5).map((ra, i) => (
+                                    <div key={i} className="rounded-lg border border-border bg-overlay px-3 py-2.5">
+                                        <div className="flex items-start gap-2 mb-1">
+                                            {ra.urgency && (
+                                                <span className={cn("text-2xs font-mono px-1.5 py-0.5 rounded border flex-shrink-0 mt-0.5", urgencyStyle(ra.urgency))}>
+                                                    {ra.urgency.toUpperCase()}
                                                 </span>
-                                            </td>
+                                            )}
+                                            <p className="text-xs font-semibold text-text-primary leading-snug">{ra.action}</p>
+                                        </div>
+                                        {ra.department && (
+                                            <p className="text-2xs text-sky-400/80 mb-0.5">
+                                                <span className="text-text-muted not-italic">Dept: </span>
+                                                {ra.department}
+                                            </p>
+                                        )}
+                                        {ra.rationale && (
+                                            <p className="text-2xs text-text-muted leading-relaxed italic">{ra.rationale}</p>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <p className="text-2xs font-mono text-sky-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-sky-400 inline-block" />
+                                Department-wise Relevance Matrix
+                            </p>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-xs border-collapse">
+                                    <thead>
+                                        <tr className="border-b border-border">
+                                            <th className="text-left text-2xs font-mono text-text-muted pb-2 pr-3">Story / Issue</th>
+                                            <th className="text-left text-2xs font-mono text-text-muted pb-2 pr-3">Department(s)</th>
+                                            <th className="text-left text-2xs font-mono text-text-muted pb-2 pr-3">Urgency</th>
+                                            <th className="text-left text-2xs font-mono text-text-muted pb-2 pr-3">Risk Type</th>
+                                            <th className="text-left text-2xs font-mono text-text-muted pb-2">Posture</th>
                                         </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
+                                    </thead>
+                                    <tbody className="divide-y divide-border/50">
+                                        {deptRows.slice(0, 6).map(row => {
+                                            const topScore = [...(sectorMap[ODISHA_SECTORS.find(s => s.label === row.sector)?.key || ""] || [])]
+                                                .sort((a, b) => (b.importance_score || 0) - (a.importance_score || 0))[0]?.importance_score || 0;
+                                            const timeSens = topScore >= 8 ? "High" : topScore >= 6 ? "Medium" : "Low";
+                                            const timeSensColor = timeSens === "High" ? "text-red-400" : timeSens === "Medium" ? "text-amber-400" : "text-slate-400";
+                                            return (
+                                                <tr key={row.sector}>
+                                                    <td className="py-2 pr-3 text-text-primary font-medium align-top leading-snug max-w-[140px]">
+                                                        <span className="mr-1">{row.icon}</span>
+                                                        <span className="line-clamp-2">{row.topTitle}</span>
+                                                    </td>
+                                                    <td className="py-2 pr-3 text-text-secondary align-top leading-snug">{row.dept}</td>
+                                                    <td className={cn("py-2 pr-3 font-semibold align-top", timeSensColor)}>{timeSens}</td>
+                                                    <td className="py-2 pr-3 text-text-muted align-top leading-snug">{row.riskType}</td>
+                                                    <td className="py-2 align-top">
+                                                        <span className={cn("text-2xs font-mono px-1.5 py-0.5 rounded border whitespace-nowrap", postureColor(row.posture))}>
+                                                            {row.posture === "Escalate" ? "Escalate" : row.posture === "Investigate" ? "Investigate" : "Monitor"}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
+
+            {/* ── Early Warning Signals (full-width, new) ── */}
+            {earlyWarningsArray && earlyWarningsArray.length > 0 && (
+                <div className="border-t border-border px-5 py-4">
+                    <p className="text-2xs font-mono text-amber-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse inline-block" />
+                        Early Warning Signals
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {earlyWarningsArray.map((w, i) => (
+                            <div key={i} className="flex items-start gap-2.5 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0 mt-1.5" />
+                                <div className="min-w-0">
+                                    <p className="text-xs text-text-primary leading-snug">{w.signal}</p>
+                                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                        {w.type && (
+                                            <span className="text-2xs text-amber-400/70 font-mono">{w.type}</span>
+                                        )}
+                                        {w.confidence && (
+                                            <span className="text-2xs text-text-muted">· {w.confidence} confidence</span>
+                                        )}
+                                    </div>
+                                    {w.recommended_action && (
+                                        <p className="text-2xs text-sky-400/80 mt-0.5 italic">→ {w.recommended_action}</p>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* ── Stakeholder Impact Analysis (full-width, new) ── */}
+            {stakeholderImpact && Object.keys(stakeholderImpact).length > 0 && (
+                <div className="border-t border-border px-5 py-4">
+                    <p className="text-2xs font-mono text-violet-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-violet-400 inline-block" />
+                        Stakeholder Impact Analysis
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
+                        {Object.entries(stakeholderImpact).map(([stakeholder, impact]) => (
+                            <div key={stakeholder} className="rounded-lg border border-violet-500/15 bg-violet-500/5 px-3 py-2.5">
+                                <p className="text-2xs font-mono font-bold text-violet-400 uppercase tracking-wider mb-1">
+                                    {stakeholder}
+                                </p>
+                                <p className="text-xs text-text-secondary leading-relaxed">{impact}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -1984,7 +2338,12 @@ export default function DailyIntelPage() {
     const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
 
     const [articles, setArticles] = useState<Article[]>([]);
-    const [intelData, setIntelData] = useState<{ entity_profiles?: EntityProfile[]; signals?: Signal[]; threat_assessment?: { level?: string; critical_count?: number; warning_count?: number }; narrative?: { weekly_narrative?: string; dominant_sentiment?: string; emerging_themes?: string[]; executive_summary?: string; key_developments?: string; emerging_threats?: string; entity_movements?: string; watch_list?: string; } } | null>(null);
+    const [intelData, setIntelData] = useState<{
+        entity_profiles?: EntityProfile[];
+        signals?: Signal[];
+        threat_assessment?: { level?: string; critical_count?: number; warning_count?: number };
+        narrative?: NarrativeData;
+    } | null>(null);
     const [sentimentData, setSentimentData] = useState<{ positive: number; negative: number; neutral: number; positive_pct: number; negative_pct: number; neutral_pct: number; total: number } | null>(null);
     const [keywords, setKeywords] = useState<KeywordItem[]>([]);
 
