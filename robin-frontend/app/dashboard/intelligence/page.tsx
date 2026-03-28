@@ -9,7 +9,7 @@ import {
     Shield, AlertTriangle, Radio,
     ChevronDown, ExternalLink, Users, Activity,
     Target, Minus, Zap, ArrowUpRight, ArrowDownRight,
-    AlertCircle, CheckCircle2, GitBranch, Clock,
+    AlertCircle, CheckCircle2,
 } from "lucide-react";
 import { useIntelligenceBrief } from "@/lib/hooks/useIntelligence";
 import { cleanSnippet } from "@/lib/utils";
@@ -172,8 +172,6 @@ export default function IntelligenceBriefPage() {
     const { data, isLoading } = useIntelligenceBrief();
     const [expandedDev, setExpandedDev] = useState<string | null>(null);
     const [expandedSignal, setExpandedSignal] = useState<string | null>(null);
-    const [expandedChain, setExpandedChain] = useState<string | null>(null);
-    const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d">("30d");
 
     const [showFullNarrative, setShowFullNarrative] = useState(false);
 
@@ -237,20 +235,6 @@ export default function IntelligenceBriefPage() {
                         </div>
                     </div>
                     <p className="text-[12px] text-slate-400 mt-2 font-mono">{p.status_line}</p>
-                    {/* Time range selector */}
-                    <div className="flex items-center gap-1 mt-3 pt-3 border-t border-slate-700/40">
-                        <Clock size={11} className="text-slate-600 mr-1" />
-                        <span className="text-[10px] font-mono text-slate-600 mr-2">ANALYSIS WINDOW:</span>
-                        {(["7d", "30d", "90d"] as const).map(r => (
-                            <button
-                                key={r}
-                                onClick={() => setTimeRange(r)}
-                                className={`text-[10px] font-mono px-2 py-0.5 rounded transition-colors ${timeRange === r ? "bg-teal-500/20 text-teal-400 border border-teal-500/30" : "text-slate-500 hover:text-slate-300 border border-transparent"}`}
-                            >
-                                {r === "7d" ? "LAST 7 DAYS" : r === "30d" ? "LAST 30 DAYS" : "LAST 90 DAYS"}
-                            </button>
-                        ))}
-                    </div>
                 </div>
 
                 {/* ═══════════════════════════════════════════════════════
@@ -324,93 +308,6 @@ export default function IntelligenceBriefPage() {
                     </div>
                 )}
 
-                {/* ═══════════════════════════════════════════════════════
-                    SECTION 3 (NEW): INFERENCE CHAINS — Analytical reasoning
-                   ═══════════════════════════════════════════════════════ */}
-                {brief.inference_chains && brief.inference_chains.length > 0 && (
-                    <div className="rounded-lg border border-border bg-surface p-4">
-                        <div className="flex items-center gap-2 mb-3">
-                            <GitBranch size={14} className="text-violet-500" />
-                            <span className="text-[11px] font-mono text-slate-500 tracking-wider">INFERENCE CHAINS — ANALYTICAL REASONING</span>
-                            <span className="text-[10px] font-mono text-violet-600 ml-auto">{brief.inference_chains.length} chain{brief.inference_chains.length > 1 ? "s" : ""} · {timeRange}</span>
-                        </div>
-                        <div className="space-y-2">
-                            {brief.inference_chains.slice(0, 5).map((chain, i) => {
-                                const isExp = expandedChain === `${i}`;
-                                const sevColor = chain.severity === "critical" ? "text-red-400 bg-red-500/10 border-red-500/20" : chain.severity === "warning" ? "text-amber-400 bg-amber-500/10 border-amber-500/20" : "text-teal-400 bg-teal-500/10 border-teal-500/20";
-                                const confPct = Math.round((chain.conclusion_confidence || 0) * 100);
-                                return (
-                                    <div key={i} className="rounded-lg border border-slate-800/60 overflow-hidden">
-                                        <button
-                                            onClick={() => setExpandedChain(isExp ? null : `${i}`)}
-                                            className="w-full text-left p-3 hover:bg-raised transition-colors"
-                                        >
-                                            <div className="flex items-start gap-3">
-                                                <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border flex-shrink-0 mt-0.5 ${sevColor}`}>
-                                                    {(chain.severity || "watch").toUpperCase()}
-                                                </span>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-[13px] text-slate-200 font-medium leading-snug">{chain.title}</p>
-                                                    <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">{chain.conclusion}</p>
-                                                </div>
-                                                <div className="flex items-center gap-3 flex-shrink-0">
-                                                    <div className="text-right">
-                                                        <div className="text-[9px] font-mono text-slate-600">CONFIDENCE</div>
-                                                        <div className={`text-[13px] font-bold font-mono ${confPct >= 70 ? "text-red-400" : confPct >= 50 ? "text-amber-400" : "text-slate-500"}`}>{confPct}%</div>
-                                                    </div>
-                                                    <ChevronDown size={14} className={`text-slate-600 transition-transform ${isExp ? "rotate-180" : ""}`} />
-                                                </div>
-                                            </div>
-                                        </button>
-                                        {isExp && (
-                                            <div className="px-4 pb-4 border-t border-slate-800/30 space-y-3 pt-3">
-                                                {/* Evidence chain */}
-                                                {chain.chain_steps && chain.chain_steps.length > 0 && (
-                                                    <div>
-                                                        <div className="text-[9px] font-mono text-slate-600 tracking-wider mb-2">EVIDENCE CHAIN</div>
-                                                        <div className="space-y-1.5">
-                                                            {chain.chain_steps.map((step, si) => (
-                                                                <div key={si} className="flex items-start gap-2">
-                                                                    <span className="text-[9px] font-mono text-violet-500/60 w-4 shrink-0">{"step" in step ? `${step.step_num}.` : `${si + 1}.`}</span>
-                                                                    <span className="text-[11px] text-slate-400">{("event" in step ? step.event : undefined) || ("chain" in step ? step.chain : undefined) || ""}</span>
-                                                                    {step.confidence != null && (
-                                                                        <span className="text-[9px] font-mono text-slate-600 ml-auto shrink-0">{Math.round(step.confidence * 100)}%</span>
-                                                                    )}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
-                                                {/* 7-day scenario */}
-                                                {chain.scenario_7d && chain.scenario_7d.length > 0 && (
-                                                    <div>
-                                                        <div className="text-[9px] font-mono text-amber-500/60 tracking-wider mb-2">7-DAY SCENARIOS</div>
-                                                        <div className="space-y-1.5">
-                                                            {chain.scenario_7d.slice(0, 2).map((sc, si) => (
-                                                                <div key={si} className="flex items-start gap-2">
-                                                                    <span className="text-[10px] font-mono text-amber-400/70">{sc.probability}</span>
-                                                                    <span className="text-[11px] text-slate-400">{sc.scenario}</span>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
-                                                {/* Priority action */}
-                                                {chain.priority_action && (
-                                                    <div className="bg-amber-500/5 border border-amber-500/20 rounded px-3 py-2">
-                                                        <div className="text-[9px] font-mono text-amber-500/70 tracking-wider mb-1">PRIORITY ACTION · {chain.priority_action.urgency?.toUpperCase()}</div>
-                                                        <p className="text-[12px] text-slate-300 font-medium">{chain.priority_action.title}</p>
-                                                        <p className="text-[11px] text-slate-500 mt-0.5">{chain.priority_action.rationale}</p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                )}
 
                 {/* ═══════════════════════════════════════════════════════
                     SECTION 4: DEVELOPMENTS + ENTITY WATCHLIST (side by side)
