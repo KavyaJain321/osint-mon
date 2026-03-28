@@ -84,8 +84,9 @@ interface CollectionGaps {
 interface ThreatDimensions {
     overall_score: number; risk_level: string;
     dimensions: Record<string, number>;
-    velocity: { direction?: string };
+    velocity: { direction?: string; current?: number; previous?: number };
     active_threats: { title: string; severity: string; category: string; importance: number }[];
+    assessed_at?: string;
 }
 interface RecommendedAction {
     priority: string; action: string;
@@ -422,37 +423,128 @@ export default function IntelligenceBriefPage() {
 
                     {/* ── RIGHT: Entity Watchlist ── */}
                     <div className="lg:col-span-2">
-                        {/* Threat Dimensions Radar */}
-                        {brief.threat_dimensions?.dimensions && Object.keys(brief.threat_dimensions.dimensions).length > 0 && (
+                        {/* Threat Dimensions Radar — improved */}
+                        {brief.threat_dimensions?.dimensions && Object.keys(brief.threat_dimensions.dimensions).length > 0 && (() => {
+                            const td = brief.threat_dimensions!;
+                            const vel = td.velocity?.direction || 'steady';
+                            const velIcon = vel === 'accelerating' ? '↑' : vel === 'decelerating' ? '↓' : '→';
+                            const velColor = vel === 'accelerating' ? 'text-red-400' : vel === 'decelerating' ? 'text-teal-400' : 'text-slate-400';
+                            const rlColor = td.risk_level === 'high' || td.risk_level === 'critical' ? 'bg-red-500/15 text-red-400 border-red-500/20' : td.risk_level === 'elevated' || td.risk_level === 'medium' ? 'bg-amber-500/15 text-amber-400 border-amber-500/20' : 'bg-teal-500/15 text-teal-400 border-teal-500/20';
+                            const overall = td.overall_score || 0;
+                            // Descriptions for each dimension
+                            const DIM_META: Record<string, { label: string; desc: string; icon: string }> = {
+                                reputational: { label: 'Reputational', desc: 'Scandal, fraud, accountability stories', icon: '📣' },
+                                financial:    { label: 'Financial',    desc: 'Economic, market, budget stories',    icon: '💰' },
+                                regulatory:   { label: 'Regulatory',   desc: 'Law, compliance, court stories',      icon: '⚖️' },
+                                operational:  { label: 'Operational',  desc: 'Infrastructure, disruption, strikes', icon: '⚙️' },
+                                geopolitical: { label: 'Geopolitical', desc: 'Conflict, diplomacy, border stories', icon: '🌐' },
+                            };
+                            const radarData = Object.entries(td.dimensions).map(([subject, value]) => ({
+                                subject: subject.slice(0, 3).toUpperCase(),
+                                fullLabel: subject.toUpperCase(),
+                                value: Math.round(value as number),
+                                fullMark: 100,
+                            }));
+                            const topDim = Object.entries(td.dimensions).sort((a,b) => (b[1] as number)-(a[1] as number))[0];
+                            return (
                             <div className="rounded-lg border border-border bg-surface p-4 mb-4">
+                                {/* Header row */}
                                 <div className="flex items-center gap-2 mb-3">
                                     <Activity size={14} className="text-violet-500" />
                                     <span className="text-[11px] font-mono text-slate-500 tracking-wider">THREAT DIMENSIONS</span>
-                                    <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded ml-auto ${brief.threat_dimensions.risk_level === 'critical' ? 'bg-red-500/15 text-red-400' : brief.threat_dimensions.risk_level === 'elevated' ? 'bg-amber-500/15 text-amber-400' : 'bg-teal-500/15 text-teal-400'}`}>
-                                        {brief.threat_dimensions.risk_level?.toUpperCase()}
+                                    <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ml-auto ${rlColor}`}>
+                                        {td.risk_level?.toUpperCase()}
                                     </span>
                                 </div>
-                                {/* Fixed-size wrapper prevents recharts from getting width=-1 in flex containers */}
-                                <div style={{ width: '100%', height: '180px', minHeight: '180px' }}>
+
+                                {/* Overall score + velocity row */}
+                                <div className="flex items-center gap-3 mb-3 pb-3 border-b border-slate-800/40">
+                                    <div className="text-center">
+                                        <div className={`text-3xl font-bold font-mono ${overall >= 70 ? 'text-red-400' : overall >= 50 ? 'text-amber-400' : overall >= 30 ? 'text-yellow-400' : 'text-teal-400'}`}>{overall}</div>
+                                        <div className="text-[9px] font-mono text-slate-600 mt-0.5">OVERALL / 100</div>
+                                    </div>
+                                    <div className="flex-1 space-y-1.5">
+                                        {/* Progress bar */}
+                                        <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                                            <div className={`h-full rounded-full transition-all ${overall >= 70 ? 'bg-red-500' : overall >= 50 ? 'bg-amber-500' : overall >= 30 ? 'bg-yellow-500' : 'bg-teal-500'}`} style={{ width: `${overall}%` }} />
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className={`text-[10px] font-mono ${velColor}`}>
+                                                {velIcon} Threat {vel}
+                                                {td.velocity?.current != null && td.velocity?.previous != null && (
+                                                    <span className="text-slate-600"> · {td.velocity.current} vs {td.velocity.previous} neg/48h</span>
+                                                )}
+                                            </span>
+                                            <span className="text-[9px] font-mono text-slate-600">
+                                                dominant: <span className="text-violet-400">{topDim?.[0]}</span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Radar chart */}
+                                <div style={{ width: '100%', height: '220px' }}>
                                     <ResponsiveContainer width="100%" height="100%">
-                                        <RadarChart data={Object.entries(brief.threat_dimensions.dimensions).map(([subject, value]) => ({ subject: subject.toUpperCase(), value: Math.round(value), fullMark: 100 }))}>
-                                            <PolarGrid stroke="var(--color-border)" />
-                                            <PolarAngleAxis dataKey="subject" tick={{ fill: 'var(--color-text-muted)', fontSize: 9, fontFamily: 'monospace' }} />
-                                            <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 8, fill: 'var(--color-text-muted)' }} tickCount={3} />
-                                            <Radar name="Threat" dataKey="value" stroke="#7c3aed" fill="#7c3aed" fillOpacity={0.25} strokeWidth={1.5} dot={{ r: 3, fill: '#7c3aed' }} />
+                                        <RadarChart data={radarData} margin={{ top: 8, right: 20, bottom: 8, left: 20 }}>
+                                            <PolarGrid stroke="rgba(148,163,184,0.12)" />
+                                            <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 9, fontFamily: 'monospace', fontWeight: 600 }} />
+                                            <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 7, fill: '#475569' }} tickCount={4} />
+                                            <Radar name="Threat" dataKey="value" stroke="#7c3aed" fill="#7c3aed" fillOpacity={0.2} strokeWidth={2} dot={{ r: 3, fill: '#7c3aed', strokeWidth: 0 }} />
                                         </RadarChart>
                                     </ResponsiveContainer>
                                 </div>
-                                <div className="flex flex-wrap gap-2 mt-2">
-                                    {Object.entries(brief.threat_dimensions.dimensions).map(([dim, score]) => (
-                                        <div key={dim} className="flex items-center gap-1">
-                                            <span className="text-[9px] font-mono text-slate-500">{dim}:</span>
-                                            <span className={`text-[9px] font-bold font-mono ${Number(score) >= 70 ? 'text-red-400' : Number(score) >= 40 ? 'text-amber-400' : 'text-teal-400'}`}>{Math.round(Number(score))}</span>
-                                        </div>
-                                    ))}
+
+                                {/* Per-dimension breakdown */}
+                                <div className="space-y-2 mt-3 pt-3 border-t border-slate-800/40">
+                                    <p className="text-[9px] font-mono text-slate-600 tracking-wider mb-2">DIMENSION BREAKDOWN <span className="text-slate-700">(relative — highest = 100)</span></p>
+                                    {Object.entries(td.dimensions)
+                                        .sort((a,b) => (b[1] as number) - (a[1] as number))
+                                        .map(([dim, score]) => {
+                                        const meta = DIM_META[dim] || { label: dim, desc: '', icon: '●' };
+                                        const s = Math.round(score as number);
+                                        const barColor = s >= 70 ? 'bg-red-500/70' : s >= 40 ? 'bg-amber-500/70' : 'bg-teal-500/50';
+                                        const textColor = s >= 70 ? 'text-red-400' : s >= 40 ? 'text-amber-400' : 'text-teal-400';
+                                        return (
+                                            <div key={dim}>
+                                                <div className="flex items-center gap-2 mb-0.5">
+                                                    <span className="text-[10px]">{meta.icon}</span>
+                                                    <span className="text-[10px] font-mono text-slate-400 flex-1">{meta.label}</span>
+                                                    <span className={`text-[11px] font-bold font-mono ${textColor}`}>{s}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="flex-1 h-1 rounded-full bg-slate-800 overflow-hidden">
+                                                        <div className={`h-full rounded-full ${barColor}`} style={{ width: `${s}%` }} />
+                                                    </div>
+                                                    <span className="text-[9px] text-slate-600 w-32 shrink-0">{meta.desc}</span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
+
+                                {/* Active threats */}
+                                {td.active_threats && td.active_threats.length > 0 && (
+                                    <div className="mt-3 pt-3 border-t border-slate-800/40">
+                                        <p className="text-[9px] font-mono text-slate-600 tracking-wider mb-2">ACTIVE THREATS · LAST 48H</p>
+                                        <div className="space-y-1.5">
+                                            {td.active_threats.slice(0, 3).map((t, i) => (
+                                                <div key={i} className="flex items-start gap-2">
+                                                    <span className={`text-[8px] font-mono px-1 py-0.5 rounded mt-0.5 shrink-0 ${t.severity === 'critical' ? 'bg-red-500/15 text-red-400' : 'bg-amber-500/15 text-amber-400'}`}>
+                                                        {t.severity?.toUpperCase()}
+                                                    </span>
+                                                    <span className="text-[10px] text-slate-400 leading-tight line-clamp-2">{t.title}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {td.assessed_at && (
+                                    <p className="text-[9px] font-mono text-slate-700 mt-3">Assessed: {td.assessed_at}</p>
+                                )}
                             </div>
-                        )}
+                            );
+                        })()}
                         <div className="flex items-center gap-2 mb-1">
                             <Users size={14} className="text-violet-500" />
                             <span className="text-[11px] font-mono text-slate-500 tracking-wider">ENTITY WATCHLIST</span>
