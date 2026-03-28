@@ -8,7 +8,6 @@ import {
     Zap,
     Radio,
     Users,
-    FileText,
     Database,
     Activity,
     MessageSquare,
@@ -71,7 +70,6 @@ const sections: NavSection[] = [
         items: [
             { href: "/dashboard/reports", label: "Reports & Analytics", icon: BarChart3 },
             { href: "/dashboard/sources", label: "Sources", icon: Database },
-            { href: "/dashboard/briefs", label: "Situation Brief", icon: FileText },
         ],
     },
     {
