@@ -192,11 +192,11 @@ const HTML_SOURCES = [
 
 // Verified YouTube channels (handles confirmed working)
 const YOUTUBE_SOURCES = [
-    { name: 'OdishaTV News (YouTube)', url: 'https://www.youtube.com/@OdishaTVNews' },
-    { name: 'OdishaTV1 (YouTube)', url: 'https://www.youtube.com/@OdishaTV1' },
+    { name: 'TV9 Odia (YouTube)', url: 'https://www.youtube.com/@TV9Odia' },
+    { name: 'Odisha News Live (YouTube)', url: 'https://www.youtube.com/@OdishaNewsLive' },
     { name: 'Kanak News Odia (YouTube)', url: 'https://www.youtube.com/@KanakNewsOdia' },
     { name: 'News18 Odia (YouTube)', url: 'https://www.youtube.com/@News18Odia' },
-    { name: 'Zee Odisha (YouTube)', url: 'https://www.youtube.com/@ZeeOdisha' },
+    { name: 'Zee Odisha News (YouTube)', url: 'https://www.youtube.com/@ZeeOdishaNews' },
     { name: 'ETV Odia (YouTube)', url: 'https://www.youtube.com/@ETVOdia' },
     { name: 'Sambad News (YouTube)', url: 'https://www.youtube.com/@SambadNews' },
     { name: 'NTV Odisha (YouTube)', url: 'https://www.youtube.com/@NTVOdisha' },
