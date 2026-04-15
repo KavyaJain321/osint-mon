@@ -74,15 +74,16 @@ async function cancelJob(jobId) {
  * TRIJYA-7 writes to article_analysis directly.
  * Render only needs the result for entity_mentions, embedding, title_en, etc.
  */
-export async function analyzeArticleViaQueue(article, keywords) {
+export async function analyzeArticleViaQueue(article, keywords, clientName) {
     let jobId = null;
 
     try {
         const job = await createJob('article_analysis', {
-            article_id: article.id,
+            article_id:  article.id,
             title:       article.title       || '',
             content:     article.content     || '',
             source_name: article.source_name || '',
+            client_name: clientName          || '',
             keywords:    Array.isArray(keywords) ? keywords.slice(0, 30) : [],
         }, 3, article.client_id);
 

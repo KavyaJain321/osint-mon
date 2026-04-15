@@ -114,7 +114,7 @@ function parseAnalysisResponse(text) {
 async function getAnalysis(article, briefTopic, briefContext, keywords, clientName) {
     // Attempt 1: TRIJYA-7 GPU worker via job queue
     try {
-        const outcome = await analyzeArticleViaQueue(article, keywords);
+        const outcome = await analyzeArticleViaQueue(article, keywords, clientName);
         if (outcome?.result?.analysis) {
             const a = outcome.result.analysis;
             a._method      = 'trijya7';
