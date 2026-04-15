@@ -8,16 +8,25 @@
 // ============================================================
 
 import { getYoutubeApiKey, fetchWithYoutubeRotation } from '../lib/youtube.js';
-import { matchArticle } from '../services/keyword-matcher.js';
+import { matchArticle, topicRelevant } from '../services/keyword-matcher.js';
 import { updateSourceScrapeStatus } from '../services/article-saver.js';
 import { saveContent } from '../services/content-saver.js';
 import { enqueueVideo } from '../services/video-processor/video-queue.js';
 import { translateToEnglish } from '../services/video-processor/translation-service.js';
 import { log } from '../lib/logger.js';
 
-const MAX_VIDEOS_API = 25;        // Fetch pool to search through
-const MAX_VIDEOS_RSS = 25;        // RSS hard limit (YouTube)
-const MAX_VIDEOS_PER_SOURCE = 25; // Max new videos saved per source per scrape cycle
+const MAX_VIDEOS_API = 25;        // Fetch pool to search through (default)
+const MAX_VIDEOS_RSS = 25;        // RSS hard limit (YouTube's feed caps at 15 regardless)
+const MAX_VIDEOS_PER_SOURCE = 25; // Max new videos saved per source per scrape cycle (default)
+
+// ── Per-client overrides ──────────────────────────────────────
+// RIGIOR uses analytical/think-tank channels with infrequent posting schedules.
+// Larger API pool (50) gives a ~4-month lookback on channels that post 3×/week.
+const RIGIOR_CLIENT_ID = 'c9493d5b-45bc-4c33-998b-e4d5cdde8f59';
+const RIGIOR_YT_OVERRIDES = {
+    maxVideosApi:      50,  // deeper playlist fetch via API
+    maxVideosPerSource: 50, // save more matched videos per channel per cycle
+};
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 /**
@@ -91,7 +100,7 @@ async function resolveChannelId(url) {
  * This looks at the "Uploads" playlist (UU instead of UC).
  * Costs 1 quota unit.
  */
-async function fetchChannelVideosAPI(channelId) {
+async function fetchChannelVideosAPI(channelId, maxResults = MAX_VIDEOS_API) {
     if (!getYoutubeApiKey()) return null;
 
     // Convert channel ID (UC...) to Uploads playlist ID (UU...)
@@ -100,7 +109,7 @@ async function fetchChannelVideosAPI(channelId) {
     const params = {
         part: 'snippet',
         playlistId: uploadsPlaylistId,
-        maxResults: String(MAX_VIDEOS_API)
+        maxResults: String(maxResults)
     };
 
     try {
@@ -234,12 +243,17 @@ async function crawlYoutubeSourceInternal(source, keywords) {
         }
 
         // Step 2: Fetch videos (Try API first, fallback to RSS)
+        // Apply per-client overrides for pool size and save cap
+        const ytOverrides    = source.client_id === RIGIOR_CLIENT_ID ? RIGIOR_YT_OVERRIDES : {};
+        const maxApiPool     = ytOverrides.maxVideosApi       ?? MAX_VIDEOS_API;
+        const maxSavePerSrc  = ytOverrides.maxVideosPerSource ?? MAX_VIDEOS_PER_SOURCE;
+
         let videos = [];
         let sourceMethod = 'rss';
 
         // Attempt API if configured
         if (getYoutubeApiKey()) {
-            const apiVideos = await fetchChannelVideosAPI(channelId);
+            const apiVideos = await fetchChannelVideosAPI(channelId, maxApiPool);
             if (apiVideos) {
                 videos = apiVideos;
                 sourceMethod = 'api';
@@ -265,10 +279,10 @@ async function crawlYoutubeSourceInternal(source, keywords) {
             channelId,
         });
 
-        // Step 3: Match + save each video (cap at MAX_VIDEOS_PER_SOURCE per cycle)
+        // Step 3: Match + save each video (cap at maxSavePerSrc per cycle)
         let savedThisCycle = 0;
         for (const video of videos) {
-            if (savedThisCycle >= MAX_VIDEOS_PER_SOURCE) break;
+            if (savedThisCycle >= maxSavePerSrc) break;
 
             try {
                 // Skip live streams, bulletins, and headline roundups —
@@ -281,19 +295,42 @@ async function crawlYoutubeSourceInternal(source, keywords) {
                 // Pre-filter: Keyword match on title + description
                 // Translate title/desc rapidly so English keywords hit Odia titles!
                 const titleAndDesc = `${video.title} - ${video.description.substring(0, 100)}`;
-                let englishTitleDesc = titleAndDesc;
-                try {
-                    englishTitleDesc = await translateToEnglish(titleAndDesc, 'or');
-                } catch (e) {
-                    // fall back to original
+
+                // Only translate Odia-language sources — translating already-English titles
+                // from Odia produces garbled output that hurts keyword matching for RIGIOR.
+                let combinedSearchText = titleAndDesc;
+                if (source.client_id !== RIGIOR_CLIENT_ID) {
+                    try {
+                        const englishTitleDesc = await translateToEnglish(titleAndDesc, 'or');
+                        combinedSearchText = `${titleAndDesc} ${englishTitleDesc}`;
+                    } catch (e) {
+                        // fall back to original
+                    }
                 }
-                
-                const combinedSearchText = `${titleAndDesc} ${englishTitleDesc}`;
+
                 const match = matchArticle({ title: video.title, content: combinedSearchText }, keywords);
 
-                if (!match.matched) continue;
+                // Fallback: if no exact keyword match, check topicWords against the TITLE only.
+                // Checking description picks up channel boilerplate (e.g. "Times Now — India's No.1...")
+                // which causes mass false positives. Title is the reliable signal.
+                // Require 2+ topic word hits in the title to avoid single generic words
+                // (e.g. "times", "region", "security") triggering a match.
+                const topicWords = source.topicWords;
+                let topicMatch = false;
+                if (!match.matched && topicWords && topicWords.size > 0) {
+                    const lowerTitle = video.title.toLowerCase();
+                    let topicHits = 0;
+                    for (const word of topicWords) {
+                        if (lowerTitle.includes(word)) {
+                            topicHits++;
+                            if (topicHits >= 2) break;
+                        }
+                    }
+                    topicMatch = topicHits >= 2;
+                }
 
-                const matchedKws = match.matchedKeywords;
+                if (!match.matched && !topicMatch) continue;
+
                 const thumbnailUrl = `https://img.youtube.com/vi/${video.videoId}/maxresdefault.jpg`;
 
                 // Save with description as initial content.

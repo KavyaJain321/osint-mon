@@ -40,5 +40,7 @@ CREATE INDEX IF NOT EXISTS idx_media_outlets_domain ON media_outlets(primary_dom
 
 -- RLS policy: readable by all authenticated users
 ALTER TABLE media_outlets ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "media_outlets_read_all" ON media_outlets;
+DROP POLICY IF EXISTS "media_outlets_admin_all" ON media_outlets;
 CREATE POLICY "media_outlets_read_all" ON media_outlets FOR SELECT USING (true);
 CREATE POLICY "media_outlets_admin_all" ON media_outlets FOR ALL USING (true);

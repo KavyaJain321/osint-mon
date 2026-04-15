@@ -682,8 +682,35 @@ export default function BriefsPage() {
                                 {brief.industry && <span className="badge badge-muted">{brief.industry}</span>}
                                 <span className="text-2xs text-text-muted">{formatRelative(brief.created_at)}</span>
                             </div>
-                            <h3 className="text-sm font-medium text-text-primary mb-0.5">{brief.title}</h3>
-                            <p className="text-xs text-text-secondary">{brief.problem_statement}</p>
+                            <h3 className="text-sm font-medium text-text-primary mb-1.5">{brief.title}</h3>
+                            {/* Structured problem_statement renderer */}
+                            <div className="text-xs text-text-secondary space-y-1.5">
+                                {brief.problem_statement.split('\n\n').map((block, i) => {
+                                    const trimmed = block.trim();
+                                    if (!trimmed) return null;
+                                    // Numbered section: "1. SECTION HEADING\nbody text"
+                                    const numberedMatch = trimmed.match(/^(\d+\.\s+[A-Z][A-Z\s&/]+)\n([\s\S]+)/);
+                                    // Labelled line: "ALL CAPS LABEL:" or "ALL CAPS LABEL —"
+                                    const labeledMatch = !numberedMatch && trimmed.match(/^([A-Z][A-Z\s&/_-]{3,}[:\u2014-])\s*([\s\S]*)/);
+                                    if (numberedMatch) {
+                                        return (
+                                            <div key={i} className="pt-1">
+                                                <p className="text-2xs font-semibold text-text-primary uppercase tracking-wide mb-0.5">{numberedMatch[1]}</p>
+                                                <p className="text-xs text-text-secondary leading-relaxed">{numberedMatch[2].replace(/\n/g, ' ')}</p>
+                                            </div>
+                                        );
+                                    }
+                                    if (labeledMatch) {
+                                        return (
+                                            <p key={i} className="leading-relaxed">
+                                                <span className="font-semibold text-text-primary">{labeledMatch[1]} </span>
+                                                <span>{labeledMatch[2].replace(/\n/g, ' ')}</span>
+                                            </p>
+                                        );
+                                    }
+                                    return <p key={i} className="leading-relaxed">{trimmed.replace(/\n/g, ' ')}</p>;
+                                })}
+                            </div>
                         </div>
                         {brief.status === "processing" && <Loader2 size={14} className="text-sky animate-spin" />}
                     </div>

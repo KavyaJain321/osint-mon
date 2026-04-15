@@ -9,10 +9,21 @@ import { matchArticle } from '../services/keyword-matcher.js';
 import { saveContent } from '../services/content-saver.js';
 import { log } from '../lib/logger.js';
 
-const MAX_QUERIES_PER_CLIENT = 8;   // keyword queries per client per cycle
+const MAX_QUERIES_PER_CLIENT = 8;   // keyword queries per client per cycle (default)
 const MAX_RESULTS_PER_QUERY = 15;   // results per search query
-const MAX_VIDEOS_TOTAL = 100;       // hard cap: 50-100 per cycle across all queries
-const RECENCY_DAYS = 7;             // only videos from last 7 days
+const MAX_VIDEOS_TOTAL = 100;       // hard cap per cycle across all queries (default)
+const RECENCY_DAYS = 7;             // only videos from last N days (default)
+
+// ── Per-client overrides ──────────────────────────────────────
+// RIGIOR (Naval War College India) posts to analytical/think-tank channels
+// that publish infrequently — 30-day lookback and broader query coverage
+// ensure no relevant content is missed between scrape cycles.
+const RIGIOR_CLIENT_ID = 'c9493d5b-45bc-4c33-998b-e4d5cdde8f59';
+const RIGIOR_OVERRIDES = {
+    recencyDays:  30,   // catch analytical content up to 30 days old
+    maxQueries:   20,   // cover 89-keyword set properly (vs default 8)
+    maxTotal:    150,   // accommodate more queries
+};
 
 /**
  * Run YouTube keyword-based search for all clients.
@@ -68,25 +79,32 @@ async function searchForClient(clientId, keywords) {
     const errors = [];
     const seenVideoIds = new Set();
 
+    // Apply per-client overrides where configured
+    const overrides    = clientId === RIGIOR_CLIENT_ID ? RIGIOR_OVERRIDES : {};
+    const recencyDays  = overrides.recencyDays ?? RECENCY_DAYS;
+    const maxQueries   = overrides.maxQueries  ?? MAX_QUERIES_PER_CLIENT;
+    const maxTotal     = overrides.maxTotal    ?? MAX_VIDEOS_TOTAL;
+
     // Pick the most specific keywords for search queries
-    const searchQueries = selectSearchQueries(keywords);
+    const searchQueries = selectSearchQueries(keywords, maxQueries);
 
     log.scraper.info('YouTube keyword search starting', {
         clientId,
         queries: searchQueries.length,
+        recencyDays,
         sampleQueries: searchQueries.slice(0, 3),
     });
 
-    const publishedAfter = new Date(Date.now() - RECENCY_DAYS * 86400000).toISOString();
+    const publishedAfter = new Date(Date.now() - recencyDays * 86400000).toISOString();
 
     for (const query of searchQueries) {
-        if (found >= MAX_VIDEOS_TOTAL) break;
+        if (found >= maxTotal) break;
 
         try {
             const videos = await searchYouTubeAPI(query, publishedAfter);
 
             for (const video of videos) {
-                if (found >= MAX_VIDEOS_TOTAL) break;
+                if (found >= maxTotal) break;
                 if (seenVideoIds.has(video.videoId)) continue;
                 seenVideoIds.add(video.videoId);
 
@@ -221,7 +239,7 @@ async function searchYouTubeAPI(query, publishedAfter) {
  * @param {string[]} keywords
  * @returns {string[]} Top search queries
  */
-function selectSearchQueries(keywords) {
+function selectSearchQueries(keywords, maxCount = MAX_QUERIES_PER_CLIENT) {
     if (!keywords || keywords.length === 0) return [];
 
     // Score keywords by specificity
@@ -247,6 +265,6 @@ function selectSearchQueries(keywords) {
     scored.sort((a, b) => b.score - a.score);
 
     return scored
-        .slice(0, MAX_QUERIES_PER_CLIENT)
+        .slice(0, maxCount)
         .map(s => s.keyword);
 }
