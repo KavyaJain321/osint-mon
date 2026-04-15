@@ -109,10 +109,10 @@ const KEYWORDS = [
     { keyword: 'drought Odisha', priority: 9, category: 'disaster' },
     { keyword: 'heat wave Odisha', priority: 9, category: 'disaster' },
     { keyword: 'forest fire Odisha', priority: 9, category: 'disaster' },
-    { keyword: 'Mahanadi water dispute', priority: 9, category: 'disaster' },
+    { keyword: 'Mahanadi river Odisha', priority: 9, category: 'disaster' },
     { keyword: 'pollution Odisha', priority: 8, category: 'disaster' },
     { keyword: 'sand mining Odisha', priority: 8, category: 'disaster' },
-    { keyword: 'Bay of Bengal cyclone', priority: 9, category: 'disaster' },
+    { keyword: 'cyclone landfall Odisha coast', priority: 9, category: 'disaster' },
 
     // Social & Tribal Affairs (priority 8)
     { keyword: 'tribal Odisha', priority: 9, category: 'social' },

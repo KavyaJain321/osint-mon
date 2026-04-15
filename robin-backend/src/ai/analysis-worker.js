@@ -38,16 +38,17 @@ const TYPE_INSTRUCTIONS = {
 /**
  * Build the analysis prompt for a content item (article or any content type).
  */
-function buildAnalysisPrompt(article, briefTopic, briefContext, keywords) {
+function buildAnalysisPrompt(article, briefTopic, briefContext, keywords, clientName) {
     const content = (article.content || '').substring(0, 3000);
     const topicLabel = briefTopic || 'general monitoring';
     const contextLabel = briefContext || '';
     const contentType = article.content_type || 'article';
     const typeInstruction = TYPE_INSTRUCTIONS[contentType] || TYPE_INSTRUCTIONS.article;
+    const clientLabel = clientName || 'the client organisation';
     return [
         {
             role: 'system',
-            content: 'You are an open-source intelligence assistant for the Government of Odisha. Act as a neutral, policy-focused analyst serving senior officials. Use clear, civil-service-style language and avoid partisan advocacy. Prioritize relevance to state governance, security, and public perception over generic news. Always distinguish facts from implications. Return only valid JSON.',
+            content: `You are an open-source intelligence assistant for ${clientLabel}. Act as a neutral, policy-focused analyst serving senior officials. Use clear, professional analytical language and avoid partisan advocacy. Prioritize relevance to the client's monitoring scope, security, and strategic interests over generic news. Always distinguish facts from implications. Return only valid JSON.`,
         },
         {
             role: 'user',
@@ -104,7 +105,7 @@ function parseAnalysisResponse(text) {
 /**
  * Try TRIJYA-7 → Groq LLM → local rules (in that order).
  */
-async function getAnalysis(article, briefTopic, briefContext, keywords) {
+async function getAnalysis(article, briefTopic, briefContext, keywords, clientName) {
     // Attempt 1: TRIJYA-7 GPU worker via job queue
     try {
         const outcome = await analyzeArticleViaQueue(article, keywords);
@@ -122,7 +123,7 @@ async function getAnalysis(article, briefTopic, briefContext, keywords) {
 
     // Attempt 2: Groq LLM
     try {
-        const messages = buildAnalysisPrompt(article, briefTopic, briefContext, keywords);
+        const messages = buildAnalysisPrompt(article, briefTopic, briefContext, keywords, clientName);
         const response = await groqChat(messages);
         const rawText = response.choices[0]?.message?.content || '';
         const analysis = parseAnalysisResponse(rawText);
@@ -224,7 +225,7 @@ export async function analyzeArticle(article) {
         const keywords = article.matched_keywords || [];
 
         // Get analysis (Groq or local fallback)
-        const analysis = await getAnalysis(article, briefTopic, briefContext, keywords);
+        const analysis = await getAnalysis(article, briefTopic, briefContext, keywords, clientName);
 
         // Determine tracking fields
         const analyzerUsed = analysis._method === 'trijya7' ? 'trijya7_gpu'
