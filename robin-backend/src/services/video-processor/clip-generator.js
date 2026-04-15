@@ -283,23 +283,24 @@ export async function generateClips(videoId, clipWindows) {
             // Generate clip locally
             const clip = await generateSingleClip(videoId, window);
 
-            // Upload to storage: try Supabase first, then Cloudinary.
+            // Upload to storage: try Cloudinary first, then Supabase fallback.
+            // Cloudinary is primary — free CDN, no storage quota pressure.
             // NO YouTube timestamp fallback — only store real clips.
             let clipUrl = null;
             try {
-                clipUrl = await uploadToSupabase(clip.localPath, videoId, i);
-                log.ai.info('Clip uploaded to Supabase', { videoId, clipIndex: i });
-            } catch (supabaseErr) {
-                log.ai.warn('Supabase upload failed, trying Cloudinary', { error: supabaseErr.message });
+                clipUrl = await uploadToCloudinary(clip.localPath, videoId, i);
+                log.ai.info('Clip uploaded to Cloudinary', { videoId, clipIndex: i });
+            } catch (cloudinaryErr) {
+                log.ai.warn('Cloudinary upload failed, trying Supabase', { error: cloudinaryErr.message });
                 try {
-                    clipUrl = await uploadToCloudinary(clip.localPath, videoId, i);
-                    log.ai.info('Clip uploaded to Cloudinary', { videoId, clipIndex: i });
-                } catch (cloudinaryErr) {
-                    log.ai.warn('Both Supabase and Cloudinary failed — clip skipped (no YouTube fallback)', {
+                    clipUrl = await uploadToSupabase(clip.localPath, videoId, i);
+                    log.ai.info('Clip uploaded to Supabase', { videoId, clipIndex: i });
+                } catch (supabaseErr) {
+                    log.ai.warn('Both Cloudinary and Supabase failed — clip skipped', {
                         videoId,
                         clipIndex: i,
-                        supabaseErr: supabaseErr.message?.substring(0, 80),
                         cloudinaryErr: cloudinaryErr.message?.substring(0, 80),
+                        supabaseErr: supabaseErr.message?.substring(0, 80),
                     });
                 }
             }
