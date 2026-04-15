@@ -7,6 +7,7 @@
 import { getYoutubeApiKey } from '../lib/youtube.js';
 import { matchArticle } from '../services/keyword-matcher.js';
 import { saveContent } from '../services/content-saver.js';
+import { supabase } from '../lib/supabase.js';
 import { log } from '../lib/logger.js';
 
 const MAX_QUERIES_PER_CLIENT = 8;   // keyword queries per client per cycle (default)
@@ -85,6 +86,17 @@ async function searchForClient(clientId, keywords) {
     const maxQueries   = overrides.maxQueries  ?? MAX_QUERIES_PER_CLIENT;
     const maxTotal     = overrides.maxTotal    ?? MAX_VIDEOS_TOTAL;
 
+    // Resolve client name once (used for per-client AI persona in video summaries)
+    let clientName = null;
+    try {
+        const { data: clientRow } = await supabase
+            .from('clients')
+            .select('name')
+            .eq('id', clientId)
+            .single();
+        clientName = clientRow?.name || null;
+    } catch { /* fall back to generic persona */ }
+
     // Pick the most specific keywords for search queries
     const searchQueries = selectSearchQueries(keywords, maxQueries);
 
@@ -154,7 +166,7 @@ async function searchForClient(clientId, keywords) {
                     try {
                         const { processVideo } = await import('../services/video-processor/pipeline.js');
                         // Pass ALL tracked keywords to maximize clip generation across the transcript
-                        processVideo(video.videoId, saveResult.contentId, keywords)
+                        processVideo(video.videoId, saveResult.contentId, keywords, clientName)
                             .catch(err => log.scraper.warn('Video pipeline failed (search)', {
                                 videoId: video.videoId,
                                 error: err.message?.substring(0, 100),

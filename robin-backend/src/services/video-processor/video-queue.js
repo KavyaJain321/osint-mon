@@ -165,8 +165,23 @@ async function pickAndProcess() {
         });
 
         try {
+            // Resolve client name so summary prompts get the right persona.
+            // Best-effort: if lookup fails we fall through with null and the
+            // summary service falls back to a generic analyst persona.
+            let clientName = null;
+            if (video.client_id) {
+                try {
+                    const { data: clientRow } = await supabase
+                        .from('clients')
+                        .select('name')
+                        .eq('id', video.client_id)
+                        .single();
+                    clientName = clientRow?.name || null;
+                } catch { /* ignore — persona will default */ }
+            }
+
             const { processVideo } = await import('./pipeline.js');
-            await processVideo(videoId, video.id, keywords);
+            await processVideo(videoId, video.id, keywords, clientName);
         } catch (err) {
             log.ai.error('❌ DB queue: pipeline error', {
                 videoId,

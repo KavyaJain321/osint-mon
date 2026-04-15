@@ -24,7 +24,7 @@ import { log } from '../../lib/logger.js';
  *             6. AI summaries for full video + each clip (Groq)
  *             7. Save all results to database
  */
-export async function processVideo(videoId, articleId, matchedKeywords) {
+export async function processVideo(videoId, articleId, matchedKeywords, clientName = null) {
     const startTime = Date.now();
 
     try {
@@ -93,11 +93,11 @@ export async function processVideo(videoId, articleId, matchedKeywords) {
         // ── Step 6: AI summaries (Render/Groq) ────────────────────────
         log.ai.info('🤖 [VIDEO PIPELINE] Step 6: AI summaries', { videoId });
 
-        const fullSummary = await summarizeFullVideo(searchText, matchedKeywords);
+        const fullSummary = await summarizeFullVideo(searchText, matchedKeywords, clientName);
 
         let clipsWithSummaries = [];
         if (clips.length > 0) {
-            clipsWithSummaries = await summarizeAllClips(clips, transcript);
+            clipsWithSummaries = await summarizeAllClips(clips, transcript, clientName);
         }
 
         await updateProcessingStatus(articleId, 'processing', 'Saving results...');

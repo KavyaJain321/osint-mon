@@ -101,7 +101,7 @@ async function pollAndProcessNextVideo() {
         // Claim the oldest queued video
         const { data: video } = await supabase
             .from('content_items')
-            .select('id, url, matched_keywords, type_metadata, title')
+            .select('id, url, matched_keywords, type_metadata, title, client_id')
             .eq('content_type', 'video')
             .eq('type_metadata->>processing_status', 'queued')
             .order('created_at', { ascending: true })
@@ -150,9 +150,23 @@ async function pollAndProcessNextVideo() {
             },
         }).eq('id', video.id);
 
+        // Resolve client name for the summary-prompt persona.
+        // Best-effort: null falls back to a generic analyst prompt.
+        let clientName = null;
+        if (video.client_id) {
+            try {
+                const { data: clientRow } = await supabase
+                    .from('clients')
+                    .select('name')
+                    .eq('id', video.client_id)
+                    .single();
+                clientName = clientRow?.name || null;
+            } catch { /* fall back to generic persona */ }
+        }
+
         // Run the full pipeline
         const { processVideo } = await import('./services/video-processor/pipeline.js');
-        await processVideo(ytVideoId, video.id, keywords);
+        await processVideo(ytVideoId, video.id, keywords, clientName);
 
         log.ai.info('✅ DB queue: video complete', { ytVideoId });
 

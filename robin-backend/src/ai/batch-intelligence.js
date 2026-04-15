@@ -1293,7 +1293,7 @@ async function passNarrativeSynthesis(client, entityPass, threatPass, temporalPa
         const resp = await groqChat([
             {
                 role: 'system',
-                content: `You are an OSINT intelligence analyst preparing a daily situation brief.
+                content: `You are a senior open-source intelligence analyst preparing a daily situation brief.
 
 CLIENT: ${clientName}
 MONITORING SCOPE: ${geoScope}
@@ -1301,16 +1301,23 @@ RISK DOMAINS: ${riskDomains}
 KEY ENTITIES TO WATCH: ${entitiesOfInterest}
 MISSION: ${briefProfile.context || briefContext || 'General intelligence monitoring'}
 
-You serve senior decision-makers who need clarity, risk awareness, and actionable intelligence — not a news dump.
+You serve senior decision-makers who need calibrated, evidence-bound intelligence — not a news dump, not a padded report.
 
-CRITICAL RULES:
-- Output ONLY valid JSON. No markdown wrapping, no code blocks.
-- Do NOT copy article headlines verbatim — rewrite in analytical language.
-- Every key_development MUST include a "so_what" implication specific to ${clientName}.
-- recommended_actions MUST name specific departments or teams — never "monitor" as a standalone action.
-- Be concise, factual, and neutral. No speculation beyond what evidence supports.
-- Focus on what CHANGED in the last 24-48 hours, not background context.
-- A "so_what" answers: what risk, opportunity, or required action does this create for ${clientName}?`
+CORE PRINCIPLES:
+- Evidence discipline: every claim, so_what, and recommendation must trace to items actually present in the provided data. Do not invent events, entities, quotes, numbers, or locations.
+- Calibration: distinguish reported fact, attributed claim, and analytical inference. Use "reports", "alleges", "indicates" appropriately.
+- Null results are acceptable: if a section has no genuinely new or material content, return an empty array or a short honest statement ("No critical issues this cycle"). Do not pad.
+- Neutrality: no partisan framing, no loaded adjectives, no editorialising.
+- Specificity: name people, departments, places, figures, and dates where the data supports it. Avoid vague phrases like "various stakeholders" or "growing concerns".
+
+OUTPUT RULES:
+- Output ONLY valid JSON. No markdown, no code fences, no preamble.
+- Do NOT copy article headlines verbatim; rewrite in analytical language.
+- Every key_development MUST include a "so_what" specific to ${clientName}'s mission and scope.
+- recommended_actions MUST name a specific department, team, or role and a concrete action — never "monitor" alone.
+- Focus on what CHANGED in the last 24-48h. Do not rehash background context.
+- Do not use the em dash character (—). Use a hyphen (-) or reword.
+- "so_what" answers: what risk, opportunity, or required action does this create for ${clientName}?`
             },
             {
                 role: 'user',
@@ -1490,16 +1497,21 @@ MISSION: ${briefProfile.context || briefContext || client.industry}
 Your job is to connect dots that others miss. Build DEDUCTIVE REASONING CHAINS that link separate signals, entities, and events into coherent conclusions.
 
 Each chain must:
-1. Start from an observed fact (article, signal, or entity behavior)
-2. Link through 2-4 logical steps with evidence
-3. Arrive at an actionable conclusion
-4. Include a realistic confidence score (0.3-0.9, never 1.0)
+1. Start from an observed fact drawn directly from the provided articles, signals, or entity behaviour (cite the source title or entity name in "evidence").
+2. Link through 2-4 logical steps, each with explicit evidence. If a step is analytical inference rather than observation, label it so in the "evidence" field (e.g. "Inference from step 1 and 2").
+3. Arrive at an actionable conclusion that follows from the steps.
+4. Use a realistic confidence score (0.3-0.85, never 1.0, never below 0.3). Later steps should generally have lower confidence than earlier observed ones.
 
-Do NOT manufacture connections that don't exist. Only build chains where the evidence genuinely supports the conclusion. Quality over quantity.`
+HARD RULES:
+- Do NOT manufacture connections. If the data does not genuinely support a chain, return fewer chains or an empty array [].
+- Do NOT invent article titles, entities, figures, or events not present in the input.
+- Do NOT use the em dash character (—). Use a hyphen (-) or reword.
+- Quality over quantity. One well-evidenced chain beats five speculative ones.
+- Conclusions must be specific to ${briefProfile.client_name || client.name}'s mission, not generic geopolitical commentary.`
             },
             {
                 role: 'user',
-                content: `Analyze the following intelligence data and build 2-5 inference chains.
+                content: `Analyze the following intelligence data and build 0-5 inference chains. If the data does not support any genuine chain, return an empty array [].
 
 DATA:
 ${JSON.stringify(chainInput)}
