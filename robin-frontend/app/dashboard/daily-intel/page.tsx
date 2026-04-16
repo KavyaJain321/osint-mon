@@ -367,8 +367,12 @@ function StrategicBriefingSection({ articles, sectorMap, narrative, riskLevel, c
         : null;
 
     // ── Fallback risk narrative (legacy / computed) ──────────────────────────
-    const riskNarrative = narrative?.executive_summary
-        ? narrative.executive_summary.replace(/^Situation summary[\s\S]*?\n\n/, "").slice(0, 600)
+    const _execSumRaw = narrative?.executive_summary;
+    const _execSumStr = _execSumRaw
+        ? (Array.isArray(_execSumRaw) ? (_execSumRaw as string[]).join("\n\n") : String(_execSumRaw))
+        : "";
+    const riskNarrative = _execSumStr
+        ? _execSumStr.replace(/^Situation summary[\s\S]*?\n\n/, "").slice(0, 600)
         : (() => {
             const negHigh = sorted.filter(a => (a.sentiment || "").toLowerCase() === "negative" && (a.importance_score || 0) >= 6);
             const topEntCount: Record<string, number> = {};
@@ -907,9 +911,16 @@ function buildReportHTML(
     // ── Narrative helpers ──────────────────────────────────────────────────────
     const narr = narrative;
 
+    // Normalize executive_summary — backend may store it as string or array
+    const execSummaryStr: string = narr?.executive_summary
+        ? (Array.isArray(narr.executive_summary)
+            ? (narr.executive_summary as string[]).join("\n\n")
+            : String(narr.executive_summary))
+        : "";
+
     // Executive summary bullets
-    const execBullets: string[] = narr?.executive_summary
-        ? narr.executive_summary
+    const execBullets: string[] = execSummaryStr
+        ? execSummaryStr
             .split(/\n\n+/)
             .map(b => b.replace(/^[•\-]\s*/, "").trim())
             .filter(Boolean)
@@ -2669,7 +2680,10 @@ export default function DailyIntelPage() {
                                 <p className="text-xs text-text-secondary mb-3">Prepared by ROBIN Monitor System · Last refreshed {lastRefreshed.toLocaleTimeString("en-IN")}</p>
                                 {/* Executive summary — LLM-generated when available, frontend fallback otherwise */}
                                 {articles.length > 0 && (() => {
-                                    const llmSummary = intelData?.narrative?.executive_summary;
+                                    const rawSummary = intelData?.narrative?.executive_summary;
+                                    const llmSummary = rawSummary
+                                        ? (Array.isArray(rawSummary) ? (rawSummary as string[]).join("\n\n") : String(rawSummary))
+                                        : "";
                                     if (llmSummary && llmSummary.trim()) {
                                         // LLM version: bullet-point format "• ...\n\n• ..."
                                         const bullets = llmSummary
