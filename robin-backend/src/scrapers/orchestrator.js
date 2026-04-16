@@ -193,7 +193,7 @@ async function fetchAllActiveSources(filterClientId = null) {
     // drop sources rather than scraping them all.
     let query = supabase
         .from('sources')
-        .select('id, client_id, name, url, source_type, last_scraped_at')
+        .select('id, client_id, name, url, source_type, last_scraped_at, language')
         .eq('is_active', true)
         .limit(500);
 
@@ -599,7 +599,7 @@ export async function runScraperCycle(filterClientId = null) {
 export async function scrapeSourceById(sourceId) {
     const { data: source, error } = await supabase
         .from('sources')
-        .select('id, client_id, name, url, source_type, last_scraped_at')
+        .select('id, client_id, name, url, source_type, last_scraped_at, language')
         .eq('id', sourceId)
         .single();
 
