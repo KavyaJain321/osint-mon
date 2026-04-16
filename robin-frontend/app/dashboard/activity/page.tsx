@@ -103,14 +103,22 @@ export default function ContentFeedPage() {
         }));
     }, [articles]);
 
-    // Content type counts
+    // Content type counts — only count displayable items (mirrors the filter logic below)
     const typeCounts = useMemo(() => {
-        const counts: Record<string, number> = { all: articles.length };
-        for (const a of articlesWithType) {
+        const displayable = articlesWithType.filter(a => {
+            const isVideo = a._contentType === "youtube" || a._contentType === "video";
+            if (!isVideo) return true;
+            const ps = a.type_metadata?.processing_status;
+            if (ps === "complete") return true;
+            if (ps === "queued" || ps === "processing") return false;
+            return a.analysis_status === "complete";
+        });
+        const counts: Record<string, number> = { all: displayable.length };
+        for (const a of displayable) {
             counts[a._contentType] = (counts[a._contentType] || 0) + 1;
         }
         return counts;
-    }, [articles, articlesWithType]);
+    }, [articlesWithType]);
 
     // Filtered + sorted
     const filtered = useMemo(() => {
@@ -121,13 +129,15 @@ export default function ContentFeedPage() {
             result = result.filter(a => a._contentType === contentFilter);
         }
 
-        // For video/youtube content: only show fully processed items.
-        // The backend already filters these, but guard again on the frontend
-        // in case of cached/stale data.
+        // For video/youtube content: show if pipeline complete OR AI analysis complete.
+        // Odia/non-English videos often fail transcription but are still AI-analyzed
+        // and ready to display. Only block in-flight (queued/processing) videos.
         result = result.filter(a => {
             if (a._contentType !== "youtube" && a._contentType !== "video") return true;
             const ps = a.type_metadata?.processing_status;
-            return ps === "complete";
+            if (ps === "complete") return true;
+            if (ps === "queued" || ps === "processing") return false;
+            return a.analysis_status === "complete";
         });
 
         // Search
@@ -174,7 +184,7 @@ export default function ContentFeedPage() {
                 <div className="flex items-center gap-3">
                     <List size={20} className="text-text-secondary" />
                     <h1 className="text-lg font-semibold text-text-primary">Content Feed</h1>
-                    <span className="text-xs text-text-muted">{articles.length} items</span>
+                    <span className="text-xs text-text-muted">{typeCounts.all ?? 0} items</span>
                 </div>
                 <div className="relative max-w-xs w-48">
                     <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
