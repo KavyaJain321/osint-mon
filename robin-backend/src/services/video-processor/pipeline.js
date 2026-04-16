@@ -184,17 +184,31 @@ async function saveClips(articleId, clips, keywords) {
     try {
         const rows = [];
         clips.forEach(clip => {
-            (clip.occurrences || []).forEach(occ => {
+            const occs = clip.occurrences || [];
+            if (occs.length > 0) {
+                occs.forEach(occ => {
+                    rows.push({
+                        article_id: articleId,
+                        keyword: occ.keyword || occ.text || clip.keywords?.[0] || keywords[0] || '',
+                        start_time: clip.start,
+                        end_time: clip.end,
+                        clip_url: clip.clipUrl || '',
+                        transcript_segment: clip.transcriptSegment || '',
+                        ai_summary: clip.aiSummary || '',
+                    });
+                });
+            } else if (clip.clipUrl) {
+                // Fallback: no occurrences but clip URL exists — save with clip-level keyword
                 rows.push({
                     article_id: articleId,
-                    keyword: occ.keyword || occ.text || clip.keywords?.[0] || keywords[0] || '',
+                    keyword: clip.keywords?.[0] || keywords[0] || 'video clip',
                     start_time: clip.start,
                     end_time: clip.end,
-                    clip_url: clip.clipUrl || '',
+                    clip_url: clip.clipUrl,
                     transcript_segment: clip.transcriptSegment || '',
                     ai_summary: clip.aiSummary || '',
                 });
-            });
+            }
         });
         if (rows.length === 0) return;
         await supabase.from('video_clips').delete().eq('article_id', articleId);

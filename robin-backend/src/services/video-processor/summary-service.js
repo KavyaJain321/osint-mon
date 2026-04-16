@@ -186,6 +186,7 @@ export async function summarizeAllClips(clips, transcript, clientName = null) {
 
     for (const clip of clips) {
         const keyword = clip.keywords[0] || 'unknown';
+        const isFallback = (clip.occurrences || []).some(o => o.level === 'auto-fallback' || o.level === 'title-fallback');
 
         // Get transcript text for this clip's time window
         const segmentText = getTranscriptForWindow(
@@ -197,15 +198,20 @@ export async function summarizeAllClips(clips, transcript, clientName = null) {
 
         const summary = await summarizeClip(segmentText, keyword, clip.start, videoContext, clientName);
 
-        if (summary === 'IRRELEVANT_GARBAGE' || summary.includes('IRRELEVANT_GARBAGE')) {
+        // Skip quality gate for fallback clips — always keep them so the user has something to watch
+        if (!isFallback && (summary === 'IRRELEVANT_GARBAGE' || summary.includes('IRRELEVANT_GARBAGE'))) {
             log.ai.info('AI Quality Gate rejected clip', { keyword, start: clip.start });
             continue; // Skip adding this clip
         }
 
+        const finalSummary = (summary === 'IRRELEVANT_GARBAGE' || summary.includes('IRRELEVANT_GARBAGE'))
+            ? `Opening clip from this video (${clip.start}s - ${clip.end}s).`
+            : summary;
+
         results.push({
             ...clip,
             transcriptSegment: segmentText,
-            aiSummary: summary,
+            aiSummary: finalSummary,
         });
 
         // Small delay between API calls to respect rate limits
