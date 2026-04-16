@@ -9,7 +9,7 @@ import { supabase } from '../../lib/supabase.js';
 import { log } from '../../lib/logger.js';
 
 const POLL_INTERVAL_MS = 5000;
-const TRIJYA_TIMEOUT_MS = 9 * 60 * 1000; // 9 min (pipeline limit is 10 min)
+const TRIJYA_TIMEOUT_MS = 25 * 60 * 1000; // 25 min (Whisper large-v3-turbo takes 10-15 min on long videos)
 
 /**
  * Submit a video to TRIJYA-7 for full pipeline processing.
@@ -81,9 +81,9 @@ export async function processVideoViaTrijya(videoId, keywords) {
     // Timed out — cancel the job if still pending (don't let it run after we gave up)
     await supabase
         .from('ai_jobs')
-        .update({ status: 'failed', error: 'Backend polling timed out after 9 minutes' })
+        .update({ status: 'failed', error: 'Backend polling timed out after 25 minutes' })
         .eq('id', job.id)
         .eq('status', 'pending');
 
-    throw new Error('TRIJYA-7 video pipeline timed out (9 min) — is the worker running?');
+    throw new Error('TRIJYA-7 video pipeline timed out (25 min) — is the worker running?');
 }
