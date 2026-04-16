@@ -280,11 +280,18 @@ async function crawlYoutubeSourceInternal(source, keywords) {
         });
 
         // Step 3: Match + save each video (cap at maxSavePerSrc per cycle)
+        // Hard 7-day age cutoff — prevents backlog flood from new sources on first scrape.
+        const VIDEO_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+        const videoCutoff = new Date(Date.now() - VIDEO_MAX_AGE_MS);
+
         let savedThisCycle = 0;
         for (const video of videos) {
             if (savedThisCycle >= maxSavePerSrc) break;
 
             try {
+                // Skip videos older than 7 days
+                if (video.publishedAt && new Date(video.publishedAt) < videoCutoff) continue;
+
                 // Skip live streams, bulletins, and headline roundups —
                 // these are either still streaming or too generic.
                 if (isLiveOrBulletin(video.title)) {
@@ -296,12 +303,15 @@ async function crawlYoutubeSourceInternal(source, keywords) {
                 // Translate title/desc rapidly so English keywords hit Odia titles!
                 const titleAndDesc = `${video.title} - ${video.description.substring(0, 100)}`;
 
-                // Only translate Odia-language sources — translating already-English titles
-                // from Odia produces garbled output that hurts keyword matching for RIGIOR.
+                // Translate non-English source titles so English keywords can match.
+                // Hindi sources (language='hi') → translate with 'hi' lang code.
+                // Odia sources → translate with 'or' lang code.
+                // Skip translation for English sources to avoid garbled output.
                 let combinedSearchText = titleAndDesc;
-                if (source.client_id !== RIGIOR_CLIENT_ID) {
+                const srcLang = source.language || 'en';
+                if (srcLang !== 'en') {
                     try {
-                        const englishTitleDesc = await translateToEnglish(titleAndDesc, 'or');
+                        const englishTitleDesc = await translateToEnglish(titleAndDesc, srcLang);
                         combinedSearchText = `${titleAndDesc} ${englishTitleDesc}`;
                     } catch (e) {
                         // fall back to original

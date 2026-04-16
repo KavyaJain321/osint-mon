@@ -121,10 +121,15 @@ export async function crawlRssSource(source, keywords) {
             return result;
         }
 
-        // Filter: only items after last_scraped_at (or last 48hrs)
+        // Hard age cutoff: never save articles older than 7 days, regardless of last_scraped_at.
+        // Prevents new sources from flooding the feed with months of backlog on first scrape.
+        const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+        const hardCutoff = new Date(Date.now() - MAX_AGE_MS);
+
+        // Filter: only items after last_scraped_at (or last 48hrs), AND within 7-day hard cutoff
         const since = source.last_scraped_at
-            ? new Date(source.last_scraped_at)
-            : new Date(Date.now() - 48 * 60 * 60 * 1000);
+            ? new Date(Math.max(new Date(source.last_scraped_at).getTime(), hardCutoff.getTime()))
+            : hardCutoff;
 
         const recentItems = items
             .filter((item) => {
