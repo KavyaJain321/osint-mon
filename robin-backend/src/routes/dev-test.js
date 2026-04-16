@@ -243,7 +243,7 @@ router.get('/content', async (req, res) => {
             };
         });
 
-        // Merge, preferring contentItemsData since it's the newer schema
+        // Merge by ID first, preferring contentItemsData (newer schema)
         const mergedMap = new Map();
         normalizedArticles.forEach(a => mergedMap.set(a.id, a));
         contentItemsData.forEach(c => mergedMap.set(c.id, {
@@ -252,6 +252,21 @@ router.get('/content', async (req, res) => {
             source_url: c.source?.url || null,
             source: undefined
         }));
+
+        // Secondary dedup by URL — same YouTube video can exist in both tables
+        // with different IDs. Keep the content_items version (richer schema).
+        const urlSeen = new Map(); // url → id of preferred item
+        // First pass: register content_items URLs (preferred)
+        for (const [id, item] of mergedMap) {
+            if (item.url && item.content_type === 'video') urlSeen.set(item.url, id);
+        }
+        // Second pass: drop articles-table duplicates that share a URL with content_items
+        for (const [id, item] of mergedMap) {
+            if (item.url && item.content_type === 'article') {
+                const preferred = urlSeen.get(item.url);
+                if (preferred && preferred !== id) mergedMap.delete(id);
+            }
+        }
 
         let data = Array.from(mergedMap.values())
             .sort((a, b) => new Date(b.published_at) - new Date(a.published_at))
