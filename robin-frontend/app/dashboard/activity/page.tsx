@@ -13,21 +13,27 @@ import { useQueryClient } from "@tanstack/react-query";
 import ContentDetail, { detectContentType, TYPE_ICONS, TYPE_GRADIENTS } from "@/components/dashboard/ContentDetail";
 import { InfoTooltip, PriorityTooltip } from "@/components/dashboard/InfoTooltip";
 
-/** Return an English-only title, suppressing Odia/Devanagari script.
- *  Falls back to AI-generated summary (always English) before giving up. */
+/** Return a displayable title. Prefers clean English (title_en), then raw title.
+ *  Shows mixed-language titles (e.g. Hindi + English) as-is — they're readable.
+ *  Only falls back to summary / "Translation pending" for pure non-Latin titles. */
 function safeTitle(title_en?: string, title?: string, summary?: string): string {
-    const NON_LATIN = /[\u0B00-\u0B7F\u0900-\u097F]/;
+    const PURE_NON_LATIN = /^[^\x00-\x7F\s]+$/; // purely non-ASCII (no English at all)
+    const HAS_ENGLISH = /[a-zA-Z]{3,}/;           // at least 3 consecutive Latin chars
     const en = (title_en || "").trim();
     const raw = (title || "").trim();
-    if (en && /[a-zA-Z]/.test(en) && !NON_LATIN.test(en)) return en;
-    if (raw && /[a-zA-Z]/.test(raw) && !NON_LATIN.test(raw)) return raw;
+    // 1. Clean English title_en (no non-Latin script mixed in)
+    if (en && HAS_ENGLISH.test(en) && !/[\u0B00-\u0B7F\u0900-\u097F]/.test(en)) return en;
+    // 2. Mixed or pure English raw title — show as-is if it has enough English
+    if (raw && HAS_ENGLISH.test(raw)) return raw;
+    // 3. Summary fallback (always English from AI)
     if (summary) {
         const s = summary.trim();
-        if (s && /[a-zA-Z]/.test(s) && !NON_LATIN.test(s)) {
+        if (s && HAS_ENGLISH.test(s)) {
             const firstSentence = s.match(/^.{10,}?[.!?](?=\s|$)/)?.[0]?.trim() || s;
             return firstSentence.length > 85 ? firstSentence.slice(0, 82) + "…" : firstSentence;
         }
     }
+    // 4. Pure non-Latin title with no English — genuinely needs translation
     return "[ Translation pending ]";
 }
 
