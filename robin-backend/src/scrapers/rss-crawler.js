@@ -135,28 +135,39 @@ export async function crawlRssSource(source, keywords) {
 
         result.articlesFound = recentItems.length;
 
+        // Non-English sources bypass keyword matching — the AI reads the language natively.
+        // English string matching on Hindi/Urdu/etc. text always returns 0 matches,
+        // so we skip the gate and let TRIJYA-7/Groq decide relevance instead.
+        const isNonEnglish = source.language && source.language !== 'en';
+
         // Process in batches of CONCURRENT_BATCH_SIZE
         for (let i = 0; i < recentItems.length; i += CONCURRENT_BATCH_SIZE) {
             const batch = recentItems.slice(i, i + CONCURRENT_BATCH_SIZE);
             const promises = batch.map(async (item) => {
                 try {
-                    const quickText = cleanArticleContent(`${item.title || ''} ${item.contentSnippet || item.content || ''}`);
-                    const quickMatch = matchArticle({ title: item.title || '', content: quickText }, keywords);
-
-                    if (!quickMatch.matched) return;
+                    if (!isNonEnglish) {
+                        // English sources: quick keyword gate before fetching full content
+                        const quickText = cleanArticleContent(`${item.title || ''} ${item.contentSnippet || item.content || ''}`);
+                        const quickMatch = matchArticle({ title: item.title || '', content: quickText }, keywords);
+                        if (!quickMatch.matched) return;
+                    }
 
                     // Fetch full article content
                     const fullArticle = await fetchFullArticleContent(item.link);
                     if (!fullArticle) return;
 
                     // Re-match on cleaned content for keyword tagging
+                    // Non-English: still tag any English keywords that happen to appear
+                    // (e.g. "Nari Shakti Vandan Adhiniyam" in a Hindi article's URL or byline)
                     const cleanedContent = cleanArticleContent(fullArticle.content);
                     const fullMatch = matchArticle(
                         { title: fullArticle.title || item.title, content: cleanedContent },
                         keywords
                     );
 
-                    if (!fullMatch.matched) return;
+                    // Non-English sources: always save (AI decides relevance)
+                    // English sources: require at least one keyword match
+                    if (!isNonEnglish && !fullMatch.matched) return;
                     const matchedKws = fullMatch.matchedKeywords;
 
                     // Collect image: try RSS enclosure, media:thumbnail, then og:image from fetched HTML
