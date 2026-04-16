@@ -19,6 +19,27 @@ const TRIJYA_TIMEOUT_MS = 25 * 60 * 1000; // 25 min (Whisper large-v3-turbo take
  * Returns {transcript, clips, keywordOccurrences} when complete.
  */
 export async function processVideoViaTrijya(videoId, keywords) {
+    // ── Check for orphaned completed jobs first ───────────────────────────────
+    // If Render restarted while polling, the completed result was orphaned.
+    // Recover it instead of re-processing on TRIJYA-7.
+    const { data: orphaned } = await supabase
+        .from('ai_jobs')
+        .select('id, result')
+        .eq('type', 'video_pipeline')
+        .eq('status', 'completed')
+        .eq('payload->>videoId', videoId)
+        .not('result', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (orphaned?.result) {
+        log.ai.info('♻️ Recovered orphaned completed video job — skipping re-process', {
+            videoId, jobId: orphaned.id,
+        });
+        return orphaned.result;
+    }
+
     // Create the job
     const { data: job, error } = await supabase
         .from('ai_jobs')
