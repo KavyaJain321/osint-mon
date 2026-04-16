@@ -259,13 +259,18 @@ router.get('/content', async (req, res) => {
 
         // ── Server-side: remove unprocessed video items ──────────────────
         // Videos are added to the DB immediately when scraped (as "queued"),
-        // but should only appear in the feed once the pipeline finishes.
-        // This prevents "Queued" / "Processing" cards from ever reaching the frontend.
+        // but should only appear in the feed once ready to display.
+        // Show if: full pipeline complete, OR AI analysis complete (transcript optional —
+        // transcription may fail for non-English/Odia videos, but AI analysis is enough).
+        // Always block: queued, processing (still in-flight), or neither analysis nor pipeline done.
         data = data.filter(item => {
             const isVideo = item.content_type === 'video' || item.content_type === 'youtube';
             if (!isVideo) return true; // non-video items always included
             const ps = item.type_metadata?.processing_status;
-            return ps === 'complete'; // only show fully processed videos
+            if (ps === 'complete') return true;         // full pipeline done
+            if (ps === 'queued' || ps === 'processing') return false; // still in-flight
+            // pipeline failed/missing — show if AI analysis is done
+            return item.analysis_status === 'complete';
         });
 
         // Fetch analysis for all items (Batched to prevent URL-too-long errors with 1500 limit)
@@ -2536,9 +2541,10 @@ router.get('/overview', async (req, res) => {
         (newContentItems || [])
             .filter(c => {
                 const ps = c.type_metadata?.processing_status;
-                // If it has a processing_status field it's a video — require 'complete'
-                // If no processing_status, it's a non-video content item — always include
-                return !ps || ps === 'complete';
+                if (!ps) return true;                            // not a video — always include
+                if (ps === 'complete') return true;              // full pipeline done
+                if (ps === 'queued' || ps === 'processing') return false; // still in-flight
+                return c.analysis_status === 'complete';         // pipeline failed but AI done — show
             })
             .forEach(c => mergedMap.set(c.id, c));
 
