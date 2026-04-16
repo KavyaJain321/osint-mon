@@ -206,10 +206,55 @@ async function saveClips(articleId, clips, keywords) {
     }
 }
 
+/**
+ * Extract the English portion from a mixed Odia+English YouTube title.
+ * YouTube Odia news titles look like: "[VIDEO] ଓଡ଼ିଶା ରାଜନୀତି | Odisha Politics Update | BJP | Odia News"
+ * Strategy: strip [VIDEO] prefix, remove Odia script chars, clean up separators.
+ * Falls back to using the AI summary headline if nothing English remains.
+ */
+function extractEnglishTitle(rawTitle, summary) {
+    if (!rawTitle) return null;
+
+    // Remove [VIDEO] prefix
+    let title = rawTitle.replace(/^\[VIDEO\]\s*/i, '').trim();
+
+    // Remove Odia script characters (Unicode block U+0B00–U+0B7F) and surrounding punctuation
+    title = title.replace(/[\u0B00-\u0B7F]+/g, '').replace(/\s*[|!।]\s*/g, ' | ').trim();
+
+    // Strip leading/trailing pipes and clean up
+    title = title.replace(/^[\s|!]+|[\s|!]+$/g, '').trim();
+
+    // If we have at least 10 meaningful English chars, use it
+    if (title.length >= 10) {
+        // Strip trailing "| Odia News", "| News18 Odia" etc.
+        title = title.replace(/\|\s*(Odia News|News18 Odia|OTV News|OdishaTV|Odia)\s*$/i, '').trim();
+        title = title.replace(/^[\s|]+|[\s|]+$/g, '').trim();
+        if (title.length >= 5) return title;
+    }
+
+    // Fallback: use first sentence of AI summary
+    if (summary && typeof summary === 'string') {
+        const first = summary.split(/[.\n]/)[0].trim();
+        if (first.length >= 10) return first.substring(0, 150);
+    }
+
+    return null;
+}
+
 async function updateArticleContent(articleId, transcriptText, summary) {
     try {
         await supabase.from('articles').update({ content: transcriptText.substring(0, 50000) }).eq('id', articleId);
         await supabase.from('content_items').update({ content: transcriptText.substring(0, 50000) }).eq('id', articleId);
+
+        // Fix title: extract English from mixed Odia+English YouTube title
+        const { data: item } = await supabase.from('content_items').select('title').eq('id', articleId).single();
+        if (item?.title) {
+            const englishTitle = extractEnglishTitle(item.title, summary);
+            if (englishTitle) {
+                await supabase.from('content_items').update({ title: englishTitle }).eq('id', articleId);
+                log.ai.info('Title updated to English', { articleId, title: englishTitle });
+            }
+        }
     } catch { /* non-critical */ }
 }
 

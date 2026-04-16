@@ -60,7 +60,7 @@ const CONTENT_TABS: { id: ContentType; label: string; emoji: string }[] = [
 const ITEMS_PER_PAGE = 20;
 
 export default function ContentFeedPage() {
-    const { data: contentRes, isLoading: loading } = useContent(1500) as {
+    const { data: contentRes, isLoading: loading } = useContent(300) as {
         data: { data?: Article[] } | Article[] | undefined;
         isLoading: boolean;
     };
