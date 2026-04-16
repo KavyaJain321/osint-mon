@@ -7,7 +7,7 @@
 import { supabase } from './supabase.js';
 import { log } from './logger.js';
 
-const JOB_TIMEOUT_MS  = 30000; // Wait 30s for TRIJYA-7 to pick up + process
+const JOB_TIMEOUT_MS  = 90000; // Wait 90s for TRIJYA-7 to pick up + process (8b model takes ~35-45s)
 const POLL_INTERVAL_MS = 2000; // Poll Supabase every 2s for job status
 const JOB_TTL_HOURS   = 24;   // Auto-expire jobs after 24h
 
