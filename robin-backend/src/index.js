@@ -109,7 +109,11 @@ if (!config.isProduction) {
 // ── Video Processing API routes ─────────────────────────────
 {
     const { default: videoRouter } = await import('./routes/video.js');
-    app.use('/api/test/video', videoRouter);
+    if (config.isProduction) {
+        app.use('/api/test/video', authenticate, videoRouter);
+    } else {
+        app.use('/api/test/video', videoRouter);
+    }
     log.system.info('Video processing routes mounted at /api/test/video');
 }
 

@@ -26,6 +26,20 @@ const RIGIOR_OVERRIDES = {
     maxTotal:    150,   // accommodate more queries
 };
 
+// Odisha — breaking regional news. Tight window keeps feed focused on current affairs.
+const ODISHA_CLIENT_ID = '7b5390a0-0d5b-419e-84b4-533fd9c44d36';
+const ODISHA_OVERRIDES = {
+    recencyDays: 5,     // breaking news only
+    maxQueries:  12,    // wider than default 8 since Odisha has many specific keywords
+    maxTotal:   120,    // accommodate more queries
+};
+
+function getClientSearchOverrides(clientId) {
+    if (clientId === RIGIOR_CLIENT_ID) return RIGIOR_OVERRIDES;
+    if (clientId === ODISHA_CLIENT_ID) return ODISHA_OVERRIDES;
+    return {};
+}
+
 /**
  * Run YouTube keyword-based search for all clients.
  * Called by the orchestrator AFTER channel-based YouTube crawling.
@@ -81,7 +95,7 @@ async function searchForClient(clientId, keywords) {
     const seenVideoIds = new Set();
 
     // Apply per-client overrides where configured
-    const overrides    = clientId === RIGIOR_CLIENT_ID ? RIGIOR_OVERRIDES : {};
+    const overrides    = getClientSearchOverrides(clientId);
     const recencyDays  = overrides.recencyDays ?? RECENCY_DAYS;
     const maxQueries   = overrides.maxQueries  ?? MAX_QUERIES_PER_CLIENT;
     const maxTotal     = overrides.maxTotal    ?? MAX_VIDEOS_TOTAL;
@@ -150,6 +164,7 @@ async function searchForClient(clientId, keywords) {
                         image_url: thumbnailUrl,
                         discovery_method: 'keyword_search',
                         search_query: query,
+                        processing_status: 'queued', // Picked up by DB queue poller
                     },
                 });
 
@@ -162,17 +177,16 @@ async function searchForClient(clientId, keywords) {
                         videoId: video.videoId,
                     });
 
-                    // Fire-and-forget video processing pipeline
+                    // Queue via DB poller (same as channel crawler) — NOT fire-and-forget
+                    // Calling processVideo() directly for every keyword-search result
+                    // launches 100+ simultaneous 25-min pipeline waits and overloads the system.
+                    // enqueueVideo() sets processing_status='queued' (already done by saveContent
+                    // via typeMetadata) and kicks the sequential DB queue poller instead.
                     try {
-                        const { processVideo } = await import('../services/video-processor/pipeline.js');
-                        // Pass ALL tracked keywords to maximize clip generation across the transcript
-                        processVideo(video.videoId, saveResult.contentId, keywords, clientName)
-                            .catch(err => log.scraper.warn('Video pipeline failed (search)', {
-                                videoId: video.videoId,
-                                error: err.message?.substring(0, 100),
-                            }));
+                        const { enqueueVideo } = await import('../services/video-processor/video-queue.js');
+                        enqueueVideo(video.videoId, saveResult.contentId, keywords, video.title || '');
                     } catch {
-                        // Pipeline module may not be ready — video still saved
+                        // Queue module may not be ready — video still saved as 'queued' for Render to pick up
                     }
                 }
             }

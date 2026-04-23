@@ -18,7 +18,7 @@ const TRIJYA_TIMEOUT_MS = 25 * 60 * 1000; // 25 min (Whisper large-v3-turbo take
  *
  * Returns {transcript, clips, keywordOccurrences} when complete.
  */
-export async function processVideoViaTrijya(videoId, keywords) {
+export async function processVideoViaTrijya(videoId, keywords, language = null) {
     // ── Check for orphaned completed jobs first ───────────────────────────────
     // If Render restarted while polling, the completed result was orphaned.
     // Recover it instead of re-processing on TRIJYA-7.
@@ -40,14 +40,19 @@ export async function processVideoViaTrijya(videoId, keywords) {
         return orphaned.result;
     }
 
-    // Create the job
+    // Create the job. `language` is an optional hint (e.g. 'hi','or','bn') taken
+    // from the source row — steers Whisper decoding so short/noisy clips don't
+    // mis-detect (e.g. Hindi labeled as Bengali). Omitted → Whisper auto-detects.
+    const payload = { videoId, keywords };
+    if (language) payload.language = language;
+
     const { data: job, error } = await supabase
         .from('ai_jobs')
         .insert({
             type: 'video_pipeline',
             status: 'pending',
             priority: 3,
-            payload: { videoId, keywords },
+            payload,
             expires_at: new Date(Date.now() + TRIJYA_TIMEOUT_MS + 60000).toISOString(),
         })
         .select()

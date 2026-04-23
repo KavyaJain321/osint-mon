@@ -90,7 +90,7 @@ const ContentSchema = z.object({
     content: z.string().min(20), // more lenient than articles (tweets can be short)
     url: z.string().url(),
     publishedAt: z.coerce.date(),
-    sourceId: z.string().uuid().optional(),
+    sourceId: z.string().uuid().nullish(),
     clientId: z.string().uuid(),
     matchedKeywords: z.array(z.string()).default([]),
     language: z.string().default('en'),

@@ -24,7 +24,7 @@ import { log } from '../../lib/logger.js';
  *             6. AI summaries for full video + each clip (Groq)
  *             7. Save all results to database
  */
-export async function processVideo(videoId, articleId, matchedKeywords, clientName = null) {
+export async function processVideo(videoId, articleId, matchedKeywords, clientName = null, sourceLanguage = null) {
     const startTime = Date.now();
 
     try {
@@ -32,11 +32,11 @@ export async function processVideo(videoId, articleId, matchedKeywords, clientNa
 
         // ── Steps 1–4: TRIJYA-7 (download + transcribe + clips) ───────
         log.ai.info('🎙️ [VIDEO PIPELINE] Steps 1-4: Dispatching to TRIJYA-7', {
-            videoId, keywords: matchedKeywords,
+            videoId, keywords: matchedKeywords, sourceLanguage,
         });
 
         const trijyaResult = await withTimeout(
-            processVideoViaTrijya(videoId, matchedKeywords),
+            processVideoViaTrijya(videoId, matchedKeywords, sourceLanguage),
             VIDEO_CONFIG.pipelineTimeoutMs,
             'TRIJYA-7 video pipeline timed out'
         );

@@ -97,7 +97,7 @@ async function pickAndProcess() {
         // Find the oldest video that is still waiting
         const { data: videos, error } = await supabase
             .from('content_items')
-            .select('id, url, matched_keywords, title, type_metadata, client_id')
+            .select('id, url, matched_keywords, title, type_metadata, client_id, source_id')
             .eq('content_type', 'video')
             .eq('type_metadata->>processing_status', 'queued')
             .order('created_at', { ascending: true })
@@ -180,8 +180,24 @@ async function pickAndProcess() {
                 } catch { /* ignore — persona will default */ }
             }
 
+            // Resolve source language hint for Whisper. Passing the expected
+            // language (hi/or/bn/te/...) into Whisper avoids frequent
+            // mis-detections on short/noisy clips (e.g. Hindi labeled as Bengali).
+            // Search-discovered videos have no source_id → hint stays null → auto-detect.
+            let sourceLanguage = null;
+            if (video.source_id) {
+                try {
+                    const { data: srcRow } = await supabase
+                        .from('sources')
+                        .select('language')
+                        .eq('id', video.source_id)
+                        .single();
+                    sourceLanguage = srcRow?.language || null;
+                } catch { /* ignore — Whisper will auto-detect */ }
+            }
+
             const { processVideo } = await import('./pipeline.js');
-            await processVideo(videoId, video.id, keywords, clientName);
+            await processVideo(videoId, video.id, keywords, clientName, sourceLanguage);
         } catch (err) {
             log.ai.error('❌ DB queue: pipeline error', {
                 videoId,

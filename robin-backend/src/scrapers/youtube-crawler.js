@@ -18,15 +18,32 @@ import { log } from '../lib/logger.js';
 const MAX_VIDEOS_API = 25;        // Fetch pool to search through (default)
 const MAX_VIDEOS_RSS = 25;        // RSS hard limit (YouTube's feed caps at 15 regardless)
 const MAX_VIDEOS_PER_SOURCE = 25; // Max new videos saved per source per scrape cycle (default)
+const DEFAULT_VIDEO_AGE_DAYS = 7; // Default recency window
 
 // ── Per-client overrides ──────────────────────────────────────
 // RIGIOR uses analytical/think-tank channels with infrequent posting schedules.
 // Larger API pool (50) gives a ~4-month lookback on channels that post 3×/week.
+// Wider recency window (30 days) because think-tank analysis stays relevant longer
+// than breaking news and these channels post 2-3 times a week.
 const RIGIOR_CLIENT_ID = 'c9493d5b-45bc-4c33-998b-e4d5cdde8f59';
 const RIGIOR_YT_OVERRIDES = {
-    maxVideosApi:      50,  // deeper playlist fetch via API
-    maxVideosPerSource: 50, // save more matched videos per channel per cycle
+    maxVideosApi:       50,  // deeper playlist fetch via API
+    maxVideosPerSource: 50,  // save more matched videos per channel per cycle
+    videoAgeDays:       30,  // analytical content stays relevant longer
 };
+
+// Odisha government — breaking regional news. Tight recency keeps the feed focused
+// on yesterday/today and stops old election/festival footage from re-surfacing.
+const ODISHA_CLIENT_ID = '7b5390a0-0d5b-419e-84b4-533fd9c44d36';
+const ODISHA_YT_OVERRIDES = {
+    videoAgeDays: 5,   // breaking news — keep the feed tight
+};
+
+function getClientYtOverrides(clientId) {
+    if (clientId === RIGIOR_CLIENT_ID) return RIGIOR_YT_OVERRIDES;
+    if (clientId === ODISHA_CLIENT_ID) return ODISHA_YT_OVERRIDES;
+    return {};
+}
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 /**
@@ -243,10 +260,11 @@ async function crawlYoutubeSourceInternal(source, keywords) {
         }
 
         // Step 2: Fetch videos (Try API first, fallback to RSS)
-        // Apply per-client overrides for pool size and save cap
-        const ytOverrides    = source.client_id === RIGIOR_CLIENT_ID ? RIGIOR_YT_OVERRIDES : {};
+        // Apply per-client overrides for pool size, save cap, and recency window
+        const ytOverrides    = getClientYtOverrides(source.client_id);
         const maxApiPool     = ytOverrides.maxVideosApi       ?? MAX_VIDEOS_API;
         const maxSavePerSrc  = ytOverrides.maxVideosPerSource ?? MAX_VIDEOS_PER_SOURCE;
+        const videoAgeDays   = ytOverrides.videoAgeDays       ?? DEFAULT_VIDEO_AGE_DAYS;
 
         let videos = [];
         let sourceMethod = 'rss';
@@ -280,8 +298,10 @@ async function crawlYoutubeSourceInternal(source, keywords) {
         });
 
         // Step 3: Match + save each video (cap at maxSavePerSrc per cycle)
-        // Hard 7-day age cutoff — prevents backlog flood from new sources on first scrape.
-        const VIDEO_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+        // Client-specific age cutoff — breaking-news clients use a tight window,
+        // analytical clients (RIGIOR) use a wider one. Prevents backlog flood from
+        // new sources on first scrape.
+        const VIDEO_MAX_AGE_MS = videoAgeDays * 24 * 60 * 60 * 1000;
         const videoCutoff = new Date(Date.now() - VIDEO_MAX_AGE_MS);
 
         let savedThisCycle = 0;
