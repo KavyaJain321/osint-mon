@@ -24,6 +24,43 @@ function buildLanguageHint(clientName) {
     return `If the transcript is not in English, translate everything into English. Your entire response must be in English only and must not include non-Latin script characters.`;
 }
 
+// ── B6: Chunked transcript condensation ─────────────────────
+// Videos > 4000 chars (most regional news videos) were silently truncated,
+// losing the second half of the transcript entirely. Instead, chunk into
+// 3500-char windows, extract key findings from each, then meta-summarize.
+const CHUNK_SIZE = 3500;
+const CHUNK_OVERLAP = 200;
+
+/**
+ * Condense a long transcript by summarizing each 3500-char chunk and joining.
+ * Returns a condensed "key findings" string suitable for the main brief prompt.
+ */
+async function condenseLongTranscript(transcriptText, primaryKeyword) {
+    const chunks = [];
+    let pos = 0;
+    while (pos < transcriptText.length) {
+        chunks.push(transcriptText.substring(pos, pos + CHUNK_SIZE));
+        pos += CHUNK_SIZE - CHUNK_OVERLAP;
+    }
+
+    const findings = [];
+    for (let i = 0; i < chunks.length; i++) {
+        try {
+            const resp = await groqChat([{
+                role: 'user',
+                content: `Extract 2-3 specific facts from this transcript chunk related to "${primaryKeyword}". One line each. If nothing relevant, respond with SKIP.\n\nChunk ${i + 1}/${chunks.length}:\n"${chunks[i]}"`,
+            }], { temperature: 0, max_tokens: 180 });
+            const txt = resp.choices[0]?.message?.content?.trim() || '';
+            if (txt && txt !== 'SKIP' && !txt.startsWith('SKIP')) findings.push(txt);
+        } catch { /* skip failed chunk — others still contribute */ }
+        if (i < chunks.length - 1) await new Promise(r => setTimeout(r, 250));
+    }
+
+    return findings.length > 0
+        ? findings.join('\n')
+        : transcriptText.substring(0, 4000); // fallback if all chunks fail
+}
+
 /**
  * Generate a keyword-focused summary of the full video.
  * The summary emphasizes WHY this video was fetched based on the keyword.
@@ -40,9 +77,20 @@ export async function summarizeFullVideo(transcriptText, keywords, clientName = 
 
     const primaryKeyword = keywords[0] || 'the topic';
     const allKeywords = keywords.join(', ');
-    const truncatedTranscript = transcriptText.substring(0, 4000);
     const clientLabel = clientName || 'the client organisation';
     const langHint = buildLanguageHint(clientName);
+
+    // B6: condense long transcripts instead of hard-truncating at 4000 chars
+    let transcriptForSummary;
+    if (transcriptText.length > CHUNK_SIZE + CHUNK_OVERLAP) {
+        log.ai.info('Long transcript — condensing before summary', {
+            chars: transcriptText.length,
+            chunks: Math.ceil((transcriptText.length - CHUNK_OVERLAP) / (CHUNK_SIZE - CHUNK_OVERLAP)),
+        });
+        transcriptForSummary = await condenseLongTranscript(transcriptText, primaryKeyword);
+    } else {
+        transcriptForSummary = transcriptText;
+    }
 
     const messages = [
         {
@@ -66,8 +114,8 @@ FORMATTING:
             role: 'user',
             content: `This video was flagged because it discusses: ${allKeywords}
 
-TRANSCRIPT (first 4000 chars):
-"${truncatedTranscript}"
+TRANSCRIPT:
+"${transcriptForSummary}"
 
 Write a structured intelligence brief using EXACTLY this layout (real newlines between sections):
 

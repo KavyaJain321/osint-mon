@@ -100,11 +100,56 @@ export async function runYoutubeKeywordSearch(clientKeywordMap) {
  * @param {string} clientId
  * @param {string[]} keywords
  */
+// ── A3: Auto-channel discovery ────────────────────────────────
+// When keyword search repeatedly finds videos from the same channel (≥3 hits),
+// it's a strong signal that channel is a persistent relevant source.
+// Auto-promote it to the sources table so the channel crawler picks it up.
+const AUTO_PROMOTE_MIN_HITS = 3;
+
+async function autoPromoteChannels(clientId, channelHits) {
+    const candidates = [...channelHits.entries()]
+        .filter(([, v]) => v.count >= AUTO_PROMOTE_MIN_HITS);
+    if (candidates.length === 0) return;
+
+    for (const [channelId, { channelTitle }] of candidates) {
+        const channelUrl = `https://www.youtube.com/channel/${channelId}`;
+        try {
+            const { data: existing } = await supabase
+                .from('sources')
+                .select('id')
+                .eq('client_id', clientId)
+                .eq('url', channelUrl)
+                .maybeSingle();
+
+            if (existing) continue;
+
+            const { error } = await supabase.from('sources').insert({
+                url:         channelUrl,
+                name:        channelTitle || `YouTube Channel ${channelId}`,
+                source_type: 'youtube',
+                client_id:   clientId,
+                is_active:   true,
+            });
+
+            if (!error) {
+                log.scraper.info('A3: Auto-promoted YouTube channel to sources', {
+                    clientId, channelId, channelTitle, channelUrl,
+                });
+            } else {
+                log.scraper.warn('A3: Auto-promote insert failed', { channelId, error: error.message });
+            }
+        } catch (err) {
+            log.scraper.warn('A3: Auto-promote error', { channelId, error: err.message });
+        }
+    }
+}
+
 async function searchForClient(clientId, keywords) {
     let found = 0;
     let saved = 0;
     const errors = [];
     const seenVideoIds = new Set();
+    const channelHits = new Map(); // A3: channelId → { channelTitle, count }
 
     // Apply per-client overrides where configured
     const overrides    = getClientSearchOverrides(clientId);
@@ -157,6 +202,13 @@ async function searchForClient(clientId, keywords) {
                 if (found >= maxTotal) break;
                 if (seenVideoIds.has(video.videoId)) continue;
                 seenVideoIds.add(video.videoId);
+
+                // A3: track channel hit frequency for auto-promotion
+                if (video.channelId) {
+                    const ch = channelHits.get(video.channelId) || { channelTitle: video.channelTitle, count: 0 };
+                    ch.count++;
+                    channelHits.set(video.channelId, ch);
+                }
 
                 // Keyword match on title + description (reuse existing matching logic)
                 const match = matchArticle(
@@ -224,6 +276,9 @@ async function searchForClient(clientId, keywords) {
         }
     }
 
+    // A3: after all queries, auto-promote high-hit channels to sources table
+    await autoPromoteChannels(clientId, channelHits);
+
     return { found, saved, errors };
 }
 
@@ -273,6 +328,7 @@ async function searchYouTubeAPI(query, publishedAfter, relevanceLanguage = null)
                 description: (snippet.description || '').substring(0, 1500),
                 publishedAt: snippet.publishedAt ? new Date(snippet.publishedAt) : new Date(),
                 channelTitle: snippet.channelTitle || '',
+                channelId: snippet.channelId || '', // A3: needed for auto-promotion
             });
         }
 
