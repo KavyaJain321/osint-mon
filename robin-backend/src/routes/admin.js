@@ -78,6 +78,25 @@ router.use(authenticate, requireRole('SUPER_ADMIN'));
 // Register the system-health handler (defined above)
 router.get('/system-health', systemHealthHandler);
 
+// GET /api/admin/scrape-summary — last scraper cycle stats (F4)
+router.get('/scrape-summary', async (req, res) => {
+    try {
+        const { data } = await supabase
+            .from('system_state')
+            .select('value, updated_at')
+            .eq('key', 'last_scrape_summary')
+            .single();
+
+        if (!data) return res.json({ available: false, message: 'No scrape cycle has run yet.' });
+
+        const summary = JSON.parse(data.value);
+        res.json({ available: true, ...summary, recorded_at: data.updated_at });
+    } catch (err) {
+        log.system.error('GET /scrape-summary failed', { error: err.message });
+        res.status(500).json({ error: 'Failed to fetch scrape summary' });
+    }
+});
+
 // ── Clients ────────────────────────────────────────────────
 
 // GET /api/admin/clients — all clients with article/signal counts

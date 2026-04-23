@@ -73,6 +73,71 @@ router.post('/', requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
     }
 });
 
+// POST /discover-rss — F3: auto-detect RSS feed URL from any website URL
+// Tries <link rel="alternate"> in HTML head, then common feed paths.
+// Returns discovered feeds so the operator can pick one and add it as a source.
+router.post('/discover-rss', requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
+    const { url } = req.body;
+    if (!url || typeof url !== 'string') {
+        return res.status(400).json({ error: 'url is required' });
+    }
+
+    // Validate URL
+    let parsed;
+    try { parsed = new URL(url); } catch {
+        return res.status(400).json({ error: 'Invalid URL' });
+    }
+
+    const UA = 'Mozilla/5.0 (compatible; ROBIN-OSINT/1.0)';
+    const discovered = [];
+
+    // Step 1: fetch page HTML and extract <link rel="alternate"> feed tags
+    try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 12000);
+        const resp = await fetch(url, { headers: { 'User-Agent': UA }, signal: controller.signal });
+        clearTimeout(timeout);
+
+        if (resp.ok) {
+            const html = await resp.text();
+            const linkRe = /<link[^>]+rel=["']alternate["'][^>]*>/gi;
+            let m;
+            while ((m = linkRe.exec(html)) !== null) {
+                const tag = m[0];
+                const typeMatch = tag.match(/type=["']([^"']+)["']/i);
+                const hrefMatch = tag.match(/href=["']([^"']+)["']/i);
+                const titleMatch = tag.match(/title=["']([^"']+)["']/i);
+                if (typeMatch && hrefMatch && /rss|atom|xml/i.test(typeMatch[1])) {
+                    const feedUrl = new URL(hrefMatch[1], url).toString();
+                    discovered.push({ url: feedUrl, title: titleMatch?.[1] || 'RSS Feed', source: 'link_tag' });
+                }
+            }
+        }
+    } catch { /* continue to path probing */ }
+
+    // Step 2: probe common RSS paths if nothing found via link tag
+    if (discovered.length === 0) {
+        const origin = `${parsed.protocol}//${parsed.host}`;
+        const COMMON_PATHS = ['/feed', '/rss', '/feed.xml', '/rss.xml', '/atom.xml', '/feeds/posts/default', '/blog/feed', '/news/feed'];
+        for (const path of COMMON_PATHS) {
+            try {
+                const probeUrl = origin + path;
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 5000);
+                const resp = await fetch(probeUrl, { method: 'HEAD', headers: { 'User-Agent': UA }, signal: controller.signal });
+                clearTimeout(timeout);
+                const ct = resp.headers.get('content-type') || '';
+                if (resp.ok && /xml|rss|atom/i.test(ct)) {
+                    discovered.push({ url: probeUrl, title: 'RSS Feed', source: 'path_probe' });
+                    break; // one confirmed path is enough
+                }
+            } catch { /* try next path */ }
+        }
+    }
+
+    res.json({ input_url: url, feeds: discovered, count: discovered.length });
+});
+
 // PATCH /:id — Update source
 router.patch('/:id', requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
     try {

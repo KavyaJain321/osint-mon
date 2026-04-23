@@ -16,6 +16,48 @@ let pollerStarted = false;
 const POLL_INTERVAL_MS    = 30_000; // Check DB for queued videos every 30s
 const BETWEEN_VIDEO_DELAY = 5_000;  // Gap between videos (Groq rate-limit recovery)
 
+// ── F1: Stale 'processing' sweep ─────────────────────────────
+// If Render crashes mid-pipeline the video stays in 'processing' forever —
+// the poller only picks up 'queued', so it is silently dead until manual
+// intervention. At startup, reset any video stuck in 'processing' for
+// more than STALE_PROCESSING_MINUTES minutes back to 'queued'.
+const STALE_PROCESSING_MINUTES = 35;
+
+async function sweepStaleProcessing() {
+    const cutoff = new Date(Date.now() - STALE_PROCESSING_MINUTES * 60 * 1000).toISOString();
+    try {
+        const { data: stale } = await supabase
+            .from('content_items')
+            .select('id, type_metadata, title')
+            .eq('content_type', 'video')
+            .eq('type_metadata->>processing_status', 'processing')
+            .lt('type_metadata->>processing_updated_at', cutoff)
+            .limit(20);
+
+        if (!stale?.length) return;
+
+        log.ai.warn(`F1: Resetting ${stale.length} stale-processing video(s) → queued`, {
+            titles: stale.map(v => v.title?.substring(0, 40)),
+        });
+
+        for (const video of stale) {
+            await supabase.from('content_items')
+                .update({
+                    type_metadata: {
+                        ...video.type_metadata,
+                        processing_status: 'queued',
+                        processing_message: 'Re-queued after stale-processing reset (server restart)',
+                        processing_updated_at: new Date().toISOString(),
+                    },
+                })
+                .eq('id', video.id)
+                .eq('type_metadata->>processing_status', 'processing'); // guard against race
+        }
+    } catch (err) {
+        log.ai.warn('F1: Stale-processing sweep failed (non-blocking)', { error: err.message });
+    }
+}
+
 // ── Public: start the background DB poller ───────────────────
 // Called once from index.js at server startup.
 // Picks up any videos stuck in 'queued' state from before a restart.
@@ -24,8 +66,11 @@ export function startQueuePoller() {
     pollerStarted = true;
     log.ai.info('🔄 DB-driven video queue poller started (30s interval)');
 
+    // F1: sweep stale 'processing' → 'queued' before first pick
+    setTimeout(() => sweepStaleProcessing(), 5000);
+
     // Run once shortly after startup to pick up any stuck queued videos
-    setTimeout(() => pickAndProcess(), 8000);
+    setTimeout(() => pickAndProcess(), 10000);
 
     // Then poll on a regular interval
     setInterval(async () => {

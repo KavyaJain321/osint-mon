@@ -542,6 +542,31 @@ export async function runScraperCycle(filterClientId = null) {
             errors: totalErrors,
         });
 
+        // F4: persist scrape summary to system_state so operators can query it
+        // without trawling Render logs. Exposed via GET /api/admin/scrape-summary.
+        try {
+            await supabase.from('system_state').upsert({
+                key: 'last_scrape_summary',
+                value: JSON.stringify({
+                    timestamp:   new Date().toISOString(),
+                    duration_ms: duration,
+                    sources: {
+                        total:   sources.length,
+                        rss:     rssSources.length,
+                        html:    htmlSources.length,
+                        youtube: youtubeSources.length,
+                        gnews:   gnewsSources.length,
+                        reddit:  redditSources.length,
+                        pdf:     pdfSources.length,
+                    },
+                    articles: { found: totalFound, saved: totalSaved, errors: totalErrors },
+                    yt_search: { found: ytSearchResults.totalFound || 0, saved: ytSearchResults.totalSaved || 0 },
+                    filter_client: filterClientId || null,
+                }),
+                updated_at: new Date().toISOString(),
+            }, { onConflict: 'key' });
+        } catch { /* non-critical */ }
+
         // Run temporal analysis per client in background (non-blocking)
         // Run temporal analysis per client in background (non-blocking)
         if (totalSaved > 0) {
