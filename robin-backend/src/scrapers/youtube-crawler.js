@@ -13,6 +13,7 @@ import { updateSourceScrapeStatus } from '../services/article-saver.js';
 import { saveContent } from '../services/content-saver.js';
 import { enqueueVideo } from '../services/video-processor/video-queue.js';
 import { translateToEnglish } from '../services/video-processor/translation-service.js';
+import { groqChat } from '../lib/groq.js';
 import { log } from '../lib/logger.js';
 
 const MAX_VIDEOS_API = 25;        // Fetch pool to search through (default)
@@ -226,6 +227,90 @@ async function fetchChannelRSS(channelId) {
     }
 }
 
+// ── Shared save + enqueue helper ─────────────────────────────
+async function saveAndEnqueue(video, source, matchedKeywords, allKeywords, result) {
+    const thumbnailUrl = `https://img.youtube.com/vi/${video.videoId}/maxresdefault.jpg`;
+    const saveResult = await saveContent({
+        contentType: 'video',
+        title: `[VIDEO] ${video.title}`,
+        content: video.description || video.title,
+        url: `https://www.youtube.com/watch?v=${video.videoId}`,
+        publishedAt: video.publishedAt,
+        sourceId: source.id,
+        clientId: source.client_id,
+        matchedKeywords,
+        typeMetadata: {
+            channel_name: source.name || '',
+            image_url: thumbnailUrl,
+            processing_status: 'queued',
+            processing_message: 'Queued for transcription and clip generation',
+        },
+    });
+    if (saveResult.saved) {
+        result.articlesSaved++;
+        log.scraper.info('YouTube video saved — queued for pipeline', {
+            title: video.title.substring(0, 60),
+            videoId: video.videoId,
+        });
+        enqueueVideo(video.videoId, saveResult.contentId, allKeywords, video.title);
+    }
+}
+
+// ── A4: AI semantic title screening ──────────────────────────
+// Catches references like "CM visits Puri" for keyword "Mohan Majhi" — the
+// connection is role-based (CM = Chief Minister of Odisha), not phonetic or
+// substring. One Groq call per source processes all borderline titles in batch.
+const A4_MAX_BORDERLINES = 10; // cap to keep prompt + cost bounded
+
+async function checkBorderlineTitles(borderlineVideos, keywords) {
+    if (!borderlineVideos || borderlineVideos.length === 0) return [];
+
+    // Prefer proper nouns and multi-word keywords — they're the clearest signals
+    const topKeywords = [...keywords]
+        .filter(k => k.length > 3)
+        .sort((a, b) => b.split(' ').length - a.split(' ').length || b.length - a.length)
+        .slice(0, 15);
+    if (topKeywords.length === 0) return [];
+
+    const titleLines = borderlineVideos.map((v, i) => `${i}: "${v.title}"`).join('\n');
+
+    try {
+        const response = await groqChat([{
+            role: 'user',
+            content: `You are screening news video titles for intelligence relevance.
+
+Monitored entities/topics: ${topKeywords.join(', ')}
+
+For each numbered title, does it likely discuss any monitored entity — including by role abbreviation (CM = Chief Minister, DGP = Director General of Police, HM = Home Minister, FM = Finance Minister, MLA/MP = elected representative), ruling-party reference, or indirect mention?
+
+Titles:
+${titleLines}
+
+Respond ONLY with a JSON array covering all indices:
+[{"index":0,"match":true,"keyword":"most relevant matched entity"},{"index":1,"match":false,"keyword":""}]`,
+        }], { temperature: 0, max_tokens: 400 });
+
+        const raw = response.choices[0]?.message?.content?.trim() || '';
+        const jsonMatch = raw.match(/\[[\s\S]*?\]/);
+        if (!jsonMatch) return [];
+
+        const parsed = JSON.parse(jsonMatch[0]);
+        const hits = parsed.filter(r => r.match === true);
+
+        if (hits.length > 0) {
+            log.scraper.info('A4: Groq semantic check found additional matches', {
+                borderlines: borderlineVideos.length,
+                approved: hits.length,
+                titles: hits.map(h => borderlineVideos[h.index]?.title?.substring(0, 50)),
+            });
+        }
+        return hits;
+    } catch (err) {
+        log.scraper.warn('A4: Groq borderline check failed', { error: err.message });
+        return [];
+    }
+}
+
 // ── Main crawler ─────────────────────────────────────────────
 /**
  * Crawl a YouTube source using RSS feed as primary method.
@@ -305,11 +390,13 @@ async function crawlYoutubeSourceInternal(source, keywords) {
         const videoCutoff = new Date(Date.now() - VIDEO_MAX_AGE_MS);
 
         let savedThisCycle = 0;
+        const borderlineVideos = []; // A4: for AI semantic check after main pass
+
         for (const video of videos) {
             if (savedThisCycle >= maxSavePerSrc) break;
 
             try {
-                // Skip videos older than 7 days
+                // Skip videos older than the client-configured recency window
                 if (video.publishedAt && new Date(video.publishedAt) < videoCutoff) continue;
 
                 // Skip live streams, bulletins, and headline roundups —
@@ -359,48 +446,44 @@ async function crawlYoutubeSourceInternal(source, keywords) {
                     topicMatch = topicHits >= 2;
                 }
 
-                if (!match.matched && !topicMatch) continue;
-
-                const thumbnailUrl = `https://img.youtube.com/vi/${video.videoId}/maxresdefault.jpg`;
-
-                // Save with description as initial content.
-                // The pipeline will replace this with the full English transcript after Whisper processing.
-                const saveResult = await saveContent({
-                    contentType: 'video',
-                    title: `[VIDEO] ${video.title}`,
-                    content: video.description || video.title,
-                    url: `https://www.youtube.com/watch?v=${video.videoId}`,
-                    publishedAt: video.publishedAt,
-                    sourceId: source.id,
-                    clientId: source.client_id,
-                    matchedKeywords: match.matchedKeywords,
-                    typeMetadata: {
-                        channel_name: source.name || '',
-                        image_url: thumbnailUrl,
-                        processing_status: 'queued',
-                        processing_message: 'Queued for transcription and clip generation',
-                    },
-                });
-
-                if (saveResult.saved) {
-                    result.articlesSaved++;
-                    savedThisCycle++;
-                    log.scraper.info('YouTube video saved — queued for pipeline', {
-                        title: video.title.substring(0, 60),
-                        videoId: video.videoId,
-                    });
-
-                    // Add to sequential queue — videos are processed one at a time
-                    // to avoid exhausting Groq API rate limits.
-                    // Pass ALL brief keywords to maximize clip generation across the full transcript!
-                    enqueueVideo(video.videoId, saveResult.contentId, keywords, video.title);
+                if (!match.matched && !topicMatch) {
+                    // A4: if the title has at least 1 topic word it might be relevant via
+                    // role abbreviation or indirect reference — defer to Groq batch check.
+                    if (
+                        topicWords && topicWords.size > 0 &&
+                        topicRelevant(video.title, topicWords) &&
+                        borderlineVideos.length < A4_MAX_BORDERLINES
+                    ) {
+                        borderlineVideos.push(video);
+                    }
+                    continue;
                 }
+
+                await saveAndEnqueue(video, source, match.matchedKeywords, keywords, result);
+                savedThisCycle++;
             } catch (error) {
                 result.errors.push({ videoId: video.videoId, error: error.message });
                 log.scraper.warn('YouTube video processing failed', {
                     videoId: video.videoId,
                     error: error.message,
                 });
+            }
+        }
+
+        // ── A4: Groq semantic batch check for borderline videos ───────
+        if (borderlineVideos.length > 0 && savedThisCycle < maxSavePerSrc) {
+            const hits = await checkBorderlineTitles(borderlineVideos, keywords);
+            for (const hit of hits) {
+                if (savedThisCycle >= maxSavePerSrc) break;
+                const video = borderlineVideos[hit.index];
+                if (!video) continue;
+                const matchedKws = hit.keyword ? [hit.keyword] : [keywords[0]];
+                try {
+                    await saveAndEnqueue(video, source, matchedKws, keywords, result);
+                    savedThisCycle++;
+                } catch (err) {
+                    log.scraper.warn('A4: borderline video save failed', { videoId: video.videoId, error: err.message });
+                }
             }
         }
 
