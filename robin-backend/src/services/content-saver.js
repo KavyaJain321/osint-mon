@@ -132,12 +132,13 @@ export async function saveContent(raw) {
     const contentHash = generateContentHash(item.content);
     const titleHash = generateTitleHash(item.title);
 
-    // 4. Check for URL-based dedup
+    // 4. Check for URL-based dedup (scoped to client — same URL is valid for different clients)
     try {
         const { data: existing } = await supabase
             .from('content_items')
             .select('id')
             .eq('url', normalizedUrl)
+            .eq('client_id', item.clientId)
             .limit(1)
             .maybeSingle();
 

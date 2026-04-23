@@ -32,7 +32,18 @@ router.get('/', async (req, res) => {
             .limit(200);
 
         if (error) throw error;
-        res.json(data || []);
+
+        // D3: annotate each source with how many days since last successful scrape.
+        // staleness_days=null means never scraped. staleness_days>=30 warrants attention.
+        const now = Date.now();
+        const annotated = (data || []).map(src => ({
+            ...src,
+            staleness_days: src.last_success_at
+                ? Math.floor((now - new Date(src.last_success_at).getTime()) / 86400000)
+                : null,
+        }));
+
+        res.json(annotated);
     } catch (error) {
         log.api.error('GET /sources failed', { error: error.message });
         res.status(500).json({ error: 'Failed to fetch sources' });

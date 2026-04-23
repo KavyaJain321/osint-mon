@@ -169,6 +169,7 @@ async function scrapeGoogleNewsAuto(source, clientId, keywords = []) {
     const BATCH_SIZE = 6;
     const allResults = [];
     const seenUrls = new Set();
+    const seenTitleHashes = new Set(); // E1: dedup by title when GNews redirect URL varies
 
     // Group keywords into batches of BATCH_SIZE
     const batches = [];
@@ -198,10 +199,12 @@ async function scrapeGoogleNewsAuto(source, clientId, keywords = []) {
                 timeoutPromise,
             ]);
 
-            // Deduplicate across batches by URL
+            // Deduplicate across batches by URL and by normalized title
             for (const item of items) {
-                if (!seenUrls.has(item.url)) {
+                const titleKey = item.title.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+                if (!seenUrls.has(item.url) && !seenTitleHashes.has(titleKey)) {
                     seenUrls.add(item.url);
+                    seenTitleHashes.add(titleKey);
                     allResults.push(item);
                 }
             }

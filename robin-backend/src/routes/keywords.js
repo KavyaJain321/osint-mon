@@ -88,6 +88,77 @@ router.get('/performance', async (req, res) => {
     }
 });
 
+// GET /analytics — Keyword hit counts (7d + 30d) with dead-keyword flag
+// D2: Identifies which monitored keywords have never fired recently so operators
+// can prune dead keywords and keep briefs focused.
+router.get('/analytics', async (req, res) => {
+    try {
+        const clientId = req.user.clientId;
+
+        // Load all active brief keywords
+        const { data: brief } = await supabase.from('client_briefs')
+            .select('id').eq('client_id', clientId).eq('status', 'active').limit(1).single();
+        if (!brief) return res.json({ keywords: [], total: 0 });
+
+        const { data: kwRows } = await supabase
+            .from('brief_generated_keywords')
+            .select('id, keyword, category, priority')
+            .eq('brief_id', brief.id)
+            .limit(300);
+
+        if (!kwRows || kwRows.length === 0) return res.json({ keywords: [], total: 0 });
+
+        // Fetch matched_keywords from recent content_items for this client
+        const cutoff30d = new Date(Date.now() - 30 * 86400000).toISOString();
+        const cutoff7d  = new Date(Date.now() -  7 * 86400000).toISOString();
+
+        const { data: items30 } = await supabase
+            .from('content_items')
+            .select('matched_keywords, created_at')
+            .eq('client_id', clientId)
+            .gte('created_at', cutoff30d)
+            .limit(2000);
+
+        // Count hits per keyword over 30d and 7d windows
+        const count30 = {};
+        const count7  = {};
+        const sevenDaysAgo = new Date(cutoff7d);
+        for (const item of items30 || []) {
+            const inLast7 = new Date(item.created_at) >= sevenDaysAgo;
+            for (const kw of item.matched_keywords || []) {
+                count30[kw] = (count30[kw] || 0) + 1;
+                if (inLast7) count7[kw] = (count7[kw] || 0) + 1;
+            }
+        }
+
+        const result = kwRows.map(row => ({
+            id:           row.id,
+            keyword:      row.keyword,
+            category:     row.category,
+            priority:     row.priority,
+            hits_30d:     count30[row.keyword] || 0,
+            hits_7d:      count7[row.keyword]  || 0,
+            is_dead:      (count30[row.keyword] || 0) === 0,
+        }));
+
+        // Sort: dead keywords first, then by hits_30d desc
+        result.sort((a, b) => {
+            if (a.is_dead !== b.is_dead) return a.is_dead ? -1 : 1;
+            return b.hits_30d - a.hits_30d;
+        });
+
+        res.json({
+            keywords:   result,
+            total:      result.length,
+            dead_count: result.filter(r => r.is_dead).length,
+            period_days: 30,
+        });
+    } catch (error) {
+        log.api.error('GET /keywords/analytics failed', { error: error.message });
+        res.status(500).json({ error: 'Failed to fetch keyword analytics' });
+    }
+});
+
 // GET /pending — Pending auto-discovered keywords awaiting review
 router.get('/pending', async (req, res) => {
     try {
