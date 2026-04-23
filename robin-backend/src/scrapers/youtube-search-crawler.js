@@ -40,6 +40,18 @@ function getClientSearchOverrides(clientId) {
     return {};
 }
 
+function isIndicClient(clientId) {
+    return clientId === RIGIOR_CLIENT_ID || clientId === ODISHA_CLIENT_ID;
+}
+
+// ── A1: in-memory keyword rotation cursor ──────────────────────
+// The prior impl always picked the top-N scored keywords, so keywords
+// ranked below the cap NEVER got searched. This cursor rotates the
+// window across scrape cycles so every keyword eventually hits YouTube.
+// Persists within a Render process; resets on Render restart which is fine —
+// over a day the full keyword set still gets covered multiple times.
+const keywordCursor = new Map(); // clientId -> next start index
+
 /**
  * Run YouTube keyword-based search for all clients.
  * Called by the orchestrator AFTER channel-based YouTube crawling.
@@ -111,8 +123,9 @@ async function searchForClient(clientId, keywords) {
         clientName = clientRow?.name || null;
     } catch { /* fall back to generic persona */ }
 
-    // Pick the most specific keywords for search queries
-    const searchQueries = selectSearchQueries(keywords, maxQueries);
+    // Pick the most specific keywords for search queries, with rotation so
+    // all keywords eventually get coverage instead of just the top-scored N.
+    const searchQueries = selectSearchQueries(keywords, maxQueries, clientId);
 
     log.scraper.info('YouTube keyword search starting', {
         clientId,
@@ -127,7 +140,18 @@ async function searchForClient(clientId, keywords) {
         if (found >= maxTotal) break;
 
         try {
-            const videos = await searchYouTubeAPI(query, publishedAfter);
+            // A2: for Indic clients, also pass relevanceLanguage=hi so YouTube's
+            // own cross-script ranking surfaces Devanagari/regional-script titles
+            // for English keywords (e.g. "Naveen Patnaik" → Hindi channel uploads).
+            // Two API calls, merged by videoId dedupe — doubles quota per Indic query
+            // but stays within the per-cycle maxTotal cap.
+            const primary = await searchYouTubeAPI(query, publishedAfter);
+            const indic   = isIndicClient(clientId)
+                ? await searchYouTubeAPI(query, publishedAfter, 'hi')
+                : [];
+            const videos = [...primary];
+            const seen = new Set(primary.map(v => v.videoId));
+            for (const v of indic) { if (!seen.has(v.videoId)) { seen.add(v.videoId); videos.push(v); } }
 
             for (const video of videos) {
                 if (found >= maxTotal) break;
@@ -210,15 +234,16 @@ async function searchForClient(clientId, keywords) {
  * @param {string} publishedAfter - ISO date string
  * @returns {Promise<Array>} Videos
  */
-async function searchYouTubeAPI(query, publishedAfter) {
+async function searchYouTubeAPI(query, publishedAfter, relevanceLanguage = null) {
     const params = {
         part: 'snippet',
         type: 'video',
         maxResults: String(MAX_RESULTS_PER_QUERY),
         order: 'relevance',
         publishedAfter,
-        q: query
+        q: query,
     };
+    if (relevanceLanguage) params.relevanceLanguage = relevanceLanguage;
 
     const url = `https://youtube.googleapis.com/youtube/v3/search`;
 
@@ -265,7 +290,7 @@ async function searchYouTubeAPI(query, publishedAfter) {
  * @param {string[]} keywords
  * @returns {string[]} Top search queries
  */
-function selectSearchQueries(keywords, maxCount = MAX_QUERIES_PER_CLIENT) {
+function selectSearchQueries(keywords, maxCount = MAX_QUERIES_PER_CLIENT, clientId = null) {
     if (!keywords || keywords.length === 0) return [];
 
     // Score keywords by specificity
@@ -287,10 +312,18 @@ function selectSearchQueries(keywords, maxCount = MAX_QUERIES_PER_CLIENT) {
         return { keyword: kw, score };
     });
 
-    // Sort by score (descending) and take top N
+    // Sort by score (descending) — priority ordering within each window
     scored.sort((a, b) => b.score - a.score);
 
-    return scored
-        .slice(0, maxCount)
-        .map(s => s.keyword);
+    // A1: rotate the window across cycles so keywords below the top-N cap
+    // eventually get searched. Cursor is per-client and lives in process memory.
+    const n = scored.length;
+    if (!clientId || n <= maxCount) {
+        return scored.slice(0, maxCount).map(s => s.keyword);
+    }
+    const cursor = keywordCursor.get(clientId) || 0;
+    const start  = cursor % n;
+    const rotated = [...scored.slice(start), ...scored.slice(0, start)];
+    keywordCursor.set(clientId, (start + maxCount) % n);
+    return rotated.slice(0, maxCount).map(s => s.keyword);
 }
