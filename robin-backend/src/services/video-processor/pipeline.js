@@ -5,7 +5,7 @@
 // ============================================================
 
 import { processVideoViaTrijya } from './trijya-video-service.js';
-import { isNonEnglishLanguage, translateToEnglish } from './translation-service.js';
+import { isNonEnglishLanguage, translateToEnglish, translateKeywordsToLanguage } from './translation-service.js';
 import { summarizeFullVideo, summarizeAllClips } from './summary-service.js';
 import { VIDEO_CONFIG } from './config.js';
 import { supabase } from '../../lib/supabase.js';
@@ -31,12 +31,27 @@ export async function processVideo(videoId, articleId, matchedKeywords, clientNa
         await updateProcessingStatus(articleId, 'processing', 'Queuing video on TRIJYA-7...');
 
         // ── Steps 1–4: TRIJYA-7 (download + transcribe + clips) ───────
+        // B3: For non-English sources, augment keywords with native-script
+        // translations so "Women Reservation Bill" matches "महिला आरक्षण विधेयक".
+        // TRIJYA-7's fuzzy matcher then catches the native form via direct
+        // transliteration — no architectural change needed on the worker side.
+        let allKeywords = [...matchedKeywords];
+        if (sourceLanguage && isNonEnglishLanguage(sourceLanguage)) {
+            const translatedKws = await translateKeywordsToLanguage(matchedKeywords, sourceLanguage);
+            if (translatedKws.length > 0) {
+                allKeywords = [...matchedKeywords, ...translatedKws];
+            }
+        }
+
         log.ai.info('🎙️ [VIDEO PIPELINE] Steps 1-4: Dispatching to TRIJYA-7', {
-            videoId, keywords: matchedKeywords, sourceLanguage,
+            videoId,
+            keywords: matchedKeywords.length,
+            totalWithTranslated: allKeywords.length,
+            sourceLanguage,
         });
 
         const trijyaResult = await withTimeout(
-            processVideoViaTrijya(videoId, matchedKeywords, sourceLanguage),
+            processVideoViaTrijya(videoId, allKeywords, sourceLanguage),
             VIDEO_CONFIG.pipelineTimeoutMs,
             'TRIJYA-7 video pipeline timed out'
         );

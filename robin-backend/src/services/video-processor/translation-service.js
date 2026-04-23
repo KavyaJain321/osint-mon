@@ -142,3 +142,73 @@ export async function translateToEnglish(sourceText, languageCode = 'unknown') {
 export async function translateOdiaToEnglish(odiaText) {
     return translateToEnglish(odiaText, 'or');
 }
+
+// ── B3: Keyword translation for Indic matching ─────────────────
+// English keywords like "Women Reservation Bill" will never match a Hindi
+// transcript "महिला आरक्षण विधेयक" via transliteration because they are
+// semantically translated, not phonetically similar. Fix: translate the
+// client's English keywords into the transcript's script (Hindi / Odia / etc.)
+// and pass BOTH sets to TRIJYA-7. The existing fuzzy matcher then catches
+// the native-script form via direct transliteration.
+//
+// Only called when sourceLanguage is non-English — single Groq call per video.
+
+/**
+ * Translate English keywords into the target native-script language.
+ * Returns an array of translated keyword strings (same order, may be shorter
+ * if some translations are identical to the English or empty).
+ *
+ * @param {string[]} keywords - English keyword list
+ * @param {string} targetLanguageCode - Whisper/source language code (e.g. 'hi', 'or')
+ * @returns {Promise<string[]>} Native-script keywords (deduped against English originals)
+ */
+export async function translateKeywordsToLanguage(keywords, targetLanguageCode) {
+    const code = (targetLanguageCode || '').toLowerCase().trim();
+    if (!code || ENGLISH_CODES.has(code) || !keywords || keywords.length === 0) return [];
+
+    const langName = getLanguageName(targetLanguageCode);
+
+    // Cap to 30 keywords to keep token cost low — most specific keywords first
+    const kwsToTranslate = keywords.slice(0, 30);
+
+    try {
+        const response = await groqChat([
+            {
+                role: 'system',
+                content: `You are translating intelligence monitoring keywords from English to ${langName}. ` +
+                    `Output ONLY the translated lines, one per line, in the same order as the input. ` +
+                    `Rules: (1) Transliterate proper nouns (person names, place names, party names) into ${langName} script rather than translating them — e.g. "Naveen Patnaik" → "ନବୀନ ପଟ୍ଟନାୟକ" in Odia. ` +
+                    `(2) Translate concept keywords (e.g. "Women Reservation Bill" → "${langName} equivalent"). ` +
+                    `(3) If a keyword has no meaningful native translation, output it unchanged. ` +
+                    `Do NOT add numbering, bullets, or explanations.`,
+            },
+            {
+                role: 'user',
+                content: kwsToTranslate.join('\n'),
+            },
+        ], { temperature: 0, max_tokens: kwsToTranslate.length * 25 });
+
+        const raw = response.choices[0]?.message?.content?.trim() || '';
+        const translated = raw.split('\n').map(s => s.trim()).filter(Boolean);
+
+        // Remove translations that are identical to their English original
+        // (no value in duplicating keywords that couldn't be translated)
+        const englishSet = new Set(kwsToTranslate.map(k => k.toLowerCase()));
+        const novel = translated.filter(t => !englishSet.has(t.toLowerCase()));
+
+        log.ai.info('B3: Keywords translated for Indic matching', {
+            targetLang: langName,
+            input: kwsToTranslate.length,
+            novel: novel.length,
+            sample: novel.slice(0, 3),
+        });
+
+        return novel;
+    } catch (err) {
+        log.ai.warn('B3: Keyword translation failed — using English keywords only', {
+            error: err.message?.substring(0, 100),
+            targetLanguageCode,
+        });
+        return [];
+    }
+}
